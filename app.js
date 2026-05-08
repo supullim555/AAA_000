@@ -113,27 +113,398 @@ function toKoreanError(err) {
   return `오류: ${msg}`;
 }
 
-/* ── 뉴스 렌더링 ── */
-function renderNews() {
-  const grid = document.getElementById('newsGrid');
-  if (!grid || typeof NEWS_DATA === 'undefined') return;
+/* ── 공지사항 ── */
+function getNotices() {
+  return JSON.parse(localStorage.getItem('jnaver_notices') || '[]');
+}
 
-  if (NEWS_DATA.length === 0) {
-    grid.innerHTML = '<p class="news-empty">아직 게시물이 없어요.</p>';
+function saveNotices(list) {
+  localStorage.setItem('jnaver_notices', JSON.stringify(list));
+}
+
+function renderNotices(isAdmin) {
+  const ul = document.getElementById('noticeList');
+  if (!ul) return;
+
+  const list = getNotices();
+
+  if (list.length === 0) {
+    ul.innerHTML = '<li class="notice-empty">공지사항이 없습니다.</li>';
     return;
   }
 
-  grid.innerHTML = NEWS_DATA.map(n => `
-    <a class="news-card" href="${n.href}">
+  ul.innerHTML = list.map(n => `
+    <li class="notice-item">
+      <span class="notice-dot">●</span>
+      <span class="notice-title">${n.title}</span>
+      <span class="notice-date">${n.date}</span>
+      ${isAdmin ? `<button class="notice-del" data-id="${n.id}" title="삭제">×</button>` : ''}
+    </li>
+  `).join('');
+
+  if (isAdmin) {
+    ul.querySelectorAll('.notice-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        saveNotices(getNotices().filter(n => n.id !== Number(btn.dataset.id)));
+        renderNotices(true);
+      });
+    });
+  }
+}
+
+function initNotices(isAdmin) {
+  const addBtn  = document.getElementById('noticeAddBtn');
+  const form    = document.getElementById('noticeForm');
+  const input   = document.getElementById('noticeInput');
+
+  if (isAdmin && addBtn) {
+    addBtn.classList.remove('hidden');
+    addBtn.addEventListener('click', () => {
+      form.classList.toggle('hidden');
+      if (!form.classList.contains('hidden')) input.focus();
+    });
+  }
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = input.value.trim();
+    if (!title) return;
+
+    const list = getNotices();
+    list.unshift({ id: Date.now(), title, date: new Date().toLocaleDateString('ko-KR') });
+    saveNotices(list);
+    input.value = '';
+    form.classList.add('hidden');
+    renderNotices(true);
+  });
+
+  renderNotices(isAdmin);
+}
+
+/* ── 게시물 (Posts) ── */
+/* ── 카테고리 ── */
+let _selectedCat = ''; // 현재 선택된 카테고리 ('': 전체)
+
+function getCategories() {
+  return JSON.parse(localStorage.getItem('jnaver_categories') || '[]');
+}
+
+function saveCategories(list) {
+  localStorage.setItem('jnaver_categories', JSON.stringify(list));
+}
+
+/* 카테고리별 게시물 수 */
+function getCatCounts() {
+  const counts = {};
+  getPosts().forEach(p => {
+    counts[p.category] = (counts[p.category] || 0) + 1;
+  });
+  return counts;
+}
+
+/* ── 카테고리 칩 렌더링 ── */
+function renderCategoryChips(chipsId, searchId, onSelect) {
+  const wrap = document.getElementById(chipsId);
+  if (!wrap) return;
+
+  const cats    = getCategories();
+  const search  = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
+  const visible = search ? cats.filter(c => c.toLowerCase().includes(search)) : cats;
+  const counts  = getCatCounts();
+
+  if (cats.length === 0) {
+    wrap.innerHTML = '<span class="cat-chip-empty">카테고리가 없습니다.</span>';
+    return;
+  }
+
+  // 칩 DOM 직접 생성 → data-cat 인코딩 문제 없음
+  wrap.innerHTML = '';
+
+  // 전체 칩
+  const allBtn = document.createElement('button');
+  allBtn.className = 'cat-chip' + (_selectedCat === '' ? ' active' : '');
+  allBtn.textContent = '전체';
+  allBtn.addEventListener('click', () => {
+    _selectedCat = '';
+    renderCategoryChips(chipsId, searchId, onSelect);
+    if (onSelect) onSelect();
+  });
+  wrap.appendChild(allBtn);
+
+  // 카테고리 칩
+  if (visible.length === 0 && search) {
+    const empty = document.createElement('span');
+    empty.className = 'cat-chip-empty';
+    empty.textContent = '검색 결과가 없습니다.';
+    wrap.appendChild(empty);
+  } else {
+    visible.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-chip' + (_selectedCat === c ? ' active' : '');
+      btn.textContent = c;
+
+      if (counts[c]) {
+        const badge = document.createElement('span');
+        badge.className = 'cat-count';
+        badge.textContent = counts[c];
+        btn.appendChild(badge);
+      }
+
+      btn.addEventListener('click', () => {
+        _selectedCat = c;                              // 클로저로 원본 값 그대로 사용
+        renderCategoryChips(chipsId, searchId, onSelect);
+        if (onSelect) onSelect();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+}
+
+/* ── 홈 카테고리 섹션 초기화 ── */
+function initCategorySection() {
+  renderCategoryChips('catChips', 'catSearch', renderPosts);
+  document.getElementById('catSearch')?.addEventListener('input', () => {
+    renderCategoryChips('catChips', 'catSearch', renderPosts);
+  });
+}
+
+/* ── 대시보드 카테고리 섹션 초기화 (조회만) ── */
+function initDashCategorySection() {
+  renderCategoryChips('dashCatChips', 'dashCatSearch', null);
+  document.getElementById('dashCatSearch')?.addEventListener('input', () => {
+    renderCategoryChips('dashCatChips', 'dashCatSearch', null);
+  });
+}
+
+function getPosts() {
+  return JSON.parse(localStorage.getItem('jnaver_posts') || '[]');
+}
+
+function savePosts(list) {
+  localStorage.setItem('jnaver_posts', JSON.stringify(list));
+}
+
+function getPost(id) {
+  return getPosts().find(p => p.id === Number(id));
+}
+
+function deletePost(id) {
+  savePosts(getPosts().filter(p => p.id !== Number(id)));
+}
+
+function incrementViews(id) {
+  const list = getPosts();
+  const post = list.find(p => p.id === Number(id));
+  if (!post) return;
+  post.views = (post.views || 0) + 1;
+  savePosts(list);
+}
+
+/* HTML 이스케이프 (XSS 방지) */
+function escapeHTML(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('ko-KR');
+}
+
+/* ── 게시물 렌더링 (카테고리 필터 + 조회수 순) ── */
+function renderPosts() {
+  const grid    = document.getElementById('newsGrid');
+  const titleEl = document.getElementById('postsSectionTitle');
+  if (!grid) return;
+
+  // 섹션 타이틀 동적 변경
+  if (titleEl) {
+    titleEl.textContent = _selectedCat ? `${_selectedCat} 게시물` : '인기 게시물';
+  }
+
+  let posts = getPosts();
+  if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
+  posts = posts.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
+
+  if (posts.length === 0) {
+    const msg = _selectedCat
+      ? `"${escapeHTML(_selectedCat)}" 카테고리에 게시물이 없습니다.`
+      : '아직 게시물이 없습니다.';
+    grid.innerHTML = `<p class="news-empty">${msg}</p>`;
+    return;
+  }
+
+  grid.innerHTML = posts.map(p => `
+    <a class="news-card" href="post-detail.html?id=${p.id}">
       <div class="news-card-top">
-        <span class="news-badge ${n.categoryType}">${n.category}</span>
-        <span class="news-date">${n.date}</span>
+        <span class="news-badge">${escapeHTML(p.category)}</span>
+        <span class="news-date">${formatDate(p.createdAt)}</span>
       </div>
-      <div class="news-emoji">${n.emoji}</div>
-      <h3 class="news-title">${n.title}</h3>
-      <p class="news-desc">${n.desc}</p>
+      <h3 class="news-title">${escapeHTML(p.title)}</h3>
+      <p class="news-desc">${escapeHTML(truncate(p.content, 70))}</p>
+      <div class="post-meta">by ${escapeHTML(p.authorNickname)} · 조회 ${p.views || 0}</div>
     </a>
   `).join('');
+}
+
+/* ── 카테고리 관리 (대시보드) ── */
+function renderCategories() {
+  const ul = document.getElementById('catList');
+  if (!ul) return;
+
+  const cats = getCategories();
+  if (cats.length === 0) {
+    ul.innerHTML = '<li class="cat-empty">카테고리가 없습니다.</li>';
+    return;
+  }
+
+  ul.innerHTML = cats.map(c => `
+    <li class="cat-item">
+      <span class="cat-name">${escapeHTML(c)}</span>
+      <button class="cat-del" data-name="${escapeHTML(c)}">×</button>
+    </li>
+  `).join('');
+
+  ul.querySelectorAll('.cat-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      saveCategories(getCategories().filter(c => c !== btn.dataset.name));
+      renderCategories();
+    });
+  });
+}
+
+function initCategoryManager() {
+  renderCategories();
+
+  const input  = document.getElementById('catInput');
+  const addBtn = document.getElementById('catAddBtn');
+  if (!input || !addBtn) return;
+
+  addBtn.addEventListener('click', () => {
+    const name = input.value.trim();
+    if (!name) return;
+
+    const cats = getCategories();
+    if (cats.includes(name)) {
+      showToast('이미 있는 카테고리예요.', 'red');
+      return;
+    }
+
+    cats.push(name);
+    saveCategories(cats);
+    input.value = '';
+    renderCategories();
+    showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
+  });
+}
+
+/* ── 글쓰기 페이지 ── */
+async function initPostWrite() {
+  const session = await getSession();
+  if (!session) {
+    showToast('로그인이 필요해요.', 'red');
+    setTimeout(() => { window.location.href = 'login.html'; }, 1200);
+    return;
+  }
+
+  const form = document.getElementById('postWriteForm');
+  if (!form) return;
+
+  const cat = form.category;
+  const cats = getCategories();
+
+  if (cats.length === 0) {
+    cat.innerHTML = '<option value="" disabled selected>카테고리가 없습니다</option>';
+    cat.disabled = true;
+    const hint = document.getElementById('catHint');
+    if (hint) hint.classList.remove('hidden');
+  } else {
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      cat.appendChild(opt);
+    });
+  }
+
+  const submitBtn = form.querySelector('[type=submit]');
+  submitBtn.dataset.label = submitBtn.textContent;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title    = form.title.value.trim();
+    const content  = form.content.value.trim();
+    const category = form.category.value;
+
+    if (!title || !content) {
+      showToast('제목과 내용을 모두 입력해 주세요.', 'red');
+      return;
+    }
+
+    const u = session.user;
+    const list = getPosts();
+    list.unshift({
+      id: Date.now(),
+      title,
+      content,
+      category,
+      authorId:       u.id,
+      authorEmail:    u.email,
+      authorNickname: u.user_metadata?.nickname || u.email,
+      createdAt:      new Date().toISOString(),
+      views:          0,
+    });
+    savePosts(list);
+
+    showToast('게시물이 등록됐어요! 🎉', 'green');
+    setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+  });
+}
+
+/* ── 게시물 상세 페이지 ── */
+async function initPostDetail() {
+  const session = await getSession();
+  updateNav(session);
+
+  document.getElementById('navLogout')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await authSignOut();
+    location.reload();
+  });
+
+  const id = new URLSearchParams(location.search).get('id');
+  const wrap = document.getElementById('postContent');
+
+  if (!id) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
+
+  incrementViews(id);
+  const post = getPost(id);
+  if (!post) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
+
+  document.getElementById('postCategory').textContent = post.category;
+  document.getElementById('postTitle').textContent    = post.title;
+  document.getElementById('postAuthor').textContent   = post.authorNickname;
+  document.getElementById('postDate').textContent     = formatDate(post.createdAt);
+  document.getElementById('postViews').textContent    = post.views || 0;
+  document.getElementById('postBody').textContent     = post.content;
+
+  if (session && session.user.id === post.authorId) {
+    const delBtn = document.getElementById('postDelBtn');
+    delBtn.classList.remove('hidden');
+    delBtn.addEventListener('click', () => {
+      if (!confirm('정말 삭제하시겠어요?')) return;
+      deletePost(id);
+      window.location.href = 'index.html';
+    });
+  }
 }
 
 /* ────────────────────────────────────────
@@ -142,7 +513,12 @@ function renderNews() {
 async function initIndex() {
   const session = await getSession();
   updateNav(session);
-  renderNews();
+  initCategorySection();
+  renderPosts();
+  initNotices(!!session);
+
+  const writeBtn = document.getElementById('writeBtn');
+  if (session) writeBtn?.classList.remove('hidden');
 
   document.getElementById('navLogout')?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -269,6 +645,9 @@ async function initDashboard() {
   if (nameEl)  nameEl.textContent  = nickname;
   if (dateEl)  dateEl.textContent  = joinDate;
   if (emailEl) emailEl.textContent = user.email;
+
+  initDashCategorySection();
+  initCategoryManager();
 
   // 로그아웃 버튼 (본문)
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {

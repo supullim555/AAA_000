@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>내 공간 - 주니어 나버</title>
+  <title>내 공간 - Open Azitfh</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <a class="logo" href="index.html">주니어<span>나버</span></a>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
     <nav>
       <a href="index.html">홈</a>
       <a href="dashboard.html" class="active">내 공간</a>
@@ -25,6 +25,25 @@
         &nbsp;·&nbsp;
         이메일: <span id="userEmail"></span>
       </p>
+    </div>
+
+    <!-- 카테고리 현황 -->
+    <div class="dash-section">
+      <h3 class="dash-section-title">카테고리</h3>
+      <div class="cat-top" style="margin-bottom:10px;">
+        <input type="text" id="dashCatSearch" class="cat-search" placeholder="카테고리 검색">
+      </div>
+      <div class="cat-chips" id="dashCatChips"></div>
+    </div>
+
+    <!-- 카테고리 관리 -->
+    <div class="dash-section">
+      <h3 class="dash-section-title">카테고리 관리</h3>
+      <div class="cat-add-row">
+        <input type="text" id="catInput" placeholder="새 카테고리 이름" maxlength="20">
+        <button id="catAddBtn">추가</button>
+      </div>
+      <ul id="catList" class="cat-list"></ul>
     </div>
 
     <button id="logoutBtn" class="logout-btn">로그아웃</button>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>게시물 - Open Azitfh</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navLogin"  href="login.html">로그인</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-wrap">
+    <a href="index.html" class="post-back">← 목록으로</a>
+
+    <div id="postContent">
+      <div class="post-detail-header">
+        <span class="news-badge" id="postCategory"></span>
+        <h1 class="post-detail-title" id="postTitle"></h1>
+        <div class="post-detail-meta">
+          <span>by <span id="postAuthor"></span></span>
+          <span>·</span>
+          <span id="postDate"></span>
+          <span>·</span>
+          <span>조회 <span id="postViews"></span></span>
+        </div>
+      </div>
+
+      <div class="post-detail-body" id="postBody"></div>
+
+      <div class="post-actions">
+        <button id="postDelBtn" class="post-del-btn hidden">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initPostDetail();</script>
+</body>
+</html>

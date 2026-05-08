@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>주니어 나버</title>
+  <title>Open Azitfh</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <a class="logo" href="index.html">주니어<span>나버</span></a>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
     <nav>
       <a href="index.html" class="active">홈</a>
       <a id="navDash"   href="dashboard.html">내 공간</a>
@@ -19,12 +19,38 @@
     </nav>
   </header>
 
-  <div class="hero-slim">
-    <span>어서 와, <em>주니어!</em> 🌈 친구들과 함께하는 즐거운 공간이에요.</span>
-  </div>
+  <!-- 공지사항 -->
+  <section class="notice-section">
+    <div class="notice-wrap">
+      <div class="notice-header">
+        <span class="notice-label">📢 공지사항</span>
+        <button id="noticeAddBtn" class="notice-add-btn hidden">+ 추가</button>
+      </div>
+      <form id="noticeForm" class="notice-form hidden">
+        <input type="text" id="noticeInput" placeholder="공지 내용을 입력하세요" maxlength="100">
+        <button type="submit">등록</button>
+      </form>
+      <ul class="notice-list" id="noticeList"></ul>
+    </div>
+  </section>
 
+  <!-- 카테고리 -->
+  <section class="cat-section">
+    <div class="cat-section-wrap">
+      <div class="cat-top">
+        <span class="cat-section-label">카테고리</span>
+        <input type="text" id="catSearch" class="cat-search" placeholder="카테고리 검색">
+      </div>
+      <div class="cat-chips" id="catChips"></div>
+    </div>
+  </section>
+
+  <!-- 인기 게시물 -->
   <section class="news-section">
-    <h2 class="section-title">📰 오늘의 뉴스</h2>
+    <div class="section-header">
+      <h2 class="section-title" id="postsSectionTitle">인기 게시물</h2>
+      <a id="writeBtn" href="post-write.html" class="write-btn hidden">+ 글쓰기</a>
+    </div>
     <div class="news-grid" id="newsGrid"></div>
   </section>
 
@@ -32,7 +58,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="news-data.js"></script>
   <script src="app.js"></script>
   <script>initDarkMode(); initIndex();</script>
 </body>
