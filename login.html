@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 - 주니어 나버</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">주니어<span>나버</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="login.html" class="active">로그인</a>
+      <a href="signup.html">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <h2>🔑 로그인</h2>
+
+      <form id="loginForm" novalidate>
+
+        <div class="field">
+          <label for="email">이메일</label>
+          <input type="email" id="email" name="email"
+                 placeholder="가입한 이메일을 입력하세요" autocomplete="email">
+        </div>
+
+        <div class="field">
+          <label for="password">비밀번호</label>
+          <input type="password" id="password" name="password"
+                 placeholder="비밀번호를 입력하세요" autocomplete="current-password">
+        </div>
+
+        <div class="error-msg" id="err-login"
+             style="margin-bottom:14px; font-size:13px; text-align:center;"></div>
+
+        <button type="submit" class="btn btn-primary btn-full">로그인</button>
+      </form>
+
+      <div class="auth-footer">
+        아직 회원이 아니신가요? <a href="signup.html">회원가입</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initLogin();</script>
+</body>
+</html>

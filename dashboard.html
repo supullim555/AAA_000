@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>내 공간 - 주니어 나버</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">주니어<span>나버</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="dash-wrap">
+    <div class="welcome-banner">
+      <h2>안녕하세요, <span id="userName"></span>님! 👋</h2>
+      <p>
+        가입일: <span id="joinDate"></span>
+        &nbsp;·&nbsp;
+        이메일: <span id="userEmail"></span>
+      </p>
+    </div>
+
+    <button id="logoutBtn" class="logout-btn">로그아웃</button>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initDashboard();</script>
+</body>
+</html>

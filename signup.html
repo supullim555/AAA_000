@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>회원가입 - 주니어 나버</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">주니어<span>나버</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="login.html">로그인</a>
+      <a href="signup.html" class="active">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <h2>🌟 회원가입</h2>
+
+      <form id="signupForm" novalidate>
+
+        <div class="field">
+          <label for="email">이메일</label>
+          <input type="email" id="email" name="email"
+                 placeholder="example@email.com" autocomplete="email">
+          <div class="error-msg" id="err-email"></div>
+        </div>
+
+        <div class="field">
+          <label for="password">비밀번호</label>
+          <input type="password" id="password" name="password"
+                 placeholder="8자 이상 입력해 주세요" autocomplete="new-password">
+          <div class="error-msg" id="err-pw"></div>
+        </div>
+
+        <div class="field">
+          <label for="passwordCheck">비밀번호 확인</label>
+          <input type="password" id="passwordCheck" name="passwordCheck"
+                 placeholder="비밀번호를 한 번 더 입력해 주세요" autocomplete="new-password">
+          <div class="error-msg" id="err-pwcheck"></div>
+        </div>
+
+        <div class="field">
+          <label for="nickname">닉네임</label>
+          <input type="text" id="nickname" name="nickname"
+                 placeholder="친구들에게 보여질 이름 (2~10자)" maxlength="10">
+          <div class="error-msg" id="err-nickname"></div>
+        </div>
+
+        <div class="global-error" id="err-global"></div>
+
+        <button type="submit" class="btn btn-primary btn-full">가입하기 🎉</button>
+      </form>
+
+      <div class="auth-footer">
+        이미 회원이신가요? <a href="login.html">로그인</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initSignup();</script>
+</body>
+</html>
