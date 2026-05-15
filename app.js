@@ -261,10 +261,10 @@ async function getCategoryNames() {
   return cats.map(c => c.name);
 }
 
-async function insertCategory({ name, description = '', created_by = '익명' }) {
+async function insertCategory({ name, description = '', created_by = '익명', creator_id = null }) {
   const { error } = await supabaseClient
     .from('categories')
-    .insert({ name, description, created_by });
+    .insert({ name, description, created_by, creator_id });
   if (error) throw error;
 }
 
@@ -573,14 +573,19 @@ async function renderPostsList() {
   `).join('');
 }
 
-/* ── 카테고리 관리 (대시보드) ── */
-async function renderCategories() {
+/* ── 카테고리 관리 (대시보드, 본인 카테고리만) ── */
+async function renderCategories(userId) {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  const cats = await getCategories();
-  if (cats.length === 0) {
-    ul.innerHTML = '<li class="cat-empty">카테고리가 없습니다.</li>';
+  const { data: cats, error } = await supabaseClient
+    .from('categories')
+    .select('*')
+    .eq('creator_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (error || !cats || cats.length === 0) {
+    ul.innerHTML = '<li class="cat-empty">내가 만든 카테고리가 없습니다.</li>';
     return;
   }
 
@@ -589,7 +594,7 @@ async function renderCategories() {
       <div style="flex:1;min-width:0">
         <span class="cat-name">${escapeHTML(c.name)}</span>
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
-        <div class="cat-item-meta">${escapeHTML(c.created_by)} · ${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
+        <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
       <button class="cat-del" data-name="${escapeHTML(c.name)}">×</button>
     </li>
@@ -599,7 +604,7 @@ async function renderCategories() {
     btn.addEventListener('click', async () => {
       try {
         await deleteCategory(btn.dataset.name);
-        await renderCategories();
+        await renderCategories(userId);
       } catch {
         showToast('삭제 실패', 'red');
       }
@@ -607,8 +612,8 @@ async function renderCategories() {
   });
 }
 
-async function initCategoryManager() {
-  await renderCategories();
+async function initCategoryManager(userId, nickname) {
+  await renderCategories(userId);
 
   const input  = document.getElementById('catInput');
   const addBtn = document.getElementById('catAddBtn');
@@ -619,9 +624,14 @@ async function initCategoryManager() {
     if (!name) return;
 
     try {
-      await insertCategory({ name, description: '', created_by: '관리자' });
+      await insertCategory({
+        name,
+        description: '',
+        created_by: nickname,
+        creator_id: userId,
+      });
       input.value = '';
-      await renderCategories();
+      await renderCategories(userId);
       showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
     } catch (err) {
       if (err.code === '23505') showToast('이미 있는 카테고리예요.', 'red');
@@ -666,7 +676,12 @@ function initCatCreate(session) {
       || '익명';
 
     try {
-      await insertCategory({ name, description: desc, created_by: createdBy });
+      await insertCategory({
+        name,
+        description: desc,
+        created_by: createdBy,
+        creator_id: session?.user?.id || null,
+      });
       createInput.value = '';
       if (createDesc) createDesc.value = '';
       createForm.classList.add('hidden');
@@ -961,7 +976,7 @@ async function initDashboard() {
   if (emailEl) emailEl.textContent = user.email;
 
   await initDashCategorySection();
-  await initCategoryManager();
+  await initCategoryManager(user.id, nickname);
 
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await authSignOut();
