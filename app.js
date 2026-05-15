@@ -1,3 +1,11 @@
+/* ── 전역 상수 ── */
+const CONFIG = {
+  POPULAR_LIMIT:  12,   // 인기 게시물 최대 표시 수
+  TRUNCATE_LEN:   70,   // 게시물 미리보기 최대 글자 수
+  TOAST_MS:     3000,   // 토스트 자동 닫힘 (ms)
+  REPORT_MIN:      3,   // 신고 자동 숨김 최소 건수
+};
+
 /* ── Dark Mode ── */
 function initDarkMode() {
   const saved = localStorage.getItem('jnaver_theme');
@@ -33,7 +41,7 @@ function showToast(msg, type = '') {
   t.textContent = msg;
   t.className = 'toast' + (type ? ' ' + type : '');
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeout(() => t.classList.remove('show'), CONFIG.TOAST_MS);
 }
 
 function showError(id, msg) {
@@ -128,6 +136,13 @@ async function isAdmin() {
   } catch {
     return false;
   }
+}
+
+/* ── 로그인 필수 페이지 가드 ── */
+async function requireAuth() {
+  const session = await getSession();
+  if (!session) { window.location.href = 'login.html'; return null; }
+  return session;
 }
 
 /* ── 신고 제출 ── */
@@ -301,61 +316,6 @@ function getCatUserCounts(posts) {
 }
 
 /* ── 카테고리 칩 렌더링 (대시보드용) ── */
-async function renderCategoryChips(chipsId, searchId, onSelect) {
-  const wrap = document.getElementById(chipsId);
-  if (!wrap) return;
-
-  const cats     = await getCategories();
-  const allPosts = await getPosts().catch(() => []);
-  const counts   = getCatCounts(allPosts);
-  const search = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
-  const visible = search ? cats.filter(c => c.name.toLowerCase().includes(search)) : cats;
-
-  if (cats.length === 0) {
-    wrap.innerHTML = '<span class="cat-chip-empty">카테고리가 없습니다.</span>';
-    return;
-  }
-
-  wrap.innerHTML = '';
-
-  const allBtn = document.createElement('button');
-  allBtn.className = 'cat-chip' + (_selectedCat === '' ? ' active' : '');
-  allBtn.textContent = '전체';
-  allBtn.addEventListener('click', () => {
-    _selectedCat = '';
-    renderCategoryChips(chipsId, searchId, onSelect);
-    if (onSelect) onSelect();
-  });
-  wrap.appendChild(allBtn);
-
-  if (visible.length === 0 && search) {
-    const empty = document.createElement('span');
-    empty.className = 'cat-chip-empty';
-    empty.textContent = '검색 결과가 없습니다.';
-    wrap.appendChild(empty);
-  } else {
-    visible.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'cat-chip' + (_selectedCat === c.name ? ' active' : '');
-      btn.textContent = c.name;
-
-      if (counts[c.name]) {
-        const badge = document.createElement('span');
-        badge.className = 'cat-count';
-        badge.textContent = counts[c.name];
-        btn.appendChild(badge);
-      }
-
-      btn.addEventListener('click', () => {
-        _selectedCat = c.name;
-        renderCategoryChips(chipsId, searchId, onSelect);
-        if (onSelect) onSelect();
-      });
-      wrap.appendChild(btn);
-    });
-  }
-}
-
 /* ── 카테고리 카드 렌더링 (홈 전용, 인기순 정렬) ── */
 async function renderCategoryCards() {
   const wrap = document.getElementById('catChips');
@@ -456,13 +416,6 @@ async function initCategorySection() {
 }
 
 /* ── 대시보드 카테고리 섹션 초기화 (조회만) ── */
-async function initDashCategorySection() {
-  await renderCategoryChips('dashCatChips', 'dashCatSearch', null);
-  document.getElementById('dashCatSearch')?.addEventListener('input', () => {
-    renderCategoryChips('dashCatChips', 'dashCatSearch', null);
-  });
-}
-
 /* ════════════════════════════════════════
    게시물 (Supabase)
 ════════════════════════════════════════ */
@@ -534,7 +487,7 @@ async function renderPosts() {
 
   try {
     let posts = await getPosts(_selectedCat);
-    posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
+    posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, CONFIG.POPULAR_LIMIT);
 
     if (posts.length === 0) {
       const msg = _selectedCat
@@ -551,7 +504,7 @@ async function renderPosts() {
           <span class="news-date">${formatDate(p.created_at)}</span>
         </div>
         <h3 class="news-title">${escapeHTML(p.title)}</h3>
-        <p class="news-desc">${escapeHTML(truncate(p.content, 70))}</p>
+        <p class="news-desc">${escapeHTML(truncate(p.content, CONFIG.TRUNCATE_LEN))}</p>
         <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
       </a>
     `).join('');
@@ -674,65 +627,12 @@ async function initCategoryManager(userId, nickname) {
 }
 
 /* ── 카테고리 생성 폼 초기화 (누구나 가능) ── */
-function initCatCreate(session) {
-  const createBtn   = document.getElementById('catCreateBtn');
-  const createForm  = document.getElementById('catCreateForm');
-  const createInput = document.getElementById('catCreateInput');
-  const createDesc  = document.getElementById('catCreateDesc');
-  const cancelBtn   = document.getElementById('catCreateCancel');
-
-  if (!createBtn) return;
-
-  createBtn.addEventListener('click', () => {
-    createForm.classList.toggle('hidden');
-    if (!createForm.classList.contains('hidden')) createInput.focus();
-  });
-
-  cancelBtn?.addEventListener('click', () => {
-    createForm.classList.add('hidden');
-    createInput.value = '';
-    if (createDesc) createDesc.value = '';
-  });
-
-  createForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = createInput.value.trim();
-    const desc = createDesc?.value.trim() || '';
-    if (!name) return;
-
-    const createdBy = session?.user?.user_metadata?.nickname
-      || session?.user?.email
-      || '익명';
-
-    try {
-      await insertCategory({
-        name,
-        description: desc,
-        created_by: createdBy,
-        creator_id: session?.user?.id || null,
-      });
-      createInput.value = '';
-      if (createDesc) createDesc.value = '';
-      createForm.classList.add('hidden');
-      await renderCategoryCards();
-      showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
-    } catch (err) {
-      if (err.code === '23505') showToast('이미 있는 카테고리예요.', 'red');
-      else showToast('추가 실패. 로그인 후 다시 시도해 주세요.', 'red');
-    }
-  });
-}
-
 /* ════════════════════════════════════════
    Page: Post Write
 ════════════════════════════════════════ */
 async function initPostWrite() {
-  const session = await getSession();
-  if (!session) {
-    showToast('로그인이 필요해요.', 'red');
-    setTimeout(() => { window.location.href = 'login.html'; }, 1200);
-    return;
-  }
+  const session = await requireAuth();
+  if (!session) return;
 
   const form = document.getElementById('postWriteForm');
   if (!form) return;
@@ -1310,8 +1210,8 @@ async function initLogin() {
    Page: Dashboard
 ════════════════════════════════════════ */
 async function initDashboard() {
-  const session = await getSession();
-  if (!session) { window.location.href = 'login.html'; return; }
+  const session = await requireAuth();
+  if (!session) return;
 
   const user     = session.user;
   const nickname = user.user_metadata?.nickname || user.email;
