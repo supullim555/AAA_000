@@ -1053,6 +1053,33 @@ header nav a.nav-signup:hover {
   text-decoration: none;
 }
 
+/* ── 계정 찾기 탭 ── */
+.forgot-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.forgot-tab {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-light);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+.forgot-tab:hover  { color: var(--primary); }
+.forgot-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.forgot-section        { display: none; }
+.forgot-section:not(.hidden) { display: block; }
+
 /* ── Dashboard ── */
 .dash-wrap {
   max-width: 900px;

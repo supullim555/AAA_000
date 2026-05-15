@@ -862,6 +862,143 @@ async function initIndex() {
 }
 
 /* ════════════════════════════════════════
+   Page: Forgot (아이디·비밀번호 찾기)
+════════════════════════════════════════ */
+async function findEmailByNickname(nickname) {
+  const { data, error } = await supabaseClient.rpc('find_email_by_nickname', {
+    target_nickname: nickname,
+  });
+  if (error) throw error;
+  return data; // 마스킹된 이메일 or null
+}
+
+async function sendPasswordReset(email) {
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/reset-password.html',
+  });
+  if (error) throw error;
+}
+
+async function updatePassword(newPassword) {
+  const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+function initForgot() {
+  // 탭 전환
+  document.querySelectorAll('.forgot-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.forgot-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.forgot-section').forEach(s => s.classList.add('hidden'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.target)?.classList.remove('hidden');
+    });
+  });
+
+  // 아이디 찾기
+  const idForm = document.getElementById('findIdForm');
+  idForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearErrors();
+    const nickname = idForm.nickname.value.trim();
+    if (!nickname) return;
+
+    const submitBtn = idForm.querySelector('[type=submit]');
+    setLoading(submitBtn, true);
+    try {
+      const masked = await findEmailByNickname(nickname);
+      if (!masked) {
+        showError('err-nickname', '해당 닉네임으로 가입된 계정을 찾을 수 없어요.');
+      } else {
+        document.getElementById('foundEmail').textContent = masked;
+        document.getElementById('idResult').classList.remove('hidden');
+      }
+    } catch {
+      showError('err-nickname', '조회 중 오류가 발생했어요. Supabase 함수 설정을 확인해 주세요.');
+    } finally {
+      setLoading(submitBtn, false);
+    }
+  });
+
+  // 비밀번호 찾기
+  const pwForm = document.getElementById('findPwForm');
+  pwForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearErrors();
+    const email = pwForm.email.value.trim();
+    if (!email) return;
+
+    const submitBtn = pwForm.querySelector('[type=submit]');
+    setLoading(submitBtn, true);
+    try {
+      await sendPasswordReset(email);
+      document.getElementById('pwSent').classList.remove('hidden');
+      pwForm.classList.add('hidden');
+    } catch (err) {
+      showError('err-reset-email', toKoreanError(err));
+    } finally {
+      setLoading(submitBtn, false);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   Page: Reset Password (비밀번호 재설정 콜백)
+════════════════════════════════════════ */
+function initResetPassword() {
+  const waiting = document.getElementById('resetWaiting');
+  const form    = document.getElementById('resetPasswordForm');
+  const invalid = document.getElementById('resetInvalid');
+
+  // Supabase가 URL 해시에서 토큰을 자동 처리 → PASSWORD_RECOVERY 이벤트 발생
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      waiting?.classList.add('hidden');
+      form?.classList.remove('hidden');
+    } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+      // 유효한 복구 세션이 없으면 만료 화면 표시
+      getSession().then(session => {
+        if (!session) {
+          waiting?.classList.add('hidden');
+          invalid?.classList.remove('hidden');
+        }
+      });
+    }
+  });
+
+  const submitBtn = form?.querySelector('[type=submit]');
+  if (submitBtn) submitBtn.dataset.label = submitBtn.textContent;
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearErrors();
+
+    const pw      = form.password.value;
+    const pwCheck = form.passwordCheck.value;
+
+    if (pw.length < 8) {
+      showError('err-pw', '비밀번호는 8자 이상이어야 해요.');
+      return;
+    }
+    if (pw !== pwCheck) {
+      showError('err-pwcheck', '비밀번호가 일치하지 않아요.');
+      return;
+    }
+
+    setLoading(submitBtn, true);
+    try {
+      await updatePassword(pw);
+      showToast('비밀번호가 변경됐어요! 다시 로그인해 주세요.', 'green');
+      setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+    } catch (err) {
+      showError('err-reset', toKoreanError(err));
+    } finally {
+      setLoading(submitBtn, false);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
    Page: Signup
 ════════════════════════════════════════ */
 async function initSignup() {

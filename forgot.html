@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>계정 찾기 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+
+      <!-- 탭 -->
+      <div class="forgot-tabs">
+        <button class="forgot-tab active" data-target="sectionFindId">아이디 찾기</button>
+        <button class="forgot-tab"        data-target="sectionFindPw">비밀번호 찾기</button>
+      </div>
+
+      <!-- 아이디 찾기 -->
+      <div id="sectionFindId" class="forgot-section">
+        <form id="findIdForm">
+          <div class="field">
+            <label>닉네임</label>
+            <input type="text" name="nickname" placeholder="가입 시 사용한 닉네임" maxlength="10">
+            <p class="error-msg" id="err-nickname"></p>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" data-label="아이디 찾기">아이디 찾기</button>
+        </form>
+        <div id="idResult" class="hidden" style="margin-top:20px;text-align:center">
+          <p style="font-size:13px;color:var(--text-light)">가입된 이메일(아이디)</p>
+          <p id="foundEmail" style="font-size:20px;font-weight:800;margin-top:8px;color:var(--primary)"></p>
+          <a href="login.html" class="btn btn-outline btn-full" style="margin-top:16px;display:block">로그인하러 가기</a>
+        </div>
+      </div>
+
+      <!-- 비밀번호 찾기 -->
+      <div id="sectionFindPw" class="forgot-section hidden">
+        <form id="findPwForm">
+          <div class="field">
+            <label>이메일</label>
+            <input type="email" name="email" placeholder="가입 시 사용한 이메일" autocomplete="email">
+            <p class="error-msg" id="err-reset-email"></p>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" data-label="재설정 메일 보내기">재설정 메일 보내기</button>
+        </form>
+        <div id="pwSent" class="hidden" style="margin-top:20px;text-align:center">
+          <p style="font-size:32px">📬</p>
+          <p style="font-size:15px;font-weight:700;margin-top:10px">메일을 보냈어요!</p>
+          <p style="font-size:13px;color:var(--text-light);margin-top:6px;line-height:1.6">
+            받은 메일함에서 비밀번호 재설정 링크를 확인해 주세요.<br>
+            링크는 1시간 후 만료됩니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="auth-footer" style="margin-top:20px">
+        <a href="login.html">← 로그인으로 돌아가기</a>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initForgot();</script>
+</body>
+</html>
