@@ -1,7 +1,8 @@
 /* ── Dark Mode ── */
 function initDarkMode() {
   const saved = localStorage.getItem('jnaver_theme');
-  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  // 저장된 값이 없으면 다크모드가 기본값
+  if (saved !== 'light') document.documentElement.setAttribute('data-theme', 'dark');
   updateToggleIcon();
 
   document.getElementById('themeToggle')?.addEventListener('click', () => {
