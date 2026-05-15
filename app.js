@@ -22,7 +22,7 @@ function updateToggleIcon() {
   const btn = document.getElementById('themeToggle');
   if (!btn) return;
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  btn.textContent = isDark ? '☀️' : '🌙';
+  btn.textContent = '🌙';
   btn.title = isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
 }
 
