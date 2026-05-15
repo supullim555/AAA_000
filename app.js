@@ -451,7 +451,11 @@ async function getPosts(categoryFilter = '') {
   let query = supabaseClient.from('posts').select('*');
   if (categoryFilter) query = query.eq('category', categoryFilter);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    console.error('[getPosts 오류]', error.code, error.message, error.details);
+    throw error;
+  }
+  console.log('[getPosts]', { categoryFilter, count: data?.length, sample: data?.[0] });
   return data || [];
 }
 
