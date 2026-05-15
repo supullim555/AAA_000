@@ -131,8 +131,11 @@ async function isAdmin() {
 }
 
 /* ── 신고 제출 ── */
-async function reportPost(postId) {
-  const { data, error } = await supabaseClient.rpc('submit_report', { p_post_id: postId });
+async function reportPost(postId, reason = '기타') {
+  const { data, error } = await supabaseClient.rpc('submit_report', {
+    p_post_id: postId,
+    p_reason: reason,
+  });
   if (error) throw error;
   return data;
 }
@@ -774,6 +777,210 @@ async function initPostWrite() {
 }
 
 /* ════════════════════════════════════════
+   추천/비추천 (Votes)
+════════════════════════════════════════ */
+async function getVoteCounts(postId) {
+  const { data } = await supabaseClient
+    .from('votes').select('vote_type').eq('post_id', postId);
+  const up   = (data || []).filter(v => v.vote_type === 'up').length;
+  const down = (data || []).filter(v => v.vote_type === 'down').length;
+  return { up, down };
+}
+
+async function getMyVote(postId, userId) {
+  const { data } = await supabaseClient
+    .from('votes').select('vote_type')
+    .eq('post_id', postId).eq('user_id', userId).maybeSingle();
+  return data?.vote_type || null;
+}
+
+async function castVote(postId, voteType, userId) {
+  const { data: existing } = await supabaseClient
+    .from('votes').select('id, vote_type')
+    .eq('post_id', postId).eq('user_id', userId).maybeSingle();
+
+  if (existing) {
+    if (existing.vote_type === voteType) {
+      await supabaseClient.from('votes').delete().eq('id', existing.id);
+      return null;
+    }
+    await supabaseClient.from('votes').update({ vote_type: voteType }).eq('id', existing.id);
+    return voteType;
+  }
+  await supabaseClient.from('votes').insert({ post_id: postId, user_id: userId, vote_type: voteType });
+  return voteType;
+}
+
+async function initVotes(postId, session) {
+  const upBtn   = document.getElementById('voteUpBtn');
+  const downBtn = document.getElementById('voteDownBtn');
+  const upCount = document.getElementById('voteUpCount');
+  const dnCount = document.getElementById('voteDownCount');
+  if (!upBtn) return;
+
+  const refresh = async () => {
+    const { up, down } = await getVoteCounts(postId);
+    upCount.textContent = up;
+    dnCount.textContent = down;
+    if (session) {
+      const mine = await getMyVote(postId, session.user.id);
+      upBtn.classList.toggle('active-up', mine === 'up');
+      downBtn.classList.toggle('active-down', mine === 'down');
+      upBtn.disabled = false;
+      downBtn.disabled = false;
+    }
+  };
+
+  await refresh();
+  if (!session) return;
+
+  const onVote = (type) => async () => {
+    upBtn.disabled = true; downBtn.disabled = true;
+    await castVote(postId, type, session.user.id).catch(() => {});
+    await refresh();
+  };
+  upBtn.addEventListener('click', onVote('up'));
+  downBtn.addEventListener('click', onVote('down'));
+}
+
+/* ════════════════════════════════════════
+   신고 모달
+════════════════════════════════════════ */
+function initReportModal(postId) {
+  const reportBtn  = document.getElementById('postReportBtn');
+  const modal      = document.getElementById('reportModal');
+  const confirmBtn = document.getElementById('reportConfirmBtn');
+  const cancelBtn  = document.getElementById('reportCancelBtn');
+  if (!reportBtn || !modal) return;
+
+  reportBtn.classList.remove('hidden');
+
+  const close = () => modal.classList.add('hidden');
+
+  reportBtn.addEventListener('click', async () => {
+    const already = await hasReported(postId);
+    if (already) { showToast('이미 신고한 게시물이에요.', 'red'); return; }
+    modal.classList.remove('hidden');
+  });
+
+  cancelBtn?.addEventListener('click', close);
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+  confirmBtn?.addEventListener('click', async () => {
+    const reasonEl = document.querySelector('input[name="reportReason"]:checked');
+    const reason   = reasonEl?.value || '기타';
+    close();
+    try {
+      const result = await reportPost(postId, reason);
+      if (!result.success && result.reason === 'already_reported') {
+        showToast('이미 신고한 게시물이에요.', 'red');
+      } else if (result.hidden) {
+        showToast('신고가 누적되어 게시물이 숨겨졌습니다.', 'green');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+      } else {
+        showToast(`"${reason}" 사유로 신고가 접수됐어요.`, 'green');
+        reportBtn.textContent = '신고됨';
+        reportBtn.disabled = true;
+        reportBtn.classList.add('reported');
+      }
+    } catch { showToast('신고에 실패했어요.', 'red'); }
+  });
+}
+
+/* ════════════════════════════════════════
+   댓글 (Comments)
+════════════════════════════════════════ */
+async function getComments(postId) {
+  const { data, error } = await supabaseClient
+    .from('comments').select('*')
+    .eq('post_id', postId).order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function insertComment({ post_id, author_id, author_nickname, content }) {
+  const { error } = await supabaseClient
+    .from('comments').insert({ post_id, author_id, author_nickname, content });
+  if (error) throw error;
+}
+
+async function deleteComment(id) {
+  const { error } = await supabaseClient.from('comments').delete().eq('id', id);
+  if (error) throw error;
+}
+
+async function renderComments(postId, session) {
+  const list    = document.getElementById('commentList');
+  const countEl = document.getElementById('commentCount');
+  if (!list) return;
+
+  const comments = await getComments(postId).catch(() => []);
+  if (countEl) countEl.textContent = comments.length;
+
+  if (comments.length === 0) {
+    list.innerHTML = '<p class="comment-empty">첫 번째 댓글을 남겨보세요!</p>';
+    return;
+  }
+
+  list.innerHTML = comments.map(c => `
+    <div class="comment-item" id="cmt-${c.id}">
+      <div class="comment-meta">
+        <span class="comment-author">${escapeHTML(c.author_nickname)}</span>
+        <span class="comment-date">${formatDate(c.created_at)}</span>
+        ${session?.user?.id === c.author_id
+          ? `<button class="comment-del-btn" data-id="${c.id}">×</button>` : ''}
+      </div>
+      <p class="comment-content">${escapeHTML(c.content)}</p>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.comment-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await deleteComment(btn.dataset.id);
+        await renderComments(postId, session);
+      } catch { showToast('댓글 삭제 실패', 'red'); }
+    });
+  });
+}
+
+async function initComments(postId, session) {
+  await renderComments(postId, session);
+
+  const form      = document.getElementById('commentForm');
+  const loginMsg  = document.getElementById('commentLoginMsg');
+  const input     = document.getElementById('commentInput');
+  const charCount = document.getElementById('commentCharCount');
+
+  if (!session) { loginMsg?.classList.remove('hidden'); return; }
+
+  form?.classList.remove('hidden');
+  input?.addEventListener('input', () => {
+    if (charCount) charCount.textContent = `${input.value.length}/500`;
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const content = input.value.trim();
+    if (!content) return;
+    const submitBtn = form.querySelector('[type=submit]');
+    submitBtn.disabled = true;
+    try {
+      await insertComment({
+        post_id: postId,
+        author_id: session.user.id,
+        author_nickname: session.user.user_metadata?.nickname || session.user.email,
+        content,
+      });
+      input.value = '';
+      if (charCount) charCount.textContent = '0/500';
+      await renderComments(postId, session);
+    } catch { showToast('댓글 등록에 실패했어요.', 'red'); }
+    finally  { submitBtn.disabled = false; }
+  });
+}
+
+/* ════════════════════════════════════════
    Page: Post Detail
 ════════════════════════════════════════ */
 async function initPostDetail() {
@@ -788,7 +995,6 @@ async function initPostDetail() {
 
   const id   = new URLSearchParams(location.search).get('id');
   const wrap = document.getElementById('postContent');
-
   if (!id) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
   await incrementViews(id);
@@ -802,51 +1008,27 @@ async function initPostDetail() {
   document.getElementById('postViews').textContent    = post.views || 0;
   document.getElementById('postBody').textContent     = post.content;
 
+  // 삭제 버튼 (본인만)
   if (session && session.user.id === post.author_id) {
     const delBtn = document.getElementById('postDelBtn');
-    delBtn.classList.remove('hidden');
-    delBtn.addEventListener('click', async () => {
+    delBtn?.classList.remove('hidden');
+    delBtn?.addEventListener('click', async () => {
       if (!confirm('정말 삭제하시겠어요?')) return;
-      try {
-        await deletePost(id);
-        window.location.href = 'index.html';
-      } catch {
-        showToast('삭제에 실패했어요.', 'red');
-      }
+      try { await deletePost(id); window.location.href = 'index.html'; }
+      catch { showToast('삭제에 실패했어요.', 'red'); }
     });
   }
 
-  // 신고 버튼 (본인 게시물 제외, 로그인 필요)
-  const reportBtn = document.getElementById('postReportBtn');
-  if (reportBtn && session && session.user.id !== post.author_id) {
-    reportBtn.classList.remove('hidden');
-    const already = await hasReported(id);
-    if (already) {
-      reportBtn.textContent = '신고됨';
-      reportBtn.disabled = true;
-      reportBtn.classList.add('reported');
-    } else {
-      reportBtn.addEventListener('click', async () => {
-        if (!confirm('이 게시물을 신고하시겠어요?')) return;
-        try {
-          const result = await reportPost(id);
-          if (!result.success && result.reason === 'already_reported') {
-            showToast('이미 신고한 게시물이에요.', 'red');
-          } else if (result.hidden) {
-            showToast('신고가 누적되어 게시물이 숨겨졌습니다.', 'green');
-            setTimeout(() => { window.location.href = 'index.html'; }, 1500);
-          } else {
-            showToast('신고가 접수됐어요.', 'green');
-            reportBtn.textContent = '신고됨';
-            reportBtn.disabled = true;
-            reportBtn.classList.add('reported');
-          }
-        } catch {
-          showToast('신고에 실패했어요.', 'red');
-        }
-      });
-    }
+  // 추천/비추천
+  await initVotes(id, session);
+
+  // 신고 모달 (로그인 & 타인 게시물)
+  if (session && session.user.id !== post.author_id) {
+    initReportModal(id);
   }
+
+  // 댓글
+  await initComments(id, session);
 }
 
 /* ════════════════════════════════════════

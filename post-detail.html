@@ -38,9 +38,50 @@
 
       <div class="post-detail-body" id="postBody"></div>
 
+      <!-- 추천 / 비추천 -->
+      <div class="vote-section">
+        <button id="voteUpBtn" class="vote-btn" disabled>👍 추천 <span id="voteUpCount">0</span></button>
+        <button id="voteDownBtn" class="vote-btn" disabled>👎 비추천 <span id="voteDownCount">0</span></button>
+      </div>
+
+      <!-- 신고 / 삭제 -->
       <div class="post-actions">
         <button id="postReportBtn" class="post-report-btn hidden">신고</button>
-        <button id="postDelBtn" class="post-del-btn hidden">삭제</button>
+        <button id="postDelBtn"    class="post-del-btn hidden">삭제</button>
+      </div>
+    </div>
+
+    <!-- 댓글 -->
+    <div class="comment-section">
+      <h3 class="comment-title">댓글 <span id="commentCount">0</span>개</h3>
+      <div id="commentList"></div>
+      <form id="commentForm" class="comment-form hidden">
+        <textarea id="commentInput" placeholder="댓글을 입력하세요" maxlength="500" rows="3"></textarea>
+        <div class="comment-form-actions">
+          <span id="commentCharCount">0/500</span>
+          <button type="submit" class="btn btn-primary">등록</button>
+        </div>
+      </form>
+      <p id="commentLoginMsg" class="comment-login-msg hidden">
+        <a href="login.html">로그인</a>하면 댓글을 달 수 있어요.
+      </p>
+    </div>
+  </div>
+
+  <!-- 신고 모달 -->
+  <div id="reportModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 class="modal-title">신고 사유 선택</h3>
+      <div class="report-reasons">
+        <label class="report-reason-item"><input type="radio" name="reportReason" value="스팸/광고"> 스팸/광고</label>
+        <label class="report-reason-item"><input type="radio" name="reportReason" value="욕설/혐오 표현"> 욕설/혐오 표현</label>
+        <label class="report-reason-item"><input type="radio" name="reportReason" value="불법 정보"> 불법 정보</label>
+        <label class="report-reason-item"><input type="radio" name="reportReason" value="음란물"> 음란물</label>
+        <label class="report-reason-item"><input type="radio" name="reportReason" value="기타" checked> 기타</label>
+      </div>
+      <div class="modal-actions">
+        <button id="reportConfirmBtn" class="btn btn-primary">신고하기</button>
+        <button id="reportCancelBtn"  class="btn-secondary" type="button">취소</button>
       </div>
     </div>
   </div>
