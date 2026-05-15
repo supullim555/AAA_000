@@ -117,12 +117,17 @@ function toKoreanError(err) {
 async function isAdmin() {
   const session = await getSession();
   if (!session) return false;
-  const { data } = await supabaseClient
-    .from('admins')
-    .select('user_id')
-    .eq('user_id', session.user.id)
-    .single();
-  return !!data;
+  try {
+    const { data, error } = await supabaseClient
+      .from('admins')
+      .select('user_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch {
+    return false;
+  }
 }
 
 /* ── 신고 제출 ── */
@@ -451,11 +456,7 @@ async function getPosts(categoryFilter = '') {
   let query = supabaseClient.from('posts').select('*');
   if (categoryFilter) query = query.eq('category', categoryFilter);
   const { data, error } = await query;
-  if (error) {
-    console.error('[getPosts 오류]', error.code, error.message, error.details);
-    throw error;
-  }
-  console.log('[getPosts]', { categoryFilter, count: data?.length, sample: data?.[0] });
+  if (error) throw error;
   return data || [];
 }
 
