@@ -473,13 +473,10 @@ async function getPost(id) {
 }
 
 async function insertPost(postData) {
-  const { data, error } = await supabaseClient
+  const { error } = await supabaseClient
     .from('posts')
-    .insert(postData)
-    .select()
-    .single();
+    .insert(postData);
   if (error) throw error;
-  return data;
 }
 
 async function deletePost(id) {
@@ -753,8 +750,9 @@ async function initPostWrite() {
       });
       showToast('게시물이 등록됐어요! 🎉', 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
-    } catch {
-      showToast('게시물 등록에 실패했어요.', 'red');
+    } catch (err) {
+      console.error('insertPost 오류:', err);
+      showToast(`게시물 등록 실패: ${err?.message || '알 수 없는 오류'}`, 'red');
     } finally {
       setLoading(submitBtn, false);
     }
