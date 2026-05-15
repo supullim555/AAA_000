@@ -648,15 +648,18 @@ async function initCategoryManager(userId, nickname) {
   addBtn.addEventListener('click', async () => {
     const name = input.value.trim();
     if (!name) return;
+    const descInput = document.getElementById('catDescInput');
+    const desc = descInput?.value.trim() || '';
 
     try {
       await insertCategory({
         name,
-        description: '',
+        description: desc,
         created_by: nickname,
         creator_id: userId,
       });
       input.value = '';
+      if (descInput) descInput.value = '';
       await renderCategories(userId);
       showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
     } catch (err) {
@@ -1053,7 +1056,6 @@ async function initIndex() {
 
   // 각 섹션이 독립적으로 실패하도록 분리
   await initCategorySection().catch(err => console.error('카테고리 로드 실패:', err));
-  initCatCreate(session);
   await renderPosts().catch(err => console.error('인기 게시물 로드 실패:', err));
   await renderPostsList().catch(err => console.error('게시물 목록 로드 실패:', err));
   const admin = await isAdmin().catch(() => false);
@@ -1323,7 +1325,6 @@ async function initDashboard() {
   if (dateEl)  dateEl.textContent  = joinDate;
   if (emailEl) emailEl.textContent = user.email;
 
-  await initDashCategorySection();
   await initCategoryManager(user.id, nickname);
 
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
