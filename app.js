@@ -297,8 +297,9 @@ async function renderCategoryChips(chipsId, searchId, onSelect) {
   const wrap = document.getElementById(chipsId);
   if (!wrap) return;
 
-  const [cats, allPosts] = await Promise.all([getCategories(), getPosts()]);
-  const counts = getCatCounts(allPosts);
+  const cats     = await getCategories();
+  const allPosts = await getPosts().catch(() => []);
+  const counts   = getCatCounts(allPosts);
   const search = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
   const visible = search ? cats.filter(c => c.name.toLowerCase().includes(search)) : cats;
 
@@ -352,7 +353,9 @@ async function renderCategoryCards() {
   const wrap = document.getElementById('catChips');
   if (!wrap) return;
 
-  const [cats, allPosts] = await Promise.all([getCategories(), getPosts()]);
+  // posts 실패해도 카테고리는 표시 (통계용이므로 catch로 빈 배열 대체)
+  const cats     = await getCategories();
+  const allPosts = await getPosts().catch(() => []);
   const postCounts = getCatCounts(allPosts);
   const userCounts = getCatUserCounts(allPosts);
   const search     = (document.getElementById('catSearch')?.value || '').toLowerCase().trim();
@@ -847,11 +850,14 @@ async function initPostDetail() {
 async function initIndex() {
   const session = await getSession();
   updateNav(session);
-  await initCategorySection();
+
+  // 각 섹션이 독립적으로 실패하도록 분리
+  await initCategorySection().catch(err => console.error('카테고리 로드 실패:', err));
   initCatCreate(session);
-  await Promise.all([renderPosts(), renderPostsList()]);
-  const admin = await isAdmin();
-  await initNotices(admin);
+  await renderPosts().catch(err => console.error('인기 게시물 로드 실패:', err));
+  await renderPostsList().catch(err => console.error('게시물 목록 로드 실패:', err));
+  const admin = await isAdmin().catch(() => false);
+  await initNotices(admin).catch(err => console.error('공지 로드 실패:', err));
 
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');
