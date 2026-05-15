@@ -387,6 +387,7 @@ async function renderCategoryCards() {
   allBtn.innerHTML = `<div class="cat-card-name-row"><span class="cat-card-name">전체</span></div>`;
   allBtn.addEventListener('click', async () => {
     _selectedCat = '';
+    updateWriteBtn();
     await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
   });
   wrap.appendChild(allBtn);
@@ -432,10 +433,20 @@ async function renderCategoryCards() {
 
     btn.addEventListener('click', async () => {
       _selectedCat = c.name;
+      updateWriteBtn();
       await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
     });
     wrap.appendChild(btn);
   });
+}
+
+/* ── 글쓰기 버튼 URL 동기화 ── */
+function updateWriteBtn() {
+  const btn = document.getElementById('writeBtn');
+  if (!btn) return;
+  const url = new URL('post-write.html', location.href);
+  if (_selectedCat) url.searchParams.set('cat', _selectedCat);
+  btn.href = url.toString();
 }
 
 /* ── 홈 카테고리 섹션 초기화 ── */
@@ -723,8 +734,9 @@ async function initPostWrite() {
   const form = document.getElementById('postWriteForm');
   if (!form) return;
 
-  const catSelect = form.category;
-  const names     = await getCategoryNames();
+  const catSelect  = form.category;
+  const names      = await getCategoryNames();
+  const preselect  = new URLSearchParams(location.search).get('cat') || '';
 
   if (names.length === 0) {
     catSelect.innerHTML = '<option value="" disabled selected>카테고리가 없습니다</option>';
@@ -736,6 +748,7 @@ async function initPostWrite() {
       const opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
+      if (name === preselect) opt.selected = true;
       catSelect.appendChild(opt);
     });
   }
