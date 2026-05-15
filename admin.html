@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>운영자 패널 - Open Azitfh</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">← 사이트로</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <!-- 권한 없음 화면 -->
+  <div id="accessDenied" class="auth-wrap hidden">
+    <div class="auth-box" style="text-align:center">
+      <h2>접근 불가</h2>
+      <p style="margin-top:12px;font-size:14px;color:var(--text-light)">운영자 계정으로 로그인해야 접근할 수 있어요.</p>
+      <a href="login.html" class="btn btn-primary btn-full" style="margin-top:20px;display:block">로그인하러 가기</a>
+    </div>
+  </div>
+
+  <!-- 관리 패널 본문 -->
+  <div id="adminPanel" class="admin-wrap hidden">
+    <div class="admin-header">
+      <h1 class="admin-title">⚙️ 운영자 패널</h1>
+      <button id="adminLogoutBtn" class="logout-btn" style="margin-top:0">로그아웃</button>
+    </div>
+
+    <!-- 탭 -->
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="reports">신고된 게시물</button>
+      <button class="admin-tab" data-tab="admins">관리자 관리</button>
+      <button class="admin-tab" data-tab="notices">공지사항</button>
+    </div>
+
+    <!-- 신고된 게시물 -->
+    <div id="tabReports" class="admin-section active">
+      <p class="admin-section-title">숨겨진 게시물 목록</p>
+      <div id="reportedList"></div>
+    </div>
+
+    <!-- 관리자 관리 -->
+    <div id="tabAdmins" class="admin-section">
+      <p class="admin-section-title">관리자 추가 (이메일)</p>
+      <div class="admin-input-row">
+        <input type="email" id="adminEmailInput" placeholder="추가할 계정 이메일">
+        <button id="adminAddBtn">추가</button>
+      </div>
+      <p class="admin-section-title">현재 관리자</p>
+      <div id="adminsList"></div>
+    </div>
+
+    <!-- 공지사항 -->
+    <div id="tabNotices" class="admin-section">
+      <p class="admin-section-title">공지 추가</p>
+      <div class="admin-input-row">
+        <input type="text" id="noticeAdminInput" placeholder="공지 내용 (최대 100자)" maxlength="100">
+        <button id="noticeAdminAddBtn">등록</button>
+      </div>
+      <p class="admin-section-title">현재 공지사항</p>
+      <div id="noticesAdminList"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script src="admin.js"></script>
+  <script>initDarkMode(); initAdminPanel();</script>
+</body>
+</html>

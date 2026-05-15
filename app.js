@@ -52,7 +52,6 @@ function setLoading(btn, loading) {
 }
 
 /* ── Supabase Auth ── */
-
 async function authSignUp(email, password, nickname) {
   const { data, error } = await supabaseClient.auth.signUp({
     email,
@@ -113,49 +112,105 @@ function toKoreanError(err) {
   return `오류: ${msg}`;
 }
 
-/* ── 공지사항 ── */
-function getNotices() {
-  return JSON.parse(localStorage.getItem('jnaver_notices') || '[]');
+/* ── 관리자 권한 확인 ── */
+async function isAdmin() {
+  const session = await getSession();
+  if (!session) return false;
+  const { data } = await supabaseClient
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', session.user.id)
+    .single();
+  return !!data;
 }
 
-function saveNotices(list) {
-  localStorage.setItem('jnaver_notices', JSON.stringify(list));
+/* ── 신고 제출 ── */
+async function reportPost(postId) {
+  const { data, error } = await supabaseClient.rpc('submit_report', { p_post_id: postId });
+  if (error) throw error;
+  return data;
 }
 
-function renderNotices(isAdmin) {
-  const ul = document.getElementById('noticeList');
-  if (!ul) return;
+/* ── 이 게시물을 이미 신고했는지 확인 ── */
+async function hasReported(postId) {
+  const session = await getSession();
+  if (!session) return false;
+  const { data } = await supabaseClient
+    .from('reports')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('reporter_id', session.user.id)
+    .maybeSingle();
+  return !!data;
+}
 
-  const list = getNotices();
+/* ════════════════════════════════════════
+   공지사항 (Supabase)
+════════════════════════════════════════ */
+async function getNotices() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('notices')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getNotices:', err);
+    return [];
+  }
+}
+
+async function insertNotice({ title, date }) {
+  const { error } = await supabaseClient.from('notices').insert({ title, date });
+  if (error) throw error;
+}
+
+async function deleteNotice(id) {
+  const { error } = await supabaseClient.from('notices').delete().eq('id', id);
+  if (error) throw error;
+}
+
+async function renderNotices(isAdmin) {
+  const wrap = document.getElementById('noticeList');
+  if (!wrap) return;
+
+  const list = await getNotices();
 
   if (list.length === 0) {
-    ul.innerHTML = '<li class="notice-empty">공지사항이 없습니다.</li>';
+    wrap.innerHTML = '<p class="news-empty">공지사항이 없습니다.</p>';
     return;
   }
 
-  ul.innerHTML = list.map(n => `
-    <li class="notice-item">
-      <span class="notice-dot">●</span>
-      <span class="notice-title">${n.title}</span>
-      <span class="notice-date">${n.date}</span>
-      ${isAdmin ? `<button class="notice-del" data-id="${n.id}" title="삭제">×</button>` : ''}
-    </li>
+  wrap.innerHTML = list.map(n => `
+    <div class="news-card notice-card">
+      <div class="news-card-top">
+        <span class="news-badge">📢 공지</span>
+        <span class="news-date">${n.date}</span>
+        ${isAdmin ? `<button class="notice-del" data-id="${n.id}">×</button>` : ''}
+      </div>
+      <p class="news-title">${escapeHTML(n.title)}</p>
+    </div>
   `).join('');
 
   if (isAdmin) {
-    ul.querySelectorAll('.notice-del').forEach(btn => {
-      btn.addEventListener('click', () => {
-        saveNotices(getNotices().filter(n => n.id !== Number(btn.dataset.id)));
-        renderNotices(true);
+    wrap.querySelectorAll('.notice-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await deleteNotice(btn.dataset.id);
+          await renderNotices(true);
+        } catch {
+          showToast('삭제 실패', 'red');
+        }
       });
     });
   }
 }
 
-function initNotices(isAdmin) {
-  const addBtn  = document.getElementById('noticeAddBtn');
-  const form    = document.getElementById('noticeForm');
-  const input   = document.getElementById('noticeInput');
+async function initNotices(isAdmin) {
+  const addBtn = document.getElementById('noticeAddBtn');
+  const form   = document.getElementById('noticeForm');
+  const input  = document.getElementById('noticeInput');
 
   if (isAdmin && addBtn) {
     addBtn.classList.remove('hidden');
@@ -165,62 +220,94 @@ function initNotices(isAdmin) {
     });
   }
 
-  form?.addEventListener('submit', (e) => {
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = input.value.trim();
     if (!title) return;
-
-    const list = getNotices();
-    list.unshift({ id: Date.now(), title, date: new Date().toLocaleDateString('ko-KR') });
-    saveNotices(list);
-    input.value = '';
-    form.classList.add('hidden');
-    renderNotices(true);
+    try {
+      await insertNotice({ title, date: new Date().toLocaleDateString('ko-KR') });
+      input.value = '';
+      form.classList.add('hidden');
+      await renderNotices(true);
+    } catch {
+      showToast('공지 등록 실패', 'red');
+    }
   });
 
-  renderNotices(isAdmin);
+  await renderNotices(isAdmin);
 }
 
-/* ── 게시물 (Posts) ── */
-/* ── 카테고리 ── */
-let _selectedCat = ''; // 현재 선택된 카테고리 ('': 전체)
+/* ════════════════════════════════════════
+   카테고리 (Supabase)
+════════════════════════════════════════ */
+let _selectedCat = '';
 
-function getCategories() {
-  return JSON.parse(localStorage.getItem('jnaver_categories') || '[]');
+async function getCategories() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('categories')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getCategories:', err);
+    return [];
+  }
 }
 
-function saveCategories(list) {
-  localStorage.setItem('jnaver_categories', JSON.stringify(list));
+async function getCategoryNames() {
+  const cats = await getCategories();
+  return cats.map(c => c.name);
 }
 
-/* 카테고리별 게시물 수 */
-function getCatCounts() {
+async function insertCategory({ name, description = '', created_by = '익명' }) {
+  const { error } = await supabaseClient
+    .from('categories')
+    .insert({ name, description, created_by });
+  if (error) throw error;
+}
+
+async function deleteCategory(name) {
+  const { error } = await supabaseClient.from('categories').delete().eq('name', name);
+  if (error) throw error;
+}
+
+/* 카테고리별 게시물 수 / 고유 유저 수 (posts 배열 받아 계산) */
+function getCatCounts(posts) {
   const counts = {};
-  getPosts().forEach(p => {
-    counts[p.category] = (counts[p.category] || 0) + 1;
-  });
+  posts.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
   return counts;
 }
 
-/* ── 카테고리 칩 렌더링 ── */
-function renderCategoryChips(chipsId, searchId, onSelect) {
+function getCatUserCounts(posts) {
+  const sets = {};
+  posts.forEach(p => {
+    if (!sets[p.category]) sets[p.category] = new Set();
+    sets[p.category].add(p.author_id);
+  });
+  const result = {};
+  Object.entries(sets).forEach(([cat, s]) => { result[cat] = s.size; });
+  return result;
+}
+
+/* ── 카테고리 칩 렌더링 (대시보드용) ── */
+async function renderCategoryChips(chipsId, searchId, onSelect) {
   const wrap = document.getElementById(chipsId);
   if (!wrap) return;
 
-  const cats    = getCategories();
-  const search  = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
-  const visible = search ? cats.filter(c => c.toLowerCase().includes(search)) : cats;
-  const counts  = getCatCounts();
+  const [cats, allPosts] = await Promise.all([getCategories(), getPosts()]);
+  const counts = getCatCounts(allPosts);
+  const search = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
+  const visible = search ? cats.filter(c => c.name.toLowerCase().includes(search)) : cats;
 
   if (cats.length === 0) {
     wrap.innerHTML = '<span class="cat-chip-empty">카테고리가 없습니다.</span>';
     return;
   }
 
-  // 칩 DOM 직접 생성 → data-cat 인코딩 문제 없음
   wrap.innerHTML = '';
 
-  // 전체 칩
   const allBtn = document.createElement('button');
   allBtn.className = 'cat-chip' + (_selectedCat === '' ? ' active' : '');
   allBtn.textContent = '전체';
@@ -231,7 +318,6 @@ function renderCategoryChips(chipsId, searchId, onSelect) {
   });
   wrap.appendChild(allBtn);
 
-  // 카테고리 칩
   if (visible.length === 0 && search) {
     const empty = document.createElement('span');
     empty.className = 'cat-chip-empty';
@@ -240,18 +326,18 @@ function renderCategoryChips(chipsId, searchId, onSelect) {
   } else {
     visible.forEach(c => {
       const btn = document.createElement('button');
-      btn.className = 'cat-chip' + (_selectedCat === c ? ' active' : '');
-      btn.textContent = c;
+      btn.className = 'cat-chip' + (_selectedCat === c.name ? ' active' : '');
+      btn.textContent = c.name;
 
-      if (counts[c]) {
+      if (counts[c.name]) {
         const badge = document.createElement('span');
         badge.className = 'cat-count';
-        badge.textContent = counts[c];
+        badge.textContent = counts[c.name];
         btn.appendChild(badge);
       }
 
       btn.addEventListener('click', () => {
-        _selectedCat = c;                              // 클로저로 원본 값 그대로 사용
+        _selectedCat = c.name;
         renderCategoryChips(chipsId, searchId, onSelect);
         if (onSelect) onSelect();
       });
@@ -260,44 +346,152 @@ function renderCategoryChips(chipsId, searchId, onSelect) {
   }
 }
 
-/* ── 홈 카테고리 섹션 초기화 ── */
-function initCategorySection() {
-  renderCategoryChips('catChips', 'catSearch', renderPosts);
-  document.getElementById('catSearch')?.addEventListener('input', () => {
-    renderCategoryChips('catChips', 'catSearch', renderPosts);
+/* ── 카테고리 카드 렌더링 (홈 전용, 인기순 정렬) ── */
+async function renderCategoryCards() {
+  const wrap = document.getElementById('catChips');
+  if (!wrap) return;
+
+  const [cats, allPosts] = await Promise.all([getCategories(), getPosts()]);
+  const postCounts = getCatCounts(allPosts);
+  const userCounts = getCatUserCounts(allPosts);
+  const search     = (document.getElementById('catSearch')?.value || '').toLowerCase().trim();
+
+  const sorted = cats
+    .filter(c => !search || c.name.toLowerCase().includes(search))
+    .sort((a, b) => {
+      const sA = (postCounts[a.name] || 0) * 2 + (userCounts[a.name] || 0);
+      const sB = (postCounts[b.name] || 0) * 2 + (userCounts[b.name] || 0);
+      return sB - sA;
+    });
+
+  const maxScore = sorted.length > 0
+    ? (postCounts[sorted[0].name] || 0) * 2 + (userCounts[sorted[0].name] || 0)
+    : 0;
+
+  wrap.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'cat-card-btn' + (_selectedCat === '' ? ' active' : '');
+  allBtn.innerHTML = `<div class="cat-card-name-row"><span class="cat-card-name">전체</span></div>`;
+  allBtn.addEventListener('click', async () => {
+    _selectedCat = '';
+    await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
+  });
+  wrap.appendChild(allBtn);
+
+  if (cats.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'cat-chip-empty';
+    empty.textContent = '카테고리가 없습니다.';
+    wrap.appendChild(empty);
+    return;
+  }
+
+  if (sorted.length === 0 && search) {
+    const empty = document.createElement('span');
+    empty.className = 'cat-chip-empty';
+    empty.textContent = '검색 결과가 없습니다.';
+    wrap.appendChild(empty);
+    return;
+  }
+
+  sorted.forEach(c => {
+    const pc    = postCounts[c.name] || 0;
+    const uc    = userCounts[c.name] || 0;
+    const score = pc * 2 + uc;
+    const isHot = maxScore > 0 && score === maxScore && score > 0;
+
+    const btn = document.createElement('button');
+    btn.className = 'cat-card-btn' + (_selectedCat === c.name ? ' active' : '');
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'cat-card-name-row';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'cat-card-name';
+    nameSpan.textContent = c.name;
+    nameRow.appendChild(nameSpan);
+    if (isHot) {
+      const badge = document.createElement('span');
+      badge.className = 'cat-hot-badge';
+      badge.textContent = 'HOT';
+      nameRow.appendChild(badge);
+    }
+    btn.appendChild(nameRow);
+
+    btn.addEventListener('click', async () => {
+      _selectedCat = c.name;
+      await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
+    });
+    wrap.appendChild(btn);
   });
 }
 
+/* ── 홈 카테고리 섹션 초기화 ── */
+async function initCategorySection() {
+  await renderCategoryCards();
+  document.getElementById('catSearch')?.addEventListener('input', () => renderCategoryCards());
+}
+
 /* ── 대시보드 카테고리 섹션 초기화 (조회만) ── */
-function initDashCategorySection() {
-  renderCategoryChips('dashCatChips', 'dashCatSearch', null);
+async function initDashCategorySection() {
+  await renderCategoryChips('dashCatChips', 'dashCatSearch', null);
   document.getElementById('dashCatSearch')?.addEventListener('input', () => {
     renderCategoryChips('dashCatChips', 'dashCatSearch', null);
   });
 }
 
-function getPosts() {
-  return JSON.parse(localStorage.getItem('jnaver_posts') || '[]');
+/* ════════════════════════════════════════
+   게시물 (Supabase)
+════════════════════════════════════════ */
+async function getPosts(categoryFilter = '') {
+  try {
+    let query = supabaseClient.from('posts').select('*');
+    if (categoryFilter) query = query.eq('category', categoryFilter);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('getPosts:', err);
+    return [];
+  }
 }
 
-function savePosts(list) {
-  localStorage.setItem('jnaver_posts', JSON.stringify(list));
+async function getPost(id) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('posts')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('getPost:', err);
+    return null;
+  }
 }
 
-function getPost(id) {
-  return getPosts().find(p => p.id === Number(id));
+async function insertPost(postData) {
+  const { data, error } = await supabaseClient
+    .from('posts')
+    .insert(postData)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
-function deletePost(id) {
-  savePosts(getPosts().filter(p => p.id !== Number(id)));
+async function deletePost(id) {
+  const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+  if (error) throw error;
 }
 
-function incrementViews(id) {
-  const list = getPosts();
-  const post = list.find(p => p.id === Number(id));
-  if (!post) return;
-  post.views = (post.views || 0) + 1;
-  savePosts(list);
+async function incrementViews(id) {
+  try {
+    await supabaseClient.rpc('increment_views', { post_id: id });
+  } catch (err) {
+    console.error('incrementViews:', err);
+  }
 }
 
 /* HTML 이스케이프 (XSS 방지) */
@@ -315,20 +509,16 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ko-KR');
 }
 
-/* ── 게시물 렌더링 (카테고리 필터 + 조회수 순) ── */
-function renderPosts() {
+/* ── 인기 게시물 렌더링 (조회수순, 최대 12개) ── */
+async function renderPosts() {
   const grid    = document.getElementById('newsGrid');
   const titleEl = document.getElementById('postsSectionTitle');
   if (!grid) return;
 
-  // 섹션 타이틀 동적 변경
-  if (titleEl) {
-    titleEl.textContent = _selectedCat ? `${_selectedCat} 게시물` : '인기 게시물';
-  }
+  if (titleEl) titleEl.textContent = '인기 게시물';
 
-  let posts = getPosts();
-  if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
-  posts = posts.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
+  let posts = await getPosts(_selectedCat);
+  posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
 
   if (posts.length === 0) {
     const msg = _selectedCat
@@ -342,21 +532,53 @@ function renderPosts() {
     <a class="news-card" href="post-detail.html?id=${p.id}">
       <div class="news-card-top">
         <span class="news-badge">${escapeHTML(p.category)}</span>
-        <span class="news-date">${formatDate(p.createdAt)}</span>
+        <span class="news-date">${formatDate(p.created_at)}</span>
       </div>
       <h3 class="news-title">${escapeHTML(p.title)}</h3>
       <p class="news-desc">${escapeHTML(truncate(p.content, 70))}</p>
-      <div class="post-meta">by ${escapeHTML(p.authorNickname)} · 조회 ${p.views || 0}</div>
+      <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
+    </a>
+  `).join('');
+}
+
+/* ── 게시물 목록 렌더링 (최신순, 전체) ── */
+async function renderPostsList() {
+  const wrap    = document.getElementById('postsList');
+  const titleEl = document.getElementById('postsListTitle');
+  if (!wrap) return;
+
+  if (titleEl) titleEl.textContent = '게시물';
+
+  let query = supabaseClient
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (_selectedCat) query = query.eq('category', _selectedCat);
+
+  const { data: posts, error } = await query;
+
+  if (error || !posts || posts.length === 0) {
+    wrap.innerHTML = '<p class="news-empty">게시물이 없습니다.</p>';
+    return;
+  }
+
+  wrap.innerHTML = posts.map(p => `
+    <a class="post-row" href="post-detail.html?id=${p.id}">
+      <span class="post-row-cat">${escapeHTML(p.category)}</span>
+      <span class="post-row-title">${escapeHTML(p.title)}</span>
+      <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
+      <span class="post-row-date">${formatDate(p.created_at)}</span>
+      <span class="post-row-views">👁 ${p.views || 0}</span>
     </a>
   `).join('');
 }
 
 /* ── 카테고리 관리 (대시보드) ── */
-function renderCategories() {
+async function renderCategories() {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  const cats = getCategories();
+  const cats = await getCategories();
   if (cats.length === 0) {
     ul.innerHTML = '<li class="cat-empty">카테고리가 없습니다.</li>';
     return;
@@ -364,41 +586,47 @@ function renderCategories() {
 
   ul.innerHTML = cats.map(c => `
     <li class="cat-item">
-      <span class="cat-name">${escapeHTML(c)}</span>
-      <button class="cat-del" data-name="${escapeHTML(c)}">×</button>
+      <div style="flex:1;min-width:0">
+        <span class="cat-name">${escapeHTML(c.name)}</span>
+        ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
+        <div class="cat-item-meta">${escapeHTML(c.created_by)} · ${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
+      </div>
+      <button class="cat-del" data-name="${escapeHTML(c.name)}">×</button>
     </li>
   `).join('');
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      saveCategories(getCategories().filter(c => c !== btn.dataset.name));
-      renderCategories();
+    btn.addEventListener('click', async () => {
+      try {
+        await deleteCategory(btn.dataset.name);
+        await renderCategories();
+      } catch {
+        showToast('삭제 실패', 'red');
+      }
     });
   });
 }
 
-function initCategoryManager() {
-  renderCategories();
+async function initCategoryManager() {
+  await renderCategories();
 
   const input  = document.getElementById('catInput');
   const addBtn = document.getElementById('catAddBtn');
   if (!input || !addBtn) return;
 
-  addBtn.addEventListener('click', () => {
+  addBtn.addEventListener('click', async () => {
     const name = input.value.trim();
     if (!name) return;
 
-    const cats = getCategories();
-    if (cats.includes(name)) {
-      showToast('이미 있는 카테고리예요.', 'red');
-      return;
+    try {
+      await insertCategory({ name, description: '', created_by: '관리자' });
+      input.value = '';
+      await renderCategories();
+      showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
+    } catch (err) {
+      if (err.code === '23505') showToast('이미 있는 카테고리예요.', 'red');
+      else showToast('추가 실패', 'red');
     }
-
-    cats.push(name);
-    saveCategories(cats);
-    input.value = '';
-    renderCategories();
-    showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
   });
 
   input.addEventListener('keydown', (e) => {
@@ -406,7 +634,54 @@ function initCategoryManager() {
   });
 }
 
-/* ── 글쓰기 페이지 ── */
+/* ── 카테고리 생성 폼 초기화 (누구나 가능) ── */
+function initCatCreate(session) {
+  const createBtn   = document.getElementById('catCreateBtn');
+  const createForm  = document.getElementById('catCreateForm');
+  const createInput = document.getElementById('catCreateInput');
+  const createDesc  = document.getElementById('catCreateDesc');
+  const cancelBtn   = document.getElementById('catCreateCancel');
+
+  if (!createBtn) return;
+
+  createBtn.addEventListener('click', () => {
+    createForm.classList.toggle('hidden');
+    if (!createForm.classList.contains('hidden')) createInput.focus();
+  });
+
+  cancelBtn?.addEventListener('click', () => {
+    createForm.classList.add('hidden');
+    createInput.value = '';
+    if (createDesc) createDesc.value = '';
+  });
+
+  createForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = createInput.value.trim();
+    const desc = createDesc?.value.trim() || '';
+    if (!name) return;
+
+    const createdBy = session?.user?.user_metadata?.nickname
+      || session?.user?.email
+      || '익명';
+
+    try {
+      await insertCategory({ name, description: desc, created_by: createdBy });
+      createInput.value = '';
+      if (createDesc) createDesc.value = '';
+      createForm.classList.add('hidden');
+      await renderCategoryCards();
+      showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
+    } catch (err) {
+      if (err.code === '23505') showToast('이미 있는 카테고리예요.', 'red');
+      else showToast('추가 실패. 로그인 후 다시 시도해 주세요.', 'red');
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   Page: Post Write
+════════════════════════════════════════ */
 async function initPostWrite() {
   const session = await getSession();
   if (!session) {
@@ -418,27 +693,27 @@ async function initPostWrite() {
   const form = document.getElementById('postWriteForm');
   if (!form) return;
 
-  const cat = form.category;
-  const cats = getCategories();
+  const catSelect = form.category;
+  const names     = await getCategoryNames();
 
-  if (cats.length === 0) {
-    cat.innerHTML = '<option value="" disabled selected>카테고리가 없습니다</option>';
-    cat.disabled = true;
+  if (names.length === 0) {
+    catSelect.innerHTML = '<option value="" disabled selected>카테고리가 없습니다</option>';
+    catSelect.disabled = true;
     const hint = document.getElementById('catHint');
     if (hint) hint.classList.remove('hidden');
   } else {
-    cats.forEach(c => {
+    names.forEach(name => {
       const opt = document.createElement('option');
-      opt.value = c;
-      opt.textContent = c;
-      cat.appendChild(opt);
+      opt.value = name;
+      opt.textContent = name;
+      catSelect.appendChild(opt);
     });
   }
 
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title    = form.title.value.trim();
     const content  = form.content.value.trim();
@@ -450,26 +725,29 @@ async function initPostWrite() {
     }
 
     const u = session.user;
-    const list = getPosts();
-    list.unshift({
-      id: Date.now(),
-      title,
-      content,
-      category,
-      authorId:       u.id,
-      authorEmail:    u.email,
-      authorNickname: u.user_metadata?.nickname || u.email,
-      createdAt:      new Date().toISOString(),
-      views:          0,
-    });
-    savePosts(list);
-
-    showToast('게시물이 등록됐어요! 🎉', 'green');
-    setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+    setLoading(submitBtn, true);
+    try {
+      await insertPost({
+        title,
+        content,
+        category,
+        author_id:       u.id,
+        author_nickname: u.user_metadata?.nickname || u.email,
+        views:           0,
+      });
+      showToast('게시물이 등록됐어요! 🎉', 'green');
+      setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+    } catch {
+      showToast('게시물 등록에 실패했어요.', 'red');
+    } finally {
+      setLoading(submitBtn, false);
+    }
   });
 }
 
-/* ── 게시물 상세 페이지 ── */
+/* ════════════════════════════════════════
+   Page: Post Detail
+════════════════════════════════════════ */
 async function initPostDetail() {
   const session = await getSession();
   updateNav(session);
@@ -480,42 +758,80 @@ async function initPostDetail() {
     location.reload();
   });
 
-  const id = new URLSearchParams(location.search).get('id');
+  const id   = new URLSearchParams(location.search).get('id');
   const wrap = document.getElementById('postContent');
 
   if (!id) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
-  incrementViews(id);
-  const post = getPost(id);
+  await incrementViews(id);
+  const post = await getPost(id);
   if (!post) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
   document.getElementById('postCategory').textContent = post.category;
   document.getElementById('postTitle').textContent    = post.title;
-  document.getElementById('postAuthor').textContent   = post.authorNickname;
-  document.getElementById('postDate').textContent     = formatDate(post.createdAt);
+  document.getElementById('postAuthor').textContent   = post.author_nickname;
+  document.getElementById('postDate').textContent     = formatDate(post.created_at);
   document.getElementById('postViews').textContent    = post.views || 0;
   document.getElementById('postBody').textContent     = post.content;
 
-  if (session && session.user.id === post.authorId) {
+  if (session && session.user.id === post.author_id) {
     const delBtn = document.getElementById('postDelBtn');
     delBtn.classList.remove('hidden');
-    delBtn.addEventListener('click', () => {
+    delBtn.addEventListener('click', async () => {
       if (!confirm('정말 삭제하시겠어요?')) return;
-      deletePost(id);
-      window.location.href = 'index.html';
+      try {
+        await deletePost(id);
+        window.location.href = 'index.html';
+      } catch {
+        showToast('삭제에 실패했어요.', 'red');
+      }
     });
+  }
+
+  // 신고 버튼 (본인 게시물 제외, 로그인 필요)
+  const reportBtn = document.getElementById('postReportBtn');
+  if (reportBtn && session && session.user.id !== post.author_id) {
+    reportBtn.classList.remove('hidden');
+    const already = await hasReported(id);
+    if (already) {
+      reportBtn.textContent = '신고됨';
+      reportBtn.disabled = true;
+      reportBtn.classList.add('reported');
+    } else {
+      reportBtn.addEventListener('click', async () => {
+        if (!confirm('이 게시물을 신고하시겠어요?')) return;
+        try {
+          const result = await reportPost(id);
+          if (!result.success && result.reason === 'already_reported') {
+            showToast('이미 신고한 게시물이에요.', 'red');
+          } else if (result.hidden) {
+            showToast('신고가 누적되어 게시물이 숨겨졌습니다.', 'green');
+            setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+          } else {
+            showToast('신고가 접수됐어요.', 'green');
+            reportBtn.textContent = '신고됨';
+            reportBtn.disabled = true;
+            reportBtn.classList.add('reported');
+          }
+        } catch {
+          showToast('신고에 실패했어요.', 'red');
+        }
+      });
+    }
   }
 }
 
-/* ────────────────────────────────────────
+/* ════════════════════════════════════════
    Page: Index
-──────────────────────────────────────── */
+════════════════════════════════════════ */
 async function initIndex() {
   const session = await getSession();
   updateNav(session);
-  initCategorySection();
-  renderPosts();
-  initNotices(!!session);
+  await initCategorySection();
+  initCatCreate(session);
+  await Promise.all([renderPosts(), renderPostsList()]);
+  const admin = await isAdmin();
+  await initNotices(admin);
 
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');
@@ -531,9 +847,9 @@ async function initIndex() {
   });
 }
 
-/* ────────────────────────────────────────
+/* ════════════════════════════════════════
    Page: Signup
-──────────────────────────────────────── */
+════════════════════════════════════════ */
 async function initSignup() {
   const session = await getSession();
   if (session) { window.location.href = 'dashboard.html'; return; }
@@ -577,7 +893,6 @@ async function initSignup() {
     try {
       await authSignUp(email, pw, nickname);
       showToast('가입 완료! 이메일을 확인해 주세요 📬', 'green');
-      // 이메일 인증을 끄려면 Supabase 대시보드 → Authentication → Providers → Email → Confirm email 해제
       setTimeout(() => { window.location.href = 'login.html'; }, 2200);
     } catch (err) {
       showError('err-global', toKoreanError(err));
@@ -587,9 +902,9 @@ async function initSignup() {
   });
 }
 
-/* ────────────────────────────────────────
+/* ════════════════════════════════════════
    Page: Login
-──────────────────────────────────────── */
+════════════════════════════════════════ */
 async function initLogin() {
   const session = await getSession();
   if (session) { window.location.href = 'dashboard.html'; return; }
@@ -626,11 +941,10 @@ async function initLogin() {
   });
 }
 
-/* ────────────────────────────────────────
-   Page: Dashboard (세션 유지/로그아웃)
-──────────────────────────────────────── */
+/* ════════════════════════════════════════
+   Page: Dashboard
+════════════════════════════════════════ */
 async function initDashboard() {
-  // 세션 확인 — 없으면 로그인 페이지로
   const session = await getSession();
   if (!session) { window.location.href = 'login.html'; return; }
 
@@ -646,23 +960,20 @@ async function initDashboard() {
   if (dateEl)  dateEl.textContent  = joinDate;
   if (emailEl) emailEl.textContent = user.email;
 
-  initDashCategorySection();
-  initCategoryManager();
+  await initDashCategorySection();
+  await initCategoryManager();
 
-  // 로그아웃 버튼 (본문)
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await authSignOut();
     window.location.href = 'index.html';
   });
 
-  // 로그아웃 버튼 (헤더)
   document.getElementById('navLogout')?.addEventListener('click', async (e) => {
     e.preventDefault();
     await authSignOut();
     window.location.href = 'index.html';
   });
 
-  // 토큰 갱신 등 세션 변화 감지
   supabaseClient.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') window.location.href = 'index.html';
   });

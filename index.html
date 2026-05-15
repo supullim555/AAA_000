@@ -30,18 +30,29 @@
         <input type="text" id="noticeInput" placeholder="공지 내용을 입력하세요" maxlength="100">
         <button type="submit">등록</button>
       </form>
-      <ul class="notice-list" id="noticeList"></ul>
+      <div class="notice-grid" id="noticeList"></div>
     </div>
   </section>
 
   <!-- 카테고리 -->
   <section class="cat-section">
     <div class="cat-section-wrap">
-      <div class="cat-top">
-        <span class="cat-section-label">카테고리</span>
-        <input type="text" id="catSearch" class="cat-search" placeholder="카테고리 검색">
+      <div class="cat-box">
+        <div class="cat-top">
+          <span class="cat-section-label">카테고리</span>
+          <input type="text" id="catSearch" class="cat-search" placeholder="카테고리 검색">
+          <button id="catCreateBtn" class="cat-create-btn">+ 만들기</button>
+        </div>
+        <form id="catCreateForm" class="cat-create-form hidden">
+          <input type="text" id="catCreateInput" placeholder="카테고리 이름 (최대 20자)" maxlength="20" required>
+          <input type="text" id="catCreateDesc" placeholder="설명 (선택, 최대 60자)" maxlength="60">
+          <div class="cat-create-actions">
+            <button type="submit">추가</button>
+            <button type="button" id="catCreateCancel">취소</button>
+          </div>
+        </form>
+        <div class="cat-cards" id="catChips"></div>
       </div>
-      <div class="cat-chips" id="catChips"></div>
     </div>
   </section>
 
@@ -52,6 +63,16 @@
       <a id="writeBtn" href="post-write.html" class="write-btn hidden">+ 글쓰기</a>
     </div>
     <div class="news-grid" id="newsGrid"></div>
+  </section>
+
+  <!-- 게시물 목록 -->
+  <section class="posts-list-section">
+    <div class="posts-list-wrap">
+      <div class="section-header">
+        <h2 class="section-title" id="postsListTitle">게시물</h2>
+      </div>
+      <div class="posts-list" id="postsList"></div>
+    </div>
   </section>
 
   <div id="toast" class="toast"></div>
