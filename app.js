@@ -557,13 +557,30 @@ async function renderCategories(userId) {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  const { data: cats, error } = await supabaseClient
+  // creator_id = userId 또는 마이그레이션 전 생성(NULL)된 카테고리 모두 표시
+  let { data: cats, error } = await supabaseClient
     .from('categories')
     .select('*')
-    .eq('creator_id', userId)
+    .or(`creator_id.eq.${userId},creator_id.is.null`)
     .order('created_at', { ascending: true });
 
-  if (error || !cats || cats.length === 0) {
+  // creator_id 컬럼 자체가 없을 때(마이그레이션 미실행) → 전체 조회로 대체
+  if (error) {
+    const res = await supabaseClient
+      .from('categories')
+      .select('*')
+      .order('created_at', { ascending: true });
+    cats = res.data;
+    error = res.error;
+  }
+
+  if (error) {
+    ul.innerHTML = '<li class="cat-empty">카테고리를 불러오지 못했어요.</li>';
+    console.error('renderCategories:', error);
+    return;
+  }
+
+  if (!cats || cats.length === 0) {
     ul.innerHTML = '<li class="cat-empty">내가 만든 카테고리가 없습니다.</li>';
     return;
   }
