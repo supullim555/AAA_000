@@ -445,16 +445,11 @@ async function initDashCategorySection() {
    게시물 (Supabase)
 ════════════════════════════════════════ */
 async function getPosts(categoryFilter = '') {
-  try {
-    let query = supabaseClient.from('posts').select('*');
-    if (categoryFilter) query = query.eq('category', categoryFilter);
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
-  } catch (err) {
-    console.error('getPosts:', err);
-    return [];
-  }
+  let query = supabaseClient.from('posts').select('*');
+  if (categoryFilter) query = query.eq('category', categoryFilter);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
 async function getPost(id) {
@@ -515,28 +510,33 @@ async function renderPosts() {
 
   if (titleEl) titleEl.textContent = '인기 게시물';
 
-  let posts = await getPosts(_selectedCat);
-  posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
+  try {
+    let posts = await getPosts(_selectedCat);
+    posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 12);
 
-  if (posts.length === 0) {
-    const msg = _selectedCat
-      ? `"${escapeHTML(_selectedCat)}" 카테고리에 게시물이 없습니다.`
-      : '아직 게시물이 없습니다.';
-    grid.innerHTML = `<p class="news-empty">${msg}</p>`;
-    return;
+    if (posts.length === 0) {
+      const msg = _selectedCat
+        ? `"${escapeHTML(_selectedCat)}" 카테고리에 게시물이 없습니다.`
+        : '아직 게시물이 없습니다.';
+      grid.innerHTML = `<p class="news-empty">${msg}</p>`;
+      return;
+    }
+
+    grid.innerHTML = posts.map(p => `
+      <a class="news-card" href="post-detail.html?id=${p.id}">
+        <div class="news-card-top">
+          <span class="news-badge">${escapeHTML(p.category)}</span>
+          <span class="news-date">${formatDate(p.created_at)}</span>
+        </div>
+        <h3 class="news-title">${escapeHTML(p.title)}</h3>
+        <p class="news-desc">${escapeHTML(truncate(p.content, 70))}</p>
+        <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
+      </a>
+    `).join('');
+  } catch (err) {
+    console.error('renderPosts 오류:', err);
+    grid.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.<br><small style="font-size:11px;opacity:.7">${escapeHTML(err.message || '')}</small></p>`;
   }
-
-  grid.innerHTML = posts.map(p => `
-    <a class="news-card" href="post-detail.html?id=${p.id}">
-      <div class="news-card-top">
-        <span class="news-badge">${escapeHTML(p.category)}</span>
-        <span class="news-date">${formatDate(p.created_at)}</span>
-      </div>
-      <h3 class="news-title">${escapeHTML(p.title)}</h3>
-      <p class="news-desc">${escapeHTML(truncate(p.content, 70))}</p>
-      <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
-    </a>
-  `).join('');
 }
 
 /* ── 게시물 목록 렌더링 (최신순, 전체) ── */
@@ -547,28 +547,34 @@ async function renderPostsList() {
 
   if (titleEl) titleEl.textContent = '게시물';
 
-  let query = supabaseClient
-    .from('posts')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (_selectedCat) query = query.eq('category', _selectedCat);
+  try {
+    let query = supabaseClient
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (_selectedCat) query = query.eq('category', _selectedCat);
 
-  const { data: posts, error } = await query;
+    const { data: posts, error } = await query;
+    if (error) throw error;
 
-  if (error || !posts || posts.length === 0) {
-    wrap.innerHTML = '<p class="news-empty">게시물이 없습니다.</p>';
-    return;
+    if (!posts || posts.length === 0) {
+      wrap.innerHTML = '<p class="news-empty">게시물이 없습니다.</p>';
+      return;
+    }
+
+    wrap.innerHTML = posts.map(p => `
+      <a class="post-row" href="post-detail.html?id=${p.id}">
+        <span class="post-row-cat">${escapeHTML(p.category)}</span>
+        <span class="post-row-title">${escapeHTML(p.title)}</span>
+        <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
+        <span class="post-row-date">${formatDate(p.created_at)}</span>
+        <span class="post-row-views">👁 ${p.views || 0}</span>
+      </a>
+    `).join('');
+  } catch (err) {
+    console.error('renderPostsList 오류:', err);
+    wrap.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.<br><small style="font-size:11px;opacity:.7">${escapeHTML(err.message || '')}</small></p>`;
   }
-
-  wrap.innerHTML = posts.map(p => `
-    <a class="post-row" href="post-detail.html?id=${p.id}">
-      <span class="post-row-cat">${escapeHTML(p.category)}</span>
-      <span class="post-row-title">${escapeHTML(p.title)}</span>
-      <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
-      <span class="post-row-date">${formatDate(p.created_at)}</span>
-      <span class="post-row-views">👁 ${p.views || 0}</span>
-    </a>
-  `).join('');
 }
 
 /* ── 카테고리 관리 (대시보드, 본인 카테고리만) ── */
