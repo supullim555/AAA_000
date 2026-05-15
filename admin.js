@@ -63,11 +63,18 @@ async function loadReportedPosts() {
         </div>
       </div>
       <div class="admin-card-actions">
-        <button class="admin-btn admin-btn-restore" onclick="doUnhide('${p.id}')">복원</button>
-        <button class="admin-btn admin-btn-delete"  onclick="doAdminDelete('${p.id}')">영구 삭제</button>
+        <button class="admin-btn admin-btn-restore" data-id="${p.id}" data-action="restore">복원</button>
+        <button class="admin-btn admin-btn-delete"  data-id="${p.id}" data-action="delete">영구 삭제</button>
       </div>
     </div>
   `).join('');
+
+  wrap.querySelectorAll('.admin-btn[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.action === 'restore') doUnhide(btn.dataset.id);
+      else doAdminDelete(btn.dataset.id);
+    });
+  });
 }
 
 async function doUnhide(postId) {
@@ -125,12 +132,16 @@ async function loadAdmins() {
           <div class="admin-card-title">${escapeHTML(a.email)}</div>
           <div class="admin-card-meta">등록일 ${formatDate(a.granted_at)}</div>
         </div>
-        ${a.user_id !== session?.user?.id ? `
-          <button class="admin-btn admin-btn-delete" onclick="doRemoveAdmin('${a.user_id}')">제거</button>
-        ` : '<span style="font-size:12px;color:var(--text-light)">(본인)</span>'}
+        ${a.user_id !== session?.user?.id
+          ? `<button class="admin-btn admin-btn-delete" data-uid="${a.user_id}">제거</button>`
+          : '<span style="font-size:12px;color:var(--text-light)">(본인)</span>'}
       </div>
     </div>
   `).join('');
+
+  wrap.querySelectorAll('.admin-btn[data-uid]').forEach(btn => {
+    btn.addEventListener('click', () => doRemoveAdmin(btn.dataset.uid));
+  });
 }
 
 async function doAddAdmin() {
@@ -182,12 +193,16 @@ async function loadNoticesAdmin() {
       <div class="admin-card-top">
         <div class="admin-card-body">
           <div class="admin-card-title">${escapeHTML(n.title)}</div>
-          <div class="admin-card-meta">${n.date}</div>
+          <div class="admin-card-meta">${escapeHTML(n.date)}</div>
         </div>
-        <button class="admin-btn admin-btn-delete" onclick="doDeleteNoticeAdmin('${n.id}')">삭제</button>
+        <button class="admin-btn admin-btn-delete" data-nid="${n.id}">삭제</button>
       </div>
     </div>
   `).join('');
+
+  wrap.querySelectorAll('.admin-btn[data-nid]').forEach(btn => {
+    btn.addEventListener('click', () => doDeleteNoticeAdmin(btn.dataset.nid));
+  });
 }
 
 async function doAddNoticeAdmin() {

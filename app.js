@@ -186,7 +186,7 @@ async function renderNotices(isAdmin) {
     <div class="news-card notice-card">
       <div class="news-card-top">
         <span class="news-badge">📢 공지</span>
-        <span class="news-date">${n.date}</span>
+        <span class="news-date">${escapeHTML(n.date)}</span>
         ${isAdmin ? `<button class="notice-del" data-id="${n.id}">×</button>` : ''}
       </div>
       <p class="news-title">${escapeHTML(n.title)}</p>

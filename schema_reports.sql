@@ -46,11 +46,9 @@ DROP POLICY IF EXISTS "admins_select" ON public.admins;
 CREATE POLICY "admins_select" ON public.admins
   FOR SELECT USING (true);
 
+-- admins INSERT/DELETE는 SECURITY DEFINER 함수(add_admin_by_email, remove_admin)가 처리
+-- 클라이언트가 직접 테이블을 수정하지 못하도록 정책을 두지 않음
 DROP POLICY IF EXISTS "admins_manage" ON public.admins;
-CREATE POLICY "admins_manage" ON public.admins
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid())
-  );
 
 -- ── 5. posts SELECT 정책 업데이트 ────────────────────
 --   hidden=true 게시물은 관리자에게만 보임
