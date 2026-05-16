@@ -264,7 +264,8 @@ async function initNotices(isAdmin) {
 /* ════════════════════════════════════════
    카테고리 (Supabase)
 ════════════════════════════════════════ */
-let _selectedCat = '';
+let _selectedCat  = '';
+let _selectedType = '';
 
 async function getCategories() {
   try {
@@ -285,10 +286,10 @@ async function getCategoryNames() {
   return cats.map(c => c.name);
 }
 
-async function insertCategory({ name, description = '', created_by = '익명', creator_id = null }) {
+async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general' }) {
   const { error } = await supabaseClient
     .from('azits')
-    .insert({ name, description, created_by, creator_id });
+    .insert({ name, description, created_by, creator_id, type });
   if (error) throw error;
 }
 
@@ -329,7 +330,8 @@ async function renderCategoryCards() {
   const search     = (document.getElementById('catSearch')?.value || '').toLowerCase().trim();
 
   const sorted = cats
-    .filter(c => !search || c.name.toLowerCase().includes(search))
+    .filter(c => (!search || c.name.toLowerCase().includes(search))
+              && (!_selectedType || c.type === _selectedType))
     .sort((a, b) => {
       const sA = (postCounts[a.name] || 0) * 2 + (userCounts[a.name] || 0);
       const sB = (postCounts[b.name] || 0) * 2 + (userCounts[b.name] || 0);
@@ -413,6 +415,14 @@ function updateWriteBtn() {
 async function initCategorySection() {
   await renderCategoryCards();
   document.getElementById('catSearch')?.addEventListener('input', () => renderCategoryCards());
+  document.querySelectorAll('.azit-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _selectedType = btn.dataset.type;
+      document.querySelectorAll('.azit-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCategoryCards();
+    });
+  });
 }
 
 /* ── 대시보드 카테고리 섹션 초기화 (조회만) ── */
@@ -620,6 +630,7 @@ async function initCategoryManager(userId, nickname) {
     if (!name) return;
     const descInput = document.getElementById('catDescInput');
     const desc = descInput?.value.trim() || '';
+    const type = document.getElementById('catTypeInput')?.value || 'general';
 
     try {
       await insertCategory({
@@ -627,6 +638,7 @@ async function initCategoryManager(userId, nickname) {
         description: desc,
         created_by: nickname,
         creator_id: userId,
+        type,
       });
       input.value = '';
       if (descInput) descInput.value = '';

@@ -554,6 +554,33 @@ header nav a.nav-signup:hover {
 
 .cat-search:focus { border-color: var(--primary); }
 
+/* ── 아지트 타입 필터 ── */
+.azit-type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.azit-type-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-light);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.azit-type-btn:hover  { border-color: var(--primary); color: var(--primary); }
+.azit-type-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
 .cat-chips {
   display: flex;
   flex-wrap: wrap;
