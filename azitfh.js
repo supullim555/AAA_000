@@ -152,7 +152,7 @@ function renderPostCards(container, posts) {
             <span class="news-date">${formatDate(p.created_at)}</span>
           </div>
           <h3 class="news-title">${escapeHTML(p.title)}</h3>
-          <p class="news-desc">${escapeHTML(truncate(p.content, CONFIG.TRUNCATE_LEN))}</p>
+          <p class="news-desc">${escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN))}</p>
           <div class="post-meta">
             by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}
           </div>

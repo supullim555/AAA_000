@@ -60,6 +60,13 @@ function setLoading(btn, loading) {
   btn.textContent = loading ? '처리 중...' : btn.dataset.label;
 }
 
+/* HTML 태그 제거 — 미리보기 텍스트 추출용 */
+function stripHtml(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || '';
+}
+
 /* ── Supabase Auth ── */
 async function authSignUp(email, password, nickname) {
   const { data, error } = await supabaseClient.auth.signUp({
@@ -555,7 +562,7 @@ async function renderPosts() {
           <span class="news-date">${formatDate(p.created_at)}</span>
         </div>
         <h3 class="news-title">${escapeHTML(p.title)}</h3>
-        <p class="news-desc">${escapeHTML(truncate(p.content, CONFIG.TRUNCATE_LEN))}</p>
+        <p class="news-desc">${escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN))}</p>
         <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
       </a>
     `).join('');
@@ -714,7 +721,7 @@ async function initAzitCreate() {
 }
 
 /* ════════════════════════════════════════
-   Page: Post Write
+   Page: Post Write  (Quill 리치 에디터)
 ════════════════════════════════════════ */
 async function initPostWrite() {
   const session = await requireAuth();
@@ -723,15 +730,42 @@ async function initPostWrite() {
   const form = document.getElementById('postWriteForm');
   if (!form) return;
 
-  const catSelect  = form.category;
-  const names      = await getCategoryNames();
-  const preselect  = new URLSearchParams(location.search).get('cat') || '';
+  /* ── Quill 폰트·크기 등록 ── */
+  const Font = Quill.import('formats/font');
+  Font.whitelist = ['serif', 'monospace'];
+  Quill.register(Font, true);
+
+  const Size = Quill.import('attributors/style/size');
+  Size.whitelist = ['12px', '14px', '18px', '24px', '32px'];
+  Quill.register(Size, true);
+
+  /* ── Quill 초기화 ── */
+  let quill;
+  quill = new Quill('#quillEditor', {
+    theme: 'snow',
+    placeholder: '내용을 입력하세요',
+    modules: {
+      toolbar: {
+        container: '#quillToolbar',
+        handlers: {
+          image: () => triggerMediaUpload(quill, 'image/*,image/gif'),
+        },
+      },
+    },
+  });
+
+  /* 첨부파일 버튼 */
+  document.getElementById('attachBtn')?.addEventListener('click', () => triggerFileAttach(quill));
+
+  /* ── 아지트 드롭다운 ── */
+  const catSelect = form.category;
+  const names     = await getCategoryNames();
+  const preselect = new URLSearchParams(location.search).get('cat') || '';
 
   if (names.length === 0) {
     catSelect.innerHTML = '<option value="" disabled selected>아지트가 없습니다</option>';
     catSelect.disabled = true;
-    const hint = document.getElementById('catHint');
-    if (hint) hint.classList.remove('hidden');
+    document.getElementById('catHint')?.classList.remove('hidden');
   } else {
     names.forEach(name => {
       const opt = document.createElement('option');
@@ -742,16 +776,17 @@ async function initPostWrite() {
     });
   }
 
+  /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title    = form.title.value.trim();
-    const content  = form.content.value.trim();
+    const content  = quill.root.innerHTML;
     const category = form.category.value;
 
-    if (!title || !content) {
+    if (!title || !quill.getText().trim()) {
       showToast('제목과 내용을 모두 입력해 주세요.', 'red');
       return;
     }
@@ -760,12 +795,10 @@ async function initPostWrite() {
     setLoading(submitBtn, true);
     try {
       await insertPost({
-        title,
-        content,
-        category,
+        title, content, category,
         author_id:       u.id,
         author_nickname: u.user_metadata?.nickname || u.email,
-        views:           0,
+        views: 0,
       });
       showToast('게시물이 등록됐어요! 🎉', 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
@@ -776,6 +809,50 @@ async function initPostWrite() {
       setLoading(submitBtn, false);
     }
   });
+}
+
+/* ── 이미지 / GIF 업로드 ── */
+async function triggerMediaUpload(quill, accept) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = accept;
+  input.click();
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    showToast('업로드 중...', 'green');
+    const ext  = file.name.split('.').pop();
+    const path = `images/${Date.now()}.${ext}`;
+    const { error } = await supabaseClient.storage
+      .from('post-media').upload(path, file, { contentType: file.type });
+    if (error) { showToast('업로드 실패: ' + error.message, 'red'); return; }
+    const url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+    const range = quill.getSelection() || { index: quill.getLength() };
+    quill.insertEmbed(range.index, 'image', url, 'user');
+    quill.setSelection(range.index + 1);
+    showToast('추가됐어요!', 'green');
+  };
+}
+
+/* ── 첨부파일 업로드 ── */
+async function triggerFileAttach(quill) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.click();
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    showToast('첨부파일 업로드 중...', 'green');
+    const path = `attachments/${Date.now()}-${encodeURIComponent(file.name)}`;
+    const { error } = await supabaseClient.storage
+      .from('post-media').upload(path, file, { contentType: file.type });
+    if (error) { showToast('업로드 실패: ' + error.message, 'red'); return; }
+    const url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+    const idx = quill.getLength();
+    quill.insertText(idx, '\n📎 ' + file.name, 'link', url, 'user');
+    quill.setSelection(idx + file.name.length + 3);
+    showToast('첨부됐어요!', 'green');
+  };
 }
 
 /* ════════════════════════════════════════
@@ -1008,7 +1085,12 @@ async function initPostDetail() {
   document.getElementById('postAuthor').textContent   = post.author_nickname;
   document.getElementById('postDate').textContent     = formatDate(post.created_at);
   document.getElementById('postViews').textContent    = post.views || 0;
-  document.getElementById('postBody').textContent     = post.content;
+  const bodyEl = document.getElementById('postBody');
+  if (typeof DOMPurify !== 'undefined') {
+    bodyEl.innerHTML = DOMPurify.sanitize(post.content);
+  } else {
+    bodyEl.textContent = stripHtml(post.content);
+  }
 
   // 삭제 버튼 (본인만)
   if (session && session.user.id === post.author_id) {

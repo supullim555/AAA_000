@@ -1110,6 +1110,57 @@ header nav a.nav-signup:hover {
   .azitfh-post-grid     { grid-template-columns: 1fr; }
 }
 
+/* ── Quill 리치 에디터 ── */
+.ql-toolbar.ql-snow {
+  border: 1.5px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  background: var(--bg);
+  padding: 6px 8px;
+  flex-wrap: wrap;
+}
+.ql-container.ql-snow {
+  border: 1.5px solid var(--border);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  font-family: inherit;
+  font-size: 15px;
+}
+.ql-editor {
+  min-height: 260px;
+  color: var(--text);
+  background: var(--card);
+  line-height: 1.8;
+}
+.ql-editor.ql-blank::before { color: var(--text-light); font-style: normal; }
+.ql-editor img { max-width: 100%; border-radius: 6px; margin: 4px 0; }
+
+.ql-attach {
+  font-size: 15px !important;
+  width: auto !important;
+  padding: 0 5px !important;
+}
+
+/* 다크모드 툴바 */
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke           { stroke: #9aa5b8; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-fill             { fill: #9aa5b8; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-label     { color: #9aa5b8; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-options   { background: #1a1e2e; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-item      { color: var(--text); }
+[data-theme="dark"] .ql-toolbar.ql-snow button:hover .ql-stroke,
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-active .ql-stroke { stroke: var(--primary); }
+[data-theme="dark"] .ql-toolbar.ql-snow button:hover .ql-fill,
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-active .ql-fill   { fill: var(--primary); }
+[data-theme="dark"] .ql-toolbar.ql-snow button:hover          { color: var(--primary); }
+
+/* 본문 영역 다크 */
+.ql-snow .ql-editor pre.ql-syntax { background: #1a1e2e; color: #e0e6f0; border-radius: var(--r-sm); }
+.ql-snow .ql-tooltip              { background: var(--card); border-color: var(--border); color: var(--text); }
+.ql-snow .ql-tooltip input        { background: var(--bg); color: var(--text); border-color: var(--border); }
+
+/* 게시물 본문 이미지 */
+.post-detail-body img { max-width: 100%; border-radius: 6px; margin: 6px 0; }
+.post-detail-body a   { color: var(--primary); text-decoration: underline; }
+
 /* ── 어드민 사이트 ── */
 .admin-wrap {
   max-width: 900px;
