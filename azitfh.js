@@ -1,20 +1,9 @@
 /* ════════════════════════════════════════
-   azitfh.js — 아지트 페이지 로직
+   azitfh.js — 아지트 커뮤니티 엔진
    app.js의 공통 함수 (getSession, updateNav,
    showToast, escapeHTML, truncate, formatDate,
    CONFIG) 재사용
 ════════════════════════════════════════ */
-
-/* ── 아지트 타입 정의 ──
-   새 타입 추가 시 이 객체만 확장하면 됩니다.
-   renderByType()에 해당 렌더러도 추가하세요.
-── */
-const AZITFH_TYPES = {
-  general: { label: '커뮤니티', icon: '💬', desc: '자유롭게 글을 올리는 공간' },
-  video:   { label: '영상',     icon: '🎬', desc: '영상 중심의 채널' },
-  game:    { label: '게임',     icon: '🎮', desc: '게임 정보 & 공략 공간' },
-  gallery: { label: '갤러리',   icon: '🖼️', desc: '이미지 중심의 전시 공간' },
-};
 
 /* ════════════════════════════════════════
    진입점
@@ -81,16 +70,14 @@ async function fetchPosts(catName) {
    히어로 섹션
 ════════════════════════════════════════ */
 function renderHero(azitfh, session) {
-  const type     = AZITFH_TYPES[azitfh.type] || AZITFH_TYPES.general;
-  const color    = azitfh.cover_color || '#4aab8e';
+  const color = azitfh.cover_color || '#4aab8e';
 
   document.getElementById('heroBg').style.background =
     `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
 
-  document.getElementById('heroIcon').textContent      = azitfh.icon || '🏠';
-  document.getElementById('heroName').textContent      = azitfh.name;
-  document.getElementById('heroDesc').textContent      = azitfh.description || type.desc;
-  document.getElementById('heroTypeBadge').textContent = `${type.icon} ${type.label}`;
+  document.getElementById('heroIcon').textContent = azitfh.icon || '🏠';
+  document.getElementById('heroName').textContent = azitfh.name;
+  document.getElementById('heroDesc').textContent = azitfh.description || '';
 
   if (session) {
     const btn = document.getElementById('heroWriteBtn');
@@ -99,7 +86,6 @@ function renderHero(azitfh, session) {
   }
 }
 
-// hex 색상을 어둡게 처리 (그라디언트 끝 색상용)
 function darkenHex(hex, amount = 40) {
   try {
     const n = parseInt(hex.replace('#', ''), 16);
@@ -122,16 +108,15 @@ function initAzitfhTabs(azitfh, catName) {
       document.getElementById(`pane-${tab.dataset.tab}`)?.classList.remove('hidden');
 
       switch (tab.dataset.tab) {
-        case 'posts': await loadPosts(azitfh, catName);  break;
-        case 'media': loadMediaPlaceholder(azitfh.type); break;
-        case 'about': renderAbout(azitfh);                break;
+        case 'posts': await loadPosts(azitfh, catName); break;
+        case 'about': renderAbout(azitfh);               break;
       }
     });
   });
 }
 
 /* ════════════════════════════════════════
-   게시물 탭 — 타입별 렌더링
+   게시물 탭
 ════════════════════════════════════════ */
 async function loadPosts(azitfh, catName) {
   const container = document.getElementById('postsPane');
@@ -145,7 +130,6 @@ async function loadPosts(azitfh, catName) {
     return;
   }
 
-  // 통계 업데이트
   document.getElementById('heroPostCount').textContent   = posts.length;
   document.getElementById('heroMemberCount').textContent =
     new Set(posts.map(p => p.author_id)).size;
@@ -156,22 +140,10 @@ async function loadPosts(azitfh, catName) {
     return;
   }
 
-  // 타입에 따라 다른 렌더러 선택
-  renderByType(container, posts, azitfh.type || 'general');
+  renderPostCards(container, posts);
 }
 
-/* 타입 → 렌더러 디스패치 */
-function renderByType(container, posts, type) {
-  switch (type) {
-    case 'video':   renderAsVideoGrid(container, posts);  break;
-    case 'game':    renderAsGameCards(container, posts);  break;
-    case 'gallery': renderAsGallery(container, posts);    break;
-    default:        renderAsPostCards(container, posts);
-  }
-}
-
-/* ── general: 표준 게시물 카드 ── */
-function renderAsPostCards(container, posts) {
+function renderPostCards(container, posts) {
   container.innerHTML = `
     <div class="azitfh-post-grid">
       ${posts.map(p => `
@@ -189,87 +161,10 @@ function renderAsPostCards(container, posts) {
     </div>`;
 }
 
-/* ── video: 영상 그리드 ── */
-function renderAsVideoGrid(container, posts) {
-  container.innerHTML = `
-    <div class="azitfh-video-grid">
-      ${posts.map(p => `
-        <a class="azitfh-video-card" href="post-detail.html?id=${p.id}">
-          <div class="azitfh-video-thumb">
-            <span class="azitfh-video-play">▶</span>
-          </div>
-          <div class="azitfh-video-info">
-            <p class="azitfh-video-title">${escapeHTML(p.title)}</p>
-            <p class="azitfh-video-meta">
-              ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0} · ${formatDate(p.created_at)}
-            </p>
-          </div>
-        </a>
-      `).join('')}
-    </div>`;
-}
-
-/* ── game: 게임 카드 리스트 ── */
-function renderAsGameCards(container, posts) {
-  container.innerHTML = `
-    <div class="azitfh-game-list">
-      ${posts.map(p => `
-        <a class="azitfh-game-card" href="post-detail.html?id=${p.id}">
-          <div class="azitfh-game-cover">🎮</div>
-          <div class="azitfh-game-info">
-            <p class="azitfh-game-title">${escapeHTML(p.title)}</p>
-            <p class="azitfh-game-desc">${escapeHTML(truncate(p.content, 80))}</p>
-            <p class="azitfh-game-meta">
-              by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}
-            </p>
-          </div>
-          <span class="azitfh-game-play">▶ 보기</span>
-        </a>
-      `).join('')}
-    </div>`;
-}
-
-/* ── gallery: 갤러리 그리드 ── */
-function renderAsGallery(container, posts) {
-  container.innerHTML = `
-    <div class="azitfh-gallery-grid">
-      ${posts.map(p => `
-        <a class="azitfh-gallery-item" href="post-detail.html?id=${p.id}">
-          <div class="azitfh-gallery-img">
-            <span>${escapeHTML(p.title.charAt(0).toUpperCase())}</span>
-          </div>
-          <p class="azitfh-gallery-title">${escapeHTML(p.title)}</p>
-        </a>
-      `).join('')}
-    </div>`;
-}
-
-/* ════════════════════════════════════════
-   미디어 탭 (플레이스홀더)
-   — 향후 각 타입별 미디어 업로드 기능 구현 예정
-════════════════════════════════════════ */
-function loadMediaPlaceholder(type) {
-  const icons   = { video: '🎬', game: '🕹️', gallery: '📸', general: '📁' };
-  const labels  = { video: '영상 업로드', game: '게임 파일', gallery: '이미지 업로드', general: '파일' };
-  const icon    = icons[type]  || icons.general;
-  const label   = labels[type] || labels.general;
-
-  document.getElementById('mediaPane').innerHTML = `
-    <div class="azitfh-placeholder">
-      <p class="azitfh-placeholder-icon">${icon}</p>
-      <p class="azitfh-placeholder-title">${label} 기능 준비 중</p>
-      <p class="azitfh-placeholder-desc">
-        이 아지트만의 미디어 공간이 곧 열릴 예정이에요.
-      </p>
-    </div>`;
-}
-
 /* ════════════════════════════════════════
    정보 탭
 ════════════════════════════════════════ */
 function renderAbout(azitfh) {
-  const type = AZITFH_TYPES[azitfh.type] || AZITFH_TYPES.general;
-
   document.getElementById('aboutPane').innerHTML = `
     <div class="azitfh-about">
       <div class="azitfh-about-section">
@@ -279,9 +174,8 @@ function renderAbout(azitfh) {
       <div class="azitfh-about-section">
         <h3>아지트 정보</h3>
         <ul class="azitfh-about-list">
-          <li><span>유형</span>    <span>${type.icon} ${type.label}</span></li>
-          <li><span>만든이</span>  <span>${escapeHTML(azitfh.created_by || '알 수 없음')}</span></li>
-          <li><span>개설일</span>  <span>${formatDate(azitfh.created_at)}</span></li>
+          <li><span>만든이</span> <span>${escapeHTML(azitfh.created_by || '알 수 없음')}</span></li>
+          <li><span>개설일</span> <span>${formatDate(azitfh.created_at)}</span></li>
         </ul>
       </div>
     </div>`;
