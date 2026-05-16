@@ -189,13 +189,22 @@ header nav a.nav-signup:hover {
 
 /* 공지 카드 그리드 */
 .notice-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 116px;
+  overflow: hidden;
 }
 
-.notice-card { cursor: default; }
+.notice-card {
+  cursor: default;
+  padding: 8px 12px;
+}
+
+.notice-card .news-card-top {
+  margin-bottom: 4px;
+}
 
 .notice-card .notice-del {
   margin-left: auto;
