@@ -4,7 +4,25 @@ const CONFIG = {
   TRUNCATE_LEN:   70,   // 게시물 미리보기 최대 글자 수
   TOAST_MS:     3000,   // 토스트 자동 닫힘 (ms)
   REPORT_MIN:      3,   // 신고 자동 숨김 최소 건수
+  POSTS_CACHE_TTL: 30000, // 게시물 캐시 유효기간 (ms)
 };
+
+/* ── 게시물 캐시 — 동일 세션 내 중복 DB 호출 방지 ── */
+let _postsCache = null;
+let _postsCacheTime = 0;
+
+async function fetchPostsCached() {
+  const now = Date.now();
+  if (_postsCache && (now - _postsCacheTime) < CONFIG.POSTS_CACHE_TTL) return _postsCache;
+  _postsCache = await getPosts();
+  _postsCacheTime = now;
+  return _postsCache;
+}
+
+function invalidatePostsCache() {
+  _postsCache = null;
+  _postsCacheTime = 0;
+}
 
 /* ── Dark Mode ── */
 function initDarkMode() {
@@ -347,9 +365,8 @@ async function renderCategoryCards() {
   const wrap = document.getElementById('catChips');
   if (!wrap) return;
 
-  // posts 실패해도 카테고리는 표시 (통계용이므로 catch로 빈 배열 대체)
   const cats     = await getCategories();
-  const allPosts = await getPosts().catch(() => []);
+  const allPosts = await fetchPostsCached().catch(() => []);
   const postCounts = getCatCounts(allPosts);
   const userCounts = getCatUserCounts(allPosts);
   const search     = (document.getElementById('catSearch')?.value || '').toLowerCase().trim();
@@ -505,11 +522,13 @@ async function insertPost(postData) {
     .from('posts')
     .insert(postData);
   if (error) throw error;
+  invalidatePostsCache();
 }
 
 async function deletePost(id) {
   const { error } = await supabaseClient.from('posts').delete().eq('id', id);
   if (error) throw error;
+  invalidatePostsCache();
 }
 
 async function incrementViews(id) {
@@ -544,8 +563,9 @@ async function renderPosts() {
   if (titleEl) titleEl.textContent = '인기 게시물';
 
   try {
-    let posts = await getPosts(_selectedCat);
-    posts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, CONFIG.POPULAR_LIMIT);
+    let posts = await fetchPostsCached();
+    if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
+    posts = posts.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, CONFIG.POPULAR_LIMIT);
 
     if (posts.length === 0) {
       const msg = _selectedCat
@@ -581,16 +601,11 @@ async function renderPostsList() {
   if (titleEl) titleEl.textContent = '게시물';
 
   try {
-    let query = supabaseClient
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (_selectedCat) query = query.eq('category', _selectedCat);
+    let posts = await fetchPostsCached();
+    if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
+    posts = posts.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    const { data: posts, error } = await query;
-    if (error) throw error;
-
-    if (!posts || posts.length === 0) {
+    if (posts.length === 0) {
       wrap.innerHTML = '<p class="news-empty">게시물이 없습니다.</p>';
       return;
     }
@@ -615,20 +630,11 @@ async function renderCategories(userId) {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  let { data: cats, error } = await supabaseClient
+  const { data: cats, error } = await supabaseClient
     .from('azits')
     .select('*')
-    .or(`creator_id.eq.${userId},creator_id.is.null`)
+    .eq('creator_id', userId)
     .order('created_at', { ascending: true });
-
-  if (error) {
-    const res = await supabaseClient
-      .from('azits')
-      .select('*')
-      .order('created_at', { ascending: true });
-    cats = res.data;
-    error = res.error;
-  }
 
   if (error) {
     ul.innerHTML = '<li class="cat-empty">아지트를 불러오지 못했어요.</li>';
@@ -812,6 +818,10 @@ async function initPostWrite() {
 }
 
 /* ── 이미지 / GIF 업로드 ── */
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_IMAGE_BYTES     = 10 * 1024 * 1024; // 10 MB
+const MAX_ATTACH_BYTES    = 50 * 1024 * 1024; // 50 MB
+
 async function triggerMediaUpload(quill, accept) {
   const input = document.createElement('input');
   input.type = 'file';
@@ -820,8 +830,16 @@ async function triggerMediaUpload(quill, accept) {
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showToast('JPEG, PNG, GIF, WebP 파일만 업로드할 수 있어요.', 'red');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      showToast('이미지는 10MB 이하여야 해요.', 'red');
+      return;
+    }
     showToast('업로드 중...', 'green');
-    const ext  = file.name.split('.').pop();
+    const ext  = file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
     const path = `images/${Date.now()}.${ext}`;
     const { error } = await supabaseClient.storage
       .from('post-media').upload(path, file, { contentType: file.type });
@@ -842,6 +860,10 @@ async function triggerFileAttach(quill) {
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
+    if (file.size > MAX_ATTACH_BYTES) {
+      showToast('첨부파일은 50MB 이하여야 해요.', 'red');
+      return;
+    }
     showToast('첨부파일 업로드 중...', 'green');
     const path = `attachments/${Date.now()}-${encodeURIComponent(file.name)}`;
     const { error } = await supabaseClient.storage
