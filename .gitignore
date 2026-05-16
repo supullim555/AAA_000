@@ -3,3 +3,8 @@ hero-gen/
 
 # Claude Code 로컬 설정
 .claude/
+
+# MCP 설정 (액세스 토큰 포함)
+.mcp.json
+
+# supabase-config.js 는 anon(공개)키이므로 git 추적 허용
