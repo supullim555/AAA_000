@@ -269,7 +269,7 @@ let _selectedCat = '';
 async function getCategories() {
   try {
     const { data, error } = await supabaseClient
-      .from('categories')
+      .from('azits')
       .select('*')
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -287,13 +287,13 @@ async function getCategoryNames() {
 
 async function insertCategory({ name, description = '', created_by = '익명', creator_id = null }) {
   const { error } = await supabaseClient
-    .from('categories')
+    .from('azits')
     .insert({ name, description, created_by, creator_id });
   if (error) throw error;
 }
 
 async function deleteCategory(name) {
-  const { error } = await supabaseClient.from('categories').delete().eq('name', name);
+  const { error } = await supabaseClient.from('azits').delete().eq('name', name);
   if (error) throw error;
 }
 
@@ -355,7 +355,7 @@ async function renderCategoryCards() {
   if (cats.length === 0) {
     const empty = document.createElement('span');
     empty.className = 'cat-chip-empty';
-    empty.textContent = '카테고리가 없습니다.';
+    empty.textContent = '아지트가 없습니다.';
     wrap.appendChild(empty);
     return;
   }
@@ -389,14 +389,6 @@ async function renderCategoryCards() {
       badge.textContent = 'HOT';
       nameRow.appendChild(badge);
     }
-    // 아지트 방문 링크 (카드 클릭과 독립)
-    const visitLink = document.createElement('a');
-    visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
-    visitLink.className = 'cat-card-visit';
-    visitLink.title = `${c.name} 아지트 방문`;
-    visitLink.textContent = '→';
-    visitLink.addEventListener('click', e => e.stopPropagation());
-    nameRow.appendChild(visitLink);
     btn.appendChild(nameRow);
 
     btn.addEventListener('click', async () => {
@@ -499,7 +491,7 @@ async function renderPosts() {
 
     if (posts.length === 0) {
       const msg = _selectedCat
-        ? `"${escapeHTML(_selectedCat)}" 카테고리에 게시물이 없습니다.`
+        ? `"${escapeHTML(_selectedCat)}" 아지트에 게시물이 없습니다.`
         : '아직 게시물이 없습니다.';
       grid.innerHTML = `<p class="news-empty">${msg}</p>`;
       return;
@@ -567,7 +559,7 @@ async function renderCategories(userId) {
 
   // creator_id = userId 또는 마이그레이션 전 생성(NULL)된 카테고리 모두 표시
   let { data: cats, error } = await supabaseClient
-    .from('categories')
+    .from('azits')
     .select('*')
     .or(`creator_id.eq.${userId},creator_id.is.null`)
     .order('created_at', { ascending: true });
@@ -575,7 +567,7 @@ async function renderCategories(userId) {
   // creator_id 컬럼 자체가 없을 때(마이그레이션 미실행) → 전체 조회로 대체
   if (error) {
     const res = await supabaseClient
-      .from('categories')
+      .from('azits')
       .select('*')
       .order('created_at', { ascending: true });
     cats = res.data;
@@ -583,13 +575,13 @@ async function renderCategories(userId) {
   }
 
   if (error) {
-    ul.innerHTML = '<li class="cat-empty">카테고리를 불러오지 못했어요.</li>';
+    ul.innerHTML = '<li class="cat-empty">아지트를 불러오지 못했어요.</li>';
     console.error('renderCategories:', error);
     return;
   }
 
   if (!cats || cats.length === 0) {
-    ul.innerHTML = '<li class="cat-empty">내가 만든 카테고리가 없습니다.</li>';
+    ul.innerHTML = '<li class="cat-empty">내가 만든 아지트가 없습니다.</li>';
     return;
   }
 
@@ -639,9 +631,9 @@ async function initCategoryManager(userId, nickname) {
       input.value = '';
       if (descInput) descInput.value = '';
       await renderCategories(userId);
-      showToast(`"${name}" 카테고리가 추가됐어요.`, 'green');
+      showToast(`"${name}" 아지트가 추가됐어요.`, 'green');
     } catch (err) {
-      if (err.code === '23505') showToast('이미 있는 카테고리예요.', 'red');
+      if (err.code === '23505') showToast('이미 있는 아지트예요.', 'red');
       else showToast('추가 실패', 'red');
     }
   });
@@ -667,7 +659,7 @@ async function initPostWrite() {
   const preselect  = new URLSearchParams(location.search).get('cat') || '';
 
   if (names.length === 0) {
-    catSelect.innerHTML = '<option value="" disabled selected>카테고리가 없습니다</option>';
+    catSelect.innerHTML = '<option value="" disabled selected>아지트가 없습니다</option>';
     catSelect.disabled = true;
     const hint = document.getElementById('catHint');
     if (hint) hint.classList.remove('hidden');

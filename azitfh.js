@@ -48,7 +48,7 @@ async function initAzitfh() {
 ════════════════════════════════════════ */
 async function fetchAzitfh(catName) {
   const { data } = await supabaseClient
-    .from('categories')
+    .from('azits')
     .select('*')
     .eq('name', catName)
     .maybeSingle();

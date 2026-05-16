@@ -1,8 +1,7 @@
 -- ═══════════════════════════════════════════════════════
--- Open Azitfh — Azitfh Engine Migration
--- categories 테이블에 아지트 전용 컬럼 추가
+-- Open Azitfh — categories 테이블을 azits로 이름 변경
+-- Supabase 대시보드 SQL Editor에서 실행하세요.
 -- ═══════════════════════════════════════════════════════
 
-ALTER TABLE public.azits
-  ADD COLUMN IF NOT EXISTS cover_color TEXT NOT NULL DEFAULT '#4aab8e',
-  ADD COLUMN IF NOT EXISTS icon        TEXT NOT NULL DEFAULT '🏠';
+-- 1. 테이블 이름 변경
+ALTER TABLE public.categories RENAME TO azits;
