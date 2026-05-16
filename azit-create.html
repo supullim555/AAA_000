@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아지트 만들기 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-write-wrap">
+    <form id="azitCreateForm" class="post-write-form">
+      <h2>아지트 만들기</h2>
+
+      <div class="field">
+        <label for="azitName">이름</label>
+        <input type="text" id="azitName" name="azitName"
+               placeholder="아지트 이름을 입력하세요" maxlength="20" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="azitDesc">설명</label>
+        <textarea id="azitDesc" name="azitDesc"
+                  placeholder="아지트를 소개해 주세요 (선택)" maxlength="120"
+                  style="min-height:90px"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="azitType">타입</label>
+        <select id="azitType" name="azitType">
+          <option value="general">기본</option>
+        </select>
+      </div>
+
+      <div class="post-write-actions">
+        <a href="dashboard.html" class="btn-secondary">취소</a>
+        <button type="submit" class="btn btn-primary">만들기</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initAzitCreate();</script>
+</body>
+</html>

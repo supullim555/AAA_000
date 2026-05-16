@@ -1610,6 +1610,25 @@ header nav a.nav-signup:hover {
   padding: 4px 0;
 }
 
+.cat-item-type {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--border);
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.cat-card-type {
+  font-size: 11px;
+  color: var(--text-light);
+  opacity: 0.75;
+  margin-top: 2px;
+  text-align: left;
+}
+.cat-card-btn.active .cat-card-type { opacity: 0.75; color: rgba(255,255,255,0.8); }
+
 .cat-item-desc {
   font-size: 12px;
   color: var(--text-light);

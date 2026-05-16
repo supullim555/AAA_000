@@ -266,6 +266,9 @@ async function initNotices(isAdmin) {
 ════════════════════════════════════════ */
 let _selectedCat  = '';
 let _selectedType = '';
+let _dashType     = '';
+
+const TYPE_LABELS = { general: '기본' };
 
 async function getCategories() {
   try {
@@ -392,6 +395,13 @@ async function renderCategoryCards() {
       nameRow.appendChild(badge);
     }
     btn.appendChild(nameRow);
+
+    if (c.type) {
+      const typeEl = document.createElement('span');
+      typeEl.className = 'cat-card-type';
+      typeEl.textContent = TYPE_LABELS[c.type] || c.type;
+      btn.appendChild(typeEl);
+    }
 
     btn.addEventListener('click', async () => {
       _selectedCat = c.name;
@@ -562,19 +572,17 @@ async function renderPostsList() {
   }
 }
 
-/* ── 카테고리 관리 (대시보드, 본인 카테고리만) ── */
+/* ── 아지트 관리 (대시보드, 본인 아지트만) ── */
 async function renderCategories(userId) {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  // creator_id = userId 또는 마이그레이션 전 생성(NULL)된 카테고리 모두 표시
   let { data: cats, error } = await supabaseClient
     .from('azits')
     .select('*')
     .or(`creator_id.eq.${userId},creator_id.is.null`)
     .order('created_at', { ascending: true });
 
-  // creator_id 컬럼 자체가 없을 때(마이그레이션 미실행) → 전체 조회로 대체
   if (error) {
     const res = await supabaseClient
       .from('azits')
@@ -590,21 +598,28 @@ async function renderCategories(userId) {
     return;
   }
 
+  if (_dashType) cats = (cats || []).filter(c => c.type === _dashType);
+
   if (!cats || cats.length === 0) {
     ul.innerHTML = '<li class="cat-empty">내가 만든 아지트가 없습니다.</li>';
     return;
   }
 
-  ul.innerHTML = cats.map(c => `
+  ul.innerHTML = cats.map(c => {
+    const typeLabel = TYPE_LABELS[c.type] || c.type || '';
+    return `
     <li class="cat-item">
       <div style="flex:1;min-width:0">
-        <span class="cat-name">${escapeHTML(c.name)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="cat-name">${escapeHTML(c.name)}</span>
+          ${typeLabel ? `<span class="cat-item-type">${escapeHTML(typeLabel)}</span>` : ''}
+        </div>
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
       <button class="cat-del" data-name="${escapeHTML(c.name)}">×</button>
-    </li>
-  `).join('');
+    </li>`;
+  }).join('');
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -618,44 +633,55 @@ async function renderCategories(userId) {
   });
 }
 
-async function initCategoryManager(userId, nickname) {
+async function initCategoryManager(userId) {
   await renderCategories(userId);
 
-  const input  = document.getElementById('catInput');
-  const addBtn = document.getElementById('catAddBtn');
-  if (!input || !addBtn) return;
-
-  addBtn.addEventListener('click', async () => {
-    const name = input.value.trim();
-    if (!name) return;
-    const descInput = document.getElementById('catDescInput');
-    const desc = descInput?.value.trim() || '';
-    const type = document.getElementById('catTypeInput')?.value || 'general';
-
-    try {
-      await insertCategory({
-        name,
-        description: desc,
-        created_by: nickname,
-        creator_id: userId,
-        type,
-      });
-      input.value = '';
-      if (descInput) descInput.value = '';
-      await renderCategories(userId);
-      showToast(`"${name}" 아지트가 추가됐어요.`, 'green');
-    } catch (err) {
-      if (err.code === '23505') showToast('이미 있는 아지트예요.', 'red');
-      else showToast('추가 실패', 'red');
-    }
-  });
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
+  document.querySelectorAll('#dashTypeFilter .azit-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _dashType = btn.dataset.type;
+      document.querySelectorAll('#dashTypeFilter .azit-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCategories(userId);
+    });
   });
 }
 
-/* ── 카테고리 생성 폼 초기화 (누구나 가능) ── */
+/* ════════════════════════════════════════
+   Page: Azit Create
+════════════════════════════════════════ */
+async function initAzitCreate() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const form = document.getElementById('azitCreateForm');
+  if (!form) return;
+
+  const submitBtn = form.querySelector('[type=submit]');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = form.azitName.value.trim();
+    const desc = form.azitDesc.value.trim();
+    const type = form.azitType.value;
+
+    if (!name) { showToast('아지트 이름을 입력해 주세요.', 'red'); return; }
+
+    const user     = session.user;
+    const nickname = user.user_metadata?.nickname || user.email;
+    setLoading(submitBtn, true);
+
+    try {
+      await insertCategory({ name, description: desc, created_by: nickname, creator_id: user.id, type });
+      showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
+      setTimeout(() => { location.href = 'dashboard.html'; }, 900);
+    } catch (err) {
+      setLoading(submitBtn, false);
+      if (err.code === '23505') showToast('이미 있는 아지트 이름이에요.', 'red');
+      else showToast('아지트 생성 실패', 'red');
+    }
+  });
+}
+
 /* ════════════════════════════════════════
    Page: Post Write
 ════════════════════════════════════════ */
@@ -1254,7 +1280,7 @@ async function initDashboard() {
   if (dateEl)  dateEl.textContent  = joinDate;
   if (emailEl) emailEl.textContent = user.email;
 
-  await initCategoryManager(user.id, nickname);
+  await initCategoryManager(user.id);
 
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await authSignOut();

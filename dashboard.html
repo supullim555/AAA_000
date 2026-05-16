@@ -34,21 +34,15 @@
       <a href="post-write.html" class="btn btn-primary" style="font-size:13px;padding:9px 20px">+ 글쓰기</a>
     </div>
 
-    <!-- 카테고리 관리 -->
+    <!-- 아지트 관리 -->
     <div class="dash-section">
-      <h3 class="dash-section-title">아지트 관리</h3>
-      <div class="cat-add-row">
-        <input type="text" id="catInput" placeholder="아지트 이름" maxlength="20">
-        <button id="catAddBtn">추가</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h3 class="dash-section-title" style="margin-bottom:0">아지트 관리</h3>
+        <a href="azit-create.html" class="btn btn-primary" style="font-size:13px;padding:7px 16px">+ 아지트 만들기</a>
       </div>
-      <div class="cat-add-row" style="margin-top:-4px">
-        <input type="text" id="catDescInput" placeholder="설명 (선택, 최대 60자)" maxlength="60" style="font-size:12px">
-      </div>
-      <div class="cat-add-row" style="margin-top:-4px;gap:8px;align-items:center">
-        <span style="font-size:12px;color:var(--text-light);white-space:nowrap">타입</span>
-        <select id="catTypeInput" style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:inherit;color:var(--text);background:var(--bg)">
-          <option value="general">기본</option>
-        </select>
+      <div class="azit-type-filter" id="dashTypeFilter">
+        <button class="azit-type-btn active" data-type="">전체</button>
+        <button class="azit-type-btn" data-type="general">기본</button>
       </div>
       <ul id="catList" class="cat-list"></ul>
     </div>
