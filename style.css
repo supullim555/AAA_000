@@ -192,9 +192,15 @@ header nav a.nav-signup:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 6px;
-  max-height: 116px;
+  margin-top: 4px;
+  max-height: 120px;
   overflow: hidden;
+}
+
+/* 공지 없을 때 한 줄 높이만 차지 */
+.notice-grid .news-empty {
+  padding: 4px 0;
+  text-align: left;
 }
 
 .notice-card {
