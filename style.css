@@ -1621,13 +1621,37 @@ header nav a.nav-signup:hover {
 }
 
 .cat-card-type {
+  display: none;
   font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.07);
   color: var(--text-light);
-  opacity: 0.75;
-  margin-top: 2px;
-  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.cat-card-btn.active .cat-card-type { opacity: 0.75; color: rgba(255,255,255,0.8); }
+.azit-type-show .cat-card-type { display: inline-flex; align-items: center; }
+.cat-card-btn.active .cat-card-type {
+  background: rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.9);
+}
+
+.azit-type-toggle-btn {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.azit-type-toggle-btn:hover,
+.azit-type-toggle-btn.active { border-color: var(--primary); color: var(--primary); }
 
 .cat-item-desc {
   font-size: 12px;
