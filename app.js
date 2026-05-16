@@ -389,6 +389,14 @@ async function renderCategoryCards() {
       badge.textContent = 'HOT';
       nameRow.appendChild(badge);
     }
+    // 아지트 방문 링크 (카드 클릭과 독립)
+    const visitLink = document.createElement('a');
+    visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
+    visitLink.className = 'cat-card-visit';
+    visitLink.title = `${c.name} 아지트 방문`;
+    visitLink.textContent = '→';
+    visitLink.addEventListener('click', e => e.stopPropagation());
+    nameRow.appendChild(visitLink);
     btn.appendChild(nameRow);
 
     btn.addEventListener('click', async () => {

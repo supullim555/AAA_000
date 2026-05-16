@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아지트 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navLogin"  href="login.html">로그인</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <!-- ── 히어로 배너 ── -->
+  <div class="azitfh-hero">
+    <div class="azitfh-hero-bg" id="heroBg"></div>
+    <div class="azitfh-hero-content">
+      <span class="azitfh-icon" id="heroIcon">🏠</span>
+      <h1 class="azitfh-name" id="heroName">아지트</h1>
+      <p class="azitfh-desc" id="heroDesc"></p>
+      <div class="azitfh-stats">
+        <span>📝 <strong id="heroPostCount">0</strong>개의 게시물</span>
+        <span>👤 <strong id="heroMemberCount">0</strong>명의 멤버</span>
+      </div>
+      <div class="azitfh-actions">
+        <a id="heroWriteBtn" href="#" class="btn btn-primary hidden">+ 글쓰기</a>
+        <span class="azitfh-type-badge" id="heroTypeBadge">커뮤니티</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 탭 바 ── -->
+  <div class="azitfh-tabs-wrap">
+    <div class="azitfh-tabs">
+      <button class="azitfh-tab active" data-tab="posts">게시물</button>
+      <button class="azitfh-tab"        data-tab="media">미디어</button>
+      <button class="azitfh-tab"        data-tab="about">정보</button>
+    </div>
+  </div>
+
+  <!-- ── 콘텐츠 패널 ── -->
+  <div class="azitfh-content-wrap">
+    <div id="pane-posts" class="azitfh-pane">
+      <div id="postsPane"></div>
+    </div>
+    <div id="pane-media" class="azitfh-pane hidden">
+      <div id="mediaPane"></div>
+    </div>
+    <div id="pane-about" class="azitfh-pane hidden">
+      <div id="aboutPane"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script src="azitfh.js"></script>
+  <script>initDarkMode(); initAzitfh();</script>
+</body>
+</html>
