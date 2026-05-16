@@ -1135,11 +1135,26 @@ header nav a.nav-signup:hover {
   align-items: center !important;
   float: none !important;
   width: auto !important;
-  height: auto !important;
-  padding: 3px 5px !important;
+  height: 26px !important;
+  padding: 2px 5px !important;
   gap: 3px;
   border-radius: 4px;
 }
+/* SVG 아이콘 고정 크기 */
+.ql-toolbar.ql-snow button svg {
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0;
+}
+/* 라이트 모드 SVG 색상 */
+.ql-toolbar.ql-snow .ql-stroke { stroke: #555 !important; }
+.ql-toolbar.ql-snow .ql-fill   { fill:   #555 !important; }
+.ql-toolbar.ql-snow .ql-stroke.ql-fill { stroke: #555 !important; fill: #555 !important; }
+/* 라이트 모드 hover/active */
+.ql-toolbar.ql-snow button:hover .ql-stroke,
+.ql-toolbar.ql-snow .ql-active  .ql-stroke { stroke: var(--primary) !important; }
+.ql-toolbar.ql-snow button:hover .ql-fill,
+.ql-toolbar.ql-snow .ql-active  .ql-fill   { fill:   var(--primary) !important; }
 
 /* 아이콘+텍스트 동시 표시: 이미지/GIF, 링크, 초기화 */
 .ql-toolbar.ql-snow button.ql-image::after,
@@ -1191,17 +1206,18 @@ header nav a.nav-signup:hover {
 .ql-editor.ql-blank::before { color: var(--text-light); font-style: normal; }
 .ql-editor img { max-width: 100%; border-radius: 6px; margin: 4px 0; }
 
-/* 다크모드 툴바 */
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke           { stroke: #9aa5b8; }
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-fill             { fill: #9aa5b8; }
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-label     { color: #9aa5b8; }
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-options   { background: #1a1e2e; border-color: var(--border); color: var(--text); }
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-item      { color: var(--text); }
+/* 다크모드 툴바 SVG */
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke              { stroke: #c0c8d8 !important; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-fill                { fill:   #c0c8d8 !important; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-stroke.ql-fill      { stroke: #c0c8d8 !important; fill: #c0c8d8 !important; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-label        { color: #c0c8d8; }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-options      { background: #1a1e2e; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker-item         { color: var(--text); }
 [data-theme="dark"] .ql-toolbar.ql-snow button:hover .ql-stroke,
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-active .ql-stroke { stroke: var(--primary); }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-active  .ql-stroke  { stroke: var(--primary) !important; }
 [data-theme="dark"] .ql-toolbar.ql-snow button:hover .ql-fill,
-[data-theme="dark"] .ql-toolbar.ql-snow .ql-active .ql-fill   { fill: var(--primary); }
-[data-theme="dark"] .ql-toolbar.ql-snow button:hover          { color: var(--primary); }
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-active  .ql-fill    { fill:   var(--primary) !important; }
+[data-theme="dark"] .ql-toolbar.ql-snow button:hover            { color: var(--primary); }
 
 /* 본문 영역 다크 */
 .ql-snow .ql-editor pre.ql-syntax { background: #1a1e2e; color: #e0e6f0; border-radius: var(--r-sm); }
