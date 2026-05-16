@@ -1129,7 +1129,7 @@ header nav a.nav-signup:hover {
   float: none !important;
 }
 
-/* 버튼을 아이콘+텍스트 가로 배치로 */
+/* 모든 버튼 공통 — 아이콘 가로 배치 기본 */
 .ql-toolbar.ql-snow button {
   display: inline-flex !important;
   align-items: center !important;
@@ -1141,35 +1141,40 @@ header nav a.nav-signup:hover {
   border-radius: 4px;
 }
 
-/* 각 버튼 레이블 */
-.ql-toolbar.ql-snow button::after {
+/* 아이콘+텍스트 동시 표시: 이미지/GIF, 링크, 초기화 */
+.ql-toolbar.ql-snow button.ql-image::after,
+.ql-toolbar.ql-snow button.ql-link::after,
+.ql-toolbar.ql-snow button.ql-clean::after {
   font-size: 11px;
   font-family: inherit;
   white-space: nowrap;
   line-height: 1;
+  color: #666;
 }
-.ql-bold::after           { content: "굵게"; }
-.ql-italic::after         { content: "기울임"; }
-.ql-underline::after      { content: "밑줄"; }
-.ql-strike::after         { content: "취소선"; }
-.ql-list[value="ordered"]::after { content: "번호"; }
-.ql-list[value="bullet"]::after  { content: "목록"; }
-.ql-image::after          { content: "이미지/GIF"; }
-.ql-link::after           { content: "링크"; }
-.ql-clean::after          { content: "초기화"; }
+.ql-image::after { content: "이미지/GIF"; }
+.ql-link::after  { content: "링크"; }
+.ql-clean::after { content: "초기화"; }
 
-/* 첨부 버튼 */
+/* 다크모드 레이블 색상 */
+[data-theme="dark"] .ql-toolbar.ql-snow button.ql-image::after,
+[data-theme="dark"] .ql-toolbar.ql-snow button.ql-link::after,
+[data-theme="dark"] .ql-toolbar.ql-snow button.ql-clean::after,
+[data-theme="dark"] .ql-attach::after { color: #9aa5b8; }
+
+/* 첨부 버튼 — 아이콘(이모지)+텍스트 */
 .ql-attach {
   font-size: 14px !important;
   width: auto !important;
   height: auto !important;
   padding: 3px 6px !important;
+  gap: 3px;
 }
-.ql-attach::after { content: "첨부"; font-size: 11px; margin-left: 2px; font-family: inherit; }
-
-/* 컬러 피커 앞 레이블 */
-.ql-color-picker-label::before  { content: "색상 "; font-size: 11px; }
-.ql-background-picker-label::before { content: "배경 "; font-size: 11px; }
+.ql-attach::after {
+  content: "첨부";
+  font-size: 11px;
+  font-family: inherit;
+  color: #666;
+}
 
 .ql-container.ql-snow {
   border: 1.5px solid var(--border);
