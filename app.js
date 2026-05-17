@@ -155,10 +155,10 @@ async function getAzitTypes() {
   return data && data.length > 0 ? data : [{ key: 'general', label: '기본' }];
 }
 
-async function insertAzitType(label) {
+async function insertAzitType({ label, description = '', default_icon = '🏠', default_color = '#4aab8e' }) {
   const { error } = await supabaseClient
     .from('azit_types')
-    .insert({ key: label, label });
+    .insert({ key: label, label, description, default_icon, default_color });
   if (error) throw error;
 }
 
@@ -366,10 +366,10 @@ async function getCategoryNames() {
   return cats.map(c => c.name);
 }
 
-async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general' }) {
+async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e' }) {
   const { error } = await supabaseClient
     .from('azits')
-    .insert({ name, description, created_by, creator_id, type });
+    .insert({ name, description, created_by, creator_id, type, icon, cover_color });
   if (error) throw error;
 }
 
@@ -729,10 +729,49 @@ async function initAzitCreate() {
   const form = document.getElementById('azitCreateForm');
   if (!form) return;
 
-  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본' }]);
+  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본', description: '', default_icon: '🏠', default_color: '#4aab8e' }]);
   form.azitType.innerHTML = types.map(t =>
-    `<option value="${escapeHTML(t.key)}">${escapeHTML(t.label)}</option>`
+    `<option value="${escapeHTML(t.key)}"
+             data-desc="${escapeHTML(t.description || '')}"
+             data-icon="${escapeHTML(t.default_icon || '🏠')}"
+             data-color="${escapeHTML(t.default_color || '#4aab8e')}"
+     >${escapeHTML(t.label)}</option>`
   ).join('');
+
+  const iconInput  = document.getElementById('azitIcon');
+  const colorInput = document.getElementById('azitColor');
+  const hexSpan    = document.getElementById('azitColorHex');
+  const typeDescEl = document.getElementById('azitTypeDesc');
+  const prevBanner = document.getElementById('azitPreviewBanner');
+  const prevIcon   = document.getElementById('azitPreviewIcon');
+  const prevName   = document.getElementById('azitPreviewName');
+  const prevDesc   = document.getElementById('azitPreviewDesc');
+
+  function applyEngineDefaults() {
+    const opt = form.azitType.selectedOptions[0];
+    if (!opt) return;
+    typeDescEl.textContent = opt.dataset.desc || '';
+    iconInput.value  = opt.dataset.icon  || '🏠';
+    colorInput.value = opt.dataset.color || '#4aab8e';
+    updateAzitPreview();
+  }
+
+  function updateAzitPreview() {
+    const color = colorInput.value || '#4aab8e';
+    hexSpan.textContent  = color;
+    prevIcon.textContent = iconInput.value || '🏠';
+    prevName.textContent = form.azitName.value.trim() || '아지트 이름';
+    prevDesc.textContent = form.azitDesc.value.trim() || '공간 소개';
+    prevBanner.style.background =
+      `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+  }
+
+  form.azitType.addEventListener('change', applyEngineDefaults);
+  form.azitName.addEventListener('input', updateAzitPreview);
+  form.azitDesc.addEventListener('input', updateAzitPreview);
+  iconInput.addEventListener('input', updateAzitPreview);
+  colorInput.addEventListener('input', updateAzitPreview);
+  applyEngineDefaults();
 
   const submitBtn = form.querySelector('[type=submit]');
 
@@ -749,7 +788,11 @@ async function initAzitCreate() {
     setLoading(submitBtn, true);
 
     try {
-      await insertCategory({ name, description: desc, created_by: nickname, creator_id: user.id, type });
+      await insertCategory({
+        name, description: desc, created_by: nickname, creator_id: user.id, type,
+        icon:        form.azitIcon.value.trim()  || '🏠',
+        cover_color: form.azitColor.value        || '#4aab8e',
+      });
       showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {
@@ -770,8 +813,35 @@ async function initAzitTypeCreate() {
   const form = document.getElementById('azitTypeCreateForm');
   if (!form) return;
 
-  const submitBtn = form.querySelector('[type=submit]');
+  const submitBtn  = form.querySelector('[type=submit]');
+  const iconInput  = document.getElementById('azitTypeIcon');
+  const colorInput = document.getElementById('azitTypeColor');
+  const hexSpan    = document.getElementById('azitTypeColorHex');
+  const prevBanner = document.getElementById('typePreviewBanner');
+  const prevIcon   = document.getElementById('typePreviewIcon');
+  const prevName   = document.getElementById('typePreviewName');
+  const prevDesc   = document.getElementById('typePreviewDesc');
+
   submitBtn.dataset.label = submitBtn.textContent;
+
+  function updatePreview() {
+    const label = form.azitTypeLabel.value.trim() || '타입 이름';
+    const desc  = form.azitTypeDesc.value.trim()  || '엔진 설명';
+    const icon  = iconInput.value  || '🏠';
+    const color = colorInput.value || '#4aab8e';
+    hexSpan.textContent  = color;
+    prevIcon.textContent = icon;
+    prevName.textContent = label;
+    prevDesc.textContent = desc;
+    prevBanner.style.background =
+      `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+  }
+
+  form.azitTypeLabel.addEventListener('input', updatePreview);
+  form.azitTypeDesc.addEventListener('input', updatePreview);
+  iconInput.addEventListener('input', updatePreview);
+  colorInput.addEventListener('input', updatePreview);
+  updatePreview();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -780,8 +850,13 @@ async function initAzitTypeCreate() {
 
     setLoading(submitBtn, true);
     try {
-      await insertAzitType(label);
-      showToast(`"${label}" 타입이 만들어졌어요!`, 'green');
+      await insertAzitType({
+        label,
+        description:   form.azitTypeDesc.value.trim(),
+        default_icon:  iconInput.value.trim() || '🏠',
+        default_color: colorInput.value,
+      });
+      showToast(`"${label}" 엔진이 등록됐어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {
       setLoading(submitBtn, false);

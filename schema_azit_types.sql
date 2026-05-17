@@ -24,7 +24,13 @@ CREATE POLICY "azit_types_delete" ON public.azit_types
     EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid())
   );
 
+-- 엔진이 공간(아지트)에 제공하는 기본값 컬럼
+ALTER TABLE public.azit_types
+  ADD COLUMN IF NOT EXISTS description   TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS default_icon  TEXT NOT NULL DEFAULT '🏠',
+  ADD COLUMN IF NOT EXISTS default_color TEXT NOT NULL DEFAULT '#4aab8e';
+
 -- 기본 시드
-INSERT INTO public.azit_types (key, label)
-VALUES ('general', '기본')
+INSERT INTO public.azit_types (key, label, description, default_icon, default_color)
+VALUES ('general', '기본', '기본 형태의 커뮤니티 공간입니다.', '🏠', '#4aab8e')
 ON CONFLICT (key) DO NOTHING;
