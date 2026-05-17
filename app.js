@@ -702,10 +702,21 @@ async function renderCategories(userId) {
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm(`"${btn.dataset.name}" 아지트를 삭제할까요?`)) return;
+      const { count } = await supabaseClient
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('category', btn.dataset.name);
+
+      const postNote = count > 0
+        ? `\n\n게시물 ${count}개는 삭제되지 않고 그대로 유지됩니다.`
+        : '';
+
+      if (!confirm(`"${btn.dataset.name}" 아지트를 삭제할까요?${postNote}`)) return;
+
       try {
         await deleteCategory(btn.dataset.id);
         await renderCategories(userId);
+        showToast('아지트가 삭제됐어요. 게시물은 유지됩니다.', 'green');
       } catch {
         showToast('삭제 실패', 'red');
       }
