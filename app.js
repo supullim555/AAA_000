@@ -696,7 +696,7 @@ async function renderCategories(userId) {
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
-      <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">삭제</button>
+      <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">×</button>
     </li>`;
   }).join('');
 
