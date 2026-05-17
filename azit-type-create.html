@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>타입 만들기 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-write-wrap">
+    <form id="azitTypeCreateForm" class="post-write-form">
+      <h2>타입 만들기</h2>
+
+      <div class="field">
+        <label for="azitTypeLabel">타입 이름</label>
+        <input type="text" id="azitTypeLabel" name="azitTypeLabel"
+               placeholder="예: 스터디, 게임, 독서" maxlength="20" autocomplete="off">
+        <p class="hint">아지트를 분류하는 태그입니다. 2자 이상 입력하세요.</p>
+      </div>
+
+      <div class="post-write-actions">
+        <a href="dashboard.html" class="btn-secondary">취소</a>
+        <button type="submit" class="btn btn-primary">만들기</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initAzitTypeCreate();</script>
+</body>
+</html>

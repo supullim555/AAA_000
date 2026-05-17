@@ -38,11 +38,13 @@
     <div class="dash-section">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h3 class="dash-section-title" style="margin-bottom:0">아지트 관리</h3>
-        <a href="azit-create.html" class="btn btn-primary" style="font-size:13px;padding:7px 16px">+ 아지트 만들기</a>
+        <div style="display:flex;gap:8px">
+          <a href="azit-type-create.html" class="btn btn-outline" style="font-size:13px;padding:7px 14px">+ 타입 만들기</a>
+          <a href="azit-create.html" class="btn btn-primary" style="font-size:13px;padding:7px 16px">+ 아지트 만들기</a>
+        </div>
       </div>
       <div class="azit-type-filter" id="dashTypeFilter">
         <button class="azit-type-btn active" data-type="">전체</button>
-        <button class="azit-type-btn" data-type="general">기본</button>
       </div>
       <ul id="catList" class="cat-list"></ul>
     </div>

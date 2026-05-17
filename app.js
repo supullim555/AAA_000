@@ -146,6 +146,43 @@ function toKoreanError(err) {
   return `오류: ${msg}`;
 }
 
+/* ── 아지트 타입 ── */
+async function getAzitTypes() {
+  const { data } = await supabaseClient
+    .from('azit_types')
+    .select('key, label')
+    .order('created_at');
+  return data && data.length > 0 ? data : [{ key: 'general', label: '기본' }];
+}
+
+async function insertAzitType(label) {
+  const { error } = await supabaseClient
+    .from('azit_types')
+    .insert({ key: label, label });
+  if (error) throw error;
+}
+
+async function renderTypeFilterBtns(containerId, onSelect) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본' }]);
+  wrap.querySelectorAll('.azit-type-btn:not([data-type=""])').forEach(b => b.remove());
+  types.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'azit-type-btn';
+    btn.dataset.type = t.key;
+    btn.textContent = t.label;
+    wrap.appendChild(btn);
+  });
+  wrap.querySelectorAll('.azit-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.azit-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      onSelect(btn.dataset.type);
+    });
+  });
+}
+
 /* ── 관리자 권한 확인 ── */
 async function isAdmin() {
   const session = await getSession();
@@ -468,13 +505,9 @@ async function initCategorySection() {
     renderCategoryCards().then(adjustCardWidths);
   });
 
-  document.querySelectorAll('.azit-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _selectedType = btn.dataset.type;
-      document.querySelectorAll('.azit-type-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderCategoryCards().then(adjustCardWidths);
-    });
+  await renderTypeFilterBtns('azitTypeFilter', (type) => {
+    _selectedType = type;
+    renderCategoryCards().then(adjustCardWidths);
   });
 
   const toggleBtn = document.getElementById('typeToggleBtn');
@@ -680,13 +713,9 @@ async function renderCategories(userId) {
 async function initCategoryManager(userId) {
   await renderCategories(userId);
 
-  document.querySelectorAll('#dashTypeFilter .azit-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _dashType = btn.dataset.type;
-      document.querySelectorAll('#dashTypeFilter .azit-type-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      renderCategories(userId);
-    });
+  await renderTypeFilterBtns('dashTypeFilter', (type) => {
+    _dashType = type;
+    renderCategories(userId);
   });
 }
 
@@ -699,6 +728,11 @@ async function initAzitCreate() {
 
   const form = document.getElementById('azitCreateForm');
   if (!form) return;
+
+  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본' }]);
+  form.azitType.innerHTML = types.map(t =>
+    `<option value="${escapeHTML(t.key)}">${escapeHTML(t.label)}</option>`
+  ).join('');
 
   const submitBtn = form.querySelector('[type=submit]');
 
@@ -722,6 +756,37 @@ async function initAzitCreate() {
       setLoading(submitBtn, false);
       if (err.code === '23505') showToast('이미 있는 아지트 이름이에요.', 'red');
       else showToast('아지트 생성 실패', 'red');
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   Page: Azit Type Create
+════════════════════════════════════════ */
+async function initAzitTypeCreate() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const form = document.getElementById('azitTypeCreateForm');
+  if (!form) return;
+
+  const submitBtn = form.querySelector('[type=submit]');
+  submitBtn.dataset.label = submitBtn.textContent;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const label = form.azitTypeLabel.value.trim();
+    if (label.length < 2) { showToast('타입 이름은 2자 이상이어야 해요.', 'red'); return; }
+
+    setLoading(submitBtn, true);
+    try {
+      await insertAzitType(label);
+      showToast(`"${label}" 타입이 만들어졌어요!`, 'green');
+      setTimeout(() => { location.href = 'dashboard.html'; }, 900);
+    } catch (err) {
+      setLoading(submitBtn, false);
+      if (err.code === '23505') showToast('이미 있는 타입 이름이에요.', 'red');
+      else showToast('타입 생성 실패', 'red');
     }
   });
 }
