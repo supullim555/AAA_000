@@ -991,6 +991,38 @@ async function initPostWrite() {
   });
 }
 
+/*
+ * 게임 보안 모델 (3중 방어):
+ * 1. srcdoc  — src= 직접 로드 대신 HTML 소스를 srcdoc에 주입
+ *              → iframe이 null origin에서 실행 (localStorage·쿠키 접근 불가)
+ * 2. CSP 주입 — connect-src 'none' 메타태그를 게임 HTML에 삽입
+ *              → 게임 JS가 외부 서버로 데이터를 전송할 수 없음
+ * 3. sandbox  — allow-same-origin 제외 → 어떤 도메인의 저장소도 접근 불가
+ *              — allow-top-navigation 제외 → 상위 페이지 리다이렉트 불가
+ *              — allow-popups 제외 → 새 창·탭 열기 불가
+ */
+async function loadGameSecurely(gameFrame, gameUrl) {
+  try {
+    const res = await fetch(gameUrl);
+    if (!res.ok) throw new Error();
+    const html = await res.text();
+
+    // CSP 메타태그: 게임 내부에서 외부 네트워크 연결 전면 차단
+    const csp = `<meta http-equiv="Content-Security-Policy" ` +
+      `content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'none';">`;
+
+    const secured = /<head/i.test(html)
+      ? html.replace(/<head([^>]*)>/i, `<head$1>${csp}`)
+      : csp + html;
+
+    gameFrame.srcdoc = secured;
+  } catch {
+    gameFrame.srcdoc =
+      `<p style="font-family:sans-serif;color:#e05252;padding:24px;text-align:center">
+        게임을 불러오지 못했어요.</p>`;
+  }
+}
+
 function buildGamePostContent({ gameTitle, gameGenre, gamePlatform, gameDesc }) {
   const tags = [
     `<span class="game-tag">🎮 ${escapeHTML(gameTitle)}</span>`,
@@ -1307,7 +1339,7 @@ async function initPostDetail() {
     const gameFrame   = document.getElementById('gameFrame');
     if (playSection && gameFrame) {
       playSection.classList.remove('hidden');
-      gameFrame.src = post.game_url;
+      loadGameSecurely(gameFrame, post.game_url);
       document.getElementById('gameFullscreenBtn')?.addEventListener('click', () => {
         gameFrame.requestFullscreen?.() || gameFrame.webkitRequestFullscreen?.();
       });
