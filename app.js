@@ -729,49 +729,18 @@ async function initAzitCreate() {
   const form = document.getElementById('azitCreateForm');
   if (!form) return;
 
-  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본', description: '', default_icon: '🏠', default_color: '#4aab8e' }]);
+  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본', description: '' }]);
   form.azitType.innerHTML = types.map(t =>
-    `<option value="${escapeHTML(t.key)}"
-             data-desc="${escapeHTML(t.description || '')}"
-             data-icon="${escapeHTML(t.default_icon || '🏠')}"
-             data-color="${escapeHTML(t.default_color || '#4aab8e')}"
-     >${escapeHTML(t.label)}</option>`
+    `<option value="${escapeHTML(t.key)}" data-desc="${escapeHTML(t.description || '')}">${escapeHTML(t.label)}</option>`
   ).join('');
 
-  const iconInput  = document.getElementById('azitIcon');
-  const colorInput = document.getElementById('azitColor');
-  const hexSpan    = document.getElementById('azitColorHex');
   const typeDescEl = document.getElementById('azitTypeDesc');
-  const prevBanner = document.getElementById('azitPreviewBanner');
-  const prevIcon   = document.getElementById('azitPreviewIcon');
-  const prevName   = document.getElementById('azitPreviewName');
-  const prevDesc   = document.getElementById('azitPreviewDesc');
-
-  function applyEngineDefaults() {
+  function updateTypeDesc() {
     const opt = form.azitType.selectedOptions[0];
-    if (!opt) return;
-    typeDescEl.textContent = opt.dataset.desc || '';
-    iconInput.value  = opt.dataset.icon  || '🏠';
-    colorInput.value = opt.dataset.color || '#4aab8e';
-    updateAzitPreview();
+    if (typeDescEl) typeDescEl.textContent = opt?.dataset.desc || '';
   }
-
-  function updateAzitPreview() {
-    const color = colorInput.value || '#4aab8e';
-    hexSpan.textContent  = color;
-    prevIcon.textContent = iconInput.value || '🏠';
-    prevName.textContent = form.azitName.value.trim() || '아지트 이름';
-    prevDesc.textContent = form.azitDesc.value.trim() || '공간 소개';
-    prevBanner.style.background =
-      `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
-  }
-
-  form.azitType.addEventListener('change', applyEngineDefaults);
-  form.azitName.addEventListener('input', updateAzitPreview);
-  form.azitDesc.addEventListener('input', updateAzitPreview);
-  iconInput.addEventListener('input', updateAzitPreview);
-  colorInput.addEventListener('input', updateAzitPreview);
-  applyEngineDefaults();
+  form.azitType.addEventListener('change', updateTypeDesc);
+  updateTypeDesc();
 
   const submitBtn = form.querySelector('[type=submit]');
 
@@ -788,11 +757,7 @@ async function initAzitCreate() {
     setLoading(submitBtn, true);
 
     try {
-      await insertCategory({
-        name, description: desc, created_by: nickname, creator_id: user.id, type,
-        icon:        form.azitIcon.value.trim()  || '🏠',
-        cover_color: form.azitColor.value        || '#4aab8e',
-      });
+      await insertCategory({ name, description: desc, created_by: nickname, creator_id: user.id, type });
       showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {

@@ -21,7 +21,6 @@
     <form id="azitCreateForm" class="post-write-form">
       <h2>아지트 만들기</h2>
 
-      <!-- 엔진(타입) 선택 — 가장 먼저 선택해 기본값을 채워줌 -->
       <div class="field">
         <label for="azitType">엔진 (타입)</label>
         <select id="azitType" name="azitType"></select>
@@ -39,36 +38,6 @@
         <textarea id="azitDesc" name="azitDesc"
                   placeholder="어떤 사람들이 모이는 공간인지 소개해 주세요 (선택)" maxlength="120"
                   style="min-height:80px"></textarea>
-      </div>
-
-      <!-- 엔진 기본값을 상속하되 덮어쓸 수 있음 -->
-      <div style="display:flex;gap:16px">
-        <div class="field" style="flex:0 0 80px">
-          <label for="azitIcon">아이콘</label>
-          <input type="text" id="azitIcon" name="azitIcon"
-                 maxlength="4"
-                 style="font-size:24px;text-align:center;padding:8px">
-          <p class="hint" style="font-size:10px">엔진 기본값</p>
-        </div>
-        <div class="field" style="flex:1">
-          <label for="azitColor">색상</label>
-          <div style="display:flex;align-items:center;gap:10px">
-            <input type="color" id="azitColor" name="azitColor"
-                   style="width:48px;height:42px;padding:2px;border:1.5px solid var(--border);border-radius:var(--r-sm);cursor:pointer;background:none">
-            <span id="azitColorHex" style="font-size:13px;color:var(--text-light);font-family:monospace"></span>
-          </div>
-          <p class="hint" style="font-size:10px">엔진 기본값 (수정 가능)</p>
-        </div>
-      </div>
-
-      <!-- 미리보기 -->
-      <div id="azitPreview" style="border-radius:var(--r);overflow:hidden;margin-bottom:18px">
-        <div id="azitPreviewBanner"
-             style="padding:20px 22px;background:linear-gradient(135deg,#4aab8e,#2d7a62);color:#fff">
-          <span id="azitPreviewIcon" style="font-size:32px;display:block;margin-bottom:8px">🏠</span>
-          <div id="azitPreviewName" style="font-size:18px;font-weight:800">아지트 이름</div>
-          <div id="azitPreviewDesc" style="font-size:12px;opacity:.85;margin-top:4px">공간 소개</div>
-        </div>
       </div>
 
       <div class="post-write-actions">
