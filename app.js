@@ -85,6 +85,13 @@ function stripHtml(html) {
   return tmp.textContent || '';
 }
 
+/* HTML 콘텐츠에서 첫 번째 이미지 URL 추출 */
+function extractFirstImage(html) {
+  if (!html) return null;
+  const m = html.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+  return m ? m[1] : null;
+}
+
 /* ── Supabase Auth ── */
 async function authSignUp(email, password, nickname) {
   const { data, error } = await supabaseClient.auth.signUp({
@@ -630,17 +637,51 @@ async function renderPosts() {
       return;
     }
 
-    grid.innerHTML = posts.map(p => `
-      <a class="news-card" href="post-detail.html?id=${p.id}">
-        <div class="news-card-top">
-          <span class="news-badge">${escapeHTML(p.category)}</span>
-          <span class="news-date">${formatDate(p.created_at)}</span>
-        </div>
-        <h3 class="news-title">${escapeHTML(p.title)}</h3>
-        <p class="news-desc">${escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN))}</p>
-        <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
-      </a>
-    `).join('');
+    grid.innerHTML = posts.map(p => {
+      const isGame = !!p.game_url;
+      const thumb  = p.thumbnail_url || extractFirstImage(p.content);
+      const thumbHtml = thumb
+        ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
+        : '';
+      const desc = isGame ? escapeHTML(p.content || '') : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
+      const descHtml = isGame
+        ? `<div class="game-card-desc-wrap">
+            <p class="game-card-desc">${desc}</p>
+            ${desc ? `<button class="expand-btn" type="button" data-expanded="false">펼쳐보기</button>` : ''}
+           </div>`
+        : `<p class="news-desc">${desc}</p>`;
+      return `
+        <a class="news-card" href="post-detail.html?id=${p.id}">
+          ${thumbHtml}
+          <div class="news-card-top">
+            <span class="news-badge">${escapeHTML(p.category)}</span>
+            <span class="news-date">${formatDate(p.created_at)}</span>
+          </div>
+          <h3 class="news-title">${escapeHTML(p.title)}</h3>
+          ${descHtml}
+          <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
+        </a>
+      `;
+    }).join('');
+
+    // 펼쳐보기 버튼: 실제로 2줄 초과 시에만 표시
+    setTimeout(() => {
+      grid.querySelectorAll('.expand-btn').forEach(btn => {
+        const desc = btn.previousElementSibling;
+        if (!desc || desc.scrollHeight <= desc.clientHeight + 2) {
+          btn.style.display = 'none';
+          return;
+        }
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          const expanded = btn.dataset.expanded === 'true';
+          desc.classList.toggle('expanded', !expanded);
+          btn.dataset.expanded = String(!expanded);
+          btn.textContent = !expanded ? '접기' : '펼쳐보기';
+        });
+      });
+    }, 0);
   } catch (err) {
     console.error('renderPosts 오류:', err);
     grid.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.<br><small style="font-size:11px;opacity:.7">${escapeHTML(err.message || '')}</small></p>`;
@@ -1118,6 +1159,29 @@ async function initPostWrite() {
  *   fetch 성공 시 → srcdoc + connect-src 'none' CSP 주입 (외부 통신 차단)
  *   fetch 실패(CORS) 시 → src= 직접 (sandbox는 그대로 적용)
  */
+// 게임 화면 크기를 부모에게 알리는 스크립트 — srcdoc 주입용
+const _GAME_RESIZE_SCRIPT = `<script>(function(){
+  var _sent=0;
+  function _gs(){
+    var c=document.querySelector('canvas');
+    var w=c?c.width:document.documentElement.scrollWidth;
+    var h=c?c.height:document.documentElement.scrollHeight;
+    if(w>80&&h>80&&(w!==_sent)){_sent=w;parent.postMessage({type:'gameResize',w:w,h:h},'*');}
+  }
+  window.addEventListener('load',function(){
+    _gs();
+    var mo=new MutationObserver(_gs);
+    mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['width','height','style']});
+    [500,1500,3000,6000].forEach(function(t){setTimeout(_gs,t);});
+  });
+})();<\/script>`;
+
+function _injectResizeScript(html) {
+  return /<\/body>/i.test(html)
+    ? html.replace(/<\/body>/i, _GAME_RESIZE_SCRIPT + '</body>')
+    : html + _GAME_RESIZE_SCRIPT;
+}
+
 async function loadGameSecurely(gameFrame, rawInput) {
   if (!rawInput) return;
 
@@ -1145,7 +1209,7 @@ async function loadGameSecurely(gameFrame, rawInput) {
         ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseUrl}">`)
         : `<base href="${baseUrl}">${html}`;
 
-      gameFrame.srcdoc = withBase;
+      gameFrame.srcdoc = _injectResizeScript(withBase);
     } catch {
       // fetch 실패 시 allow-same-origin 폴백
       gameFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock');
@@ -1164,7 +1228,7 @@ async function loadGameSecurely(gameFrame, rawInput) {
     const secured = /<head/i.test(html)
       ? html.replace(/<head([^>]*)>/i, `<head$1>${csp}`)
       : csp + html;
-    gameFrame.srcdoc = secured;
+    gameFrame.srcdoc = _injectResizeScript(secured);
   } catch {
     gameFrame.src = url;
   }
@@ -1503,34 +1567,57 @@ async function initPostDetail() {
   document.getElementById('postViews').textContent    = post.views || 0;
   const bodyEl = document.getElementById('postBody');
 
-  // 게임 타입: 썸네일·장르를 본문 위에 표시
-  if (post.thumbnail_url || post.game_genre) {
+  // 웹게임 타입: 장르 배지 표시 (썸네일은 카드에서만, 상세에서는 제외)
+  if (post.game_genre) {
     const meta = document.createElement('div');
     meta.className = 'game-detail-meta';
-    if (post.thumbnail_url) {
-      const img = document.createElement('img');
-      img.src = post.thumbnail_url;
-      img.className = 'game-detail-thumb';
-      img.alt = '게임 썸네일';
-      img.onerror = () => { img.style.display = 'none'; };
-      meta.appendChild(img);
-    }
-    if (post.game_genre) {
-      const badge = document.createElement('span');
-      badge.className = 'game-tag';
-      badge.textContent = post.game_genre;
-      meta.appendChild(badge);
-    }
+    const badge = document.createElement('span');
+    badge.className = 'game-tag';
+    badge.textContent = post.game_genre;
+    meta.appendChild(badge);
     bodyEl.before(meta);
   }
 
-  if (typeof DOMPurify !== 'undefined') {
+  // 웹게임 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
+  if (post.game_url && post.content) {
+    const descWrap = document.createElement('div');
+    descWrap.className = 'game-card-desc-wrap';
+    descWrap.style.marginBottom = '16px';
+
+    const descEl = document.createElement('p');
+    descEl.className = 'game-card-desc';
+    descEl.textContent = post.content;
+    descWrap.appendChild(descEl);
+
+    const expandBtn = document.createElement('button');
+    expandBtn.className = 'expand-btn';
+    expandBtn.type = 'button';
+    expandBtn.dataset.expanded = 'false';
+    expandBtn.textContent = '펼쳐보기';
+    descWrap.appendChild(expandBtn);
+
+    bodyEl.before(descWrap);
+    bodyEl.style.display = 'none'; // 게임 포스트는 body 대신 descWrap에 설명 표시
+
+    setTimeout(() => {
+      if (descEl.scrollHeight <= descEl.clientHeight + 2) {
+        expandBtn.style.display = 'none';
+      } else {
+        expandBtn.addEventListener('click', () => {
+          const expanded = expandBtn.dataset.expanded === 'true';
+          descEl.classList.toggle('expanded', !expanded);
+          expandBtn.dataset.expanded = String(!expanded);
+          expandBtn.textContent = !expanded ? '접기' : '펼쳐보기';
+        });
+      }
+    }, 0);
+  } else if (typeof DOMPurify !== 'undefined') {
     bodyEl.innerHTML = DOMPurify.sanitize(post.content);
   } else {
     bodyEl.textContent = stripHtml(post.content);
   }
 
-  // 게임 플레이 영역
+  // 게임 플레이 영역 + iframe 자동 크기 조정
   if (post.game_url) {
     const playSection = document.getElementById('gamePlaySection');
     const gameFrame   = document.getElementById('gameFrame');
@@ -1539,6 +1626,18 @@ async function initPostDetail() {
       loadGameSecurely(gameFrame, post.game_url);
       document.getElementById('gameFullscreenBtn')?.addEventListener('click', () => {
         gameFrame.requestFullscreen?.() || gameFrame.webkitRequestFullscreen?.();
+      });
+
+      // 게임이 postMessage로 canvas 크기를 알려주면 iframe 높이 자동 조정
+      window.addEventListener('message', function onGameResize(e) {
+        if (!e.data || e.data.type !== 'gameResize') return;
+        const { w, h } = e.data;
+        if (!w || !h || w < 80 || h < 80 || w > 8000 || h > 8000) return;
+        const wrapEl = gameFrame.closest('.game-play-wrap') || gameFrame.parentElement;
+        const maxW   = wrapEl.clientWidth || 800;
+        const scale  = Math.min(1, maxW / w);
+        const dispH  = Math.round(h * scale);
+        gameFrame.style.height = Math.min(dispH, Math.round(window.innerHeight * 0.85)) + 'px';
       });
     }
   }
