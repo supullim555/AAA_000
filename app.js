@@ -903,24 +903,38 @@ async function initPostWrite() {
   /* 첨부파일 버튼 */
   document.getElementById('attachBtn')?.addEventListener('click', () => triggerFileAttach(quill));
 
-  /* ── 아지트 드롭다운 ── */
+  /* ── 아지트 드롭다운 + 타입 맵 ── */
   const catSelect = form.category;
-  const names     = await getCategoryNames();
+  const cats      = await getCategories();
+  const azitMap   = Object.fromEntries(cats.map(c => [c.name, c]));
   const preselect = new URLSearchParams(location.search).get('cat') || '';
 
-  if (names.length === 0) {
+  if (cats.length === 0) {
     catSelect.innerHTML = '<option value="" disabled selected>아지트가 없습니다</option>';
     catSelect.disabled = true;
     document.getElementById('catHint')?.classList.remove('hidden');
   } else {
-    names.forEach(name => {
+    cats.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      if (name === preselect) opt.selected = true;
+      opt.value = c.name;
+      opt.textContent = c.name;
+      if (c.name === preselect) opt.selected = true;
       catSelect.appendChild(opt);
     });
   }
+
+  /* ── 아지트 타입에 따라 폼 전환 ── */
+  const quillSection = document.getElementById('quillSection');
+  const gameSection  = document.getElementById('gameSection');
+
+  function applyFormType() {
+    const isGame = azitMap[catSelect.value]?.type === '게임';
+    quillSection?.classList.toggle('hidden', isGame);
+    gameSection?.classList.toggle('hidden', !isGame);
+  }
+
+  catSelect.addEventListener('change', applyFormType);
+  applyFormType();
 
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
@@ -929,12 +943,28 @@ async function initPostWrite() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title    = form.title.value.trim();
-    const content  = quill.root.innerHTML;
     const category = form.category.value;
+    const isGame   = azitMap[category]?.type === '게임';
 
-    if (!title || !quill.getText().trim()) {
-      showToast('제목과 내용을 모두 입력해 주세요.', 'red');
-      return;
+    let content;
+    if (isGame) {
+      const gameTitle = document.getElementById('gameTitle').value.trim();
+      if (!title || !gameTitle) {
+        showToast('제목과 게임 이름을 모두 입력해 주세요.', 'red');
+        return;
+      }
+      content = buildGamePostContent({
+        gameTitle,
+        gameGenre:    document.getElementById('gameGenre').value.trim(),
+        gamePlatform: document.getElementById('gamePlatform').value,
+        gameDesc:     document.getElementById('gameDesc').value.trim(),
+      });
+    } else {
+      content = quill.root.innerHTML;
+      if (!title || !quill.getText().trim()) {
+        showToast('제목과 내용을 모두 입력해 주세요.', 'red');
+        return;
+      }
     }
 
     const u = session.user;
@@ -955,6 +985,19 @@ async function initPostWrite() {
       setLoading(submitBtn, false);
     }
   });
+}
+
+function buildGamePostContent({ gameTitle, gameGenre, gamePlatform, gameDesc }) {
+  const tags = [
+    `<span class="game-tag">🎮 ${escapeHTML(gameTitle)}</span>`,
+    gameGenre    ? `<span class="game-tag">${escapeHTML(gameGenre)}</span>`    : '',
+    gamePlatform ? `<span class="game-tag">${escapeHTML(gamePlatform)}</span>` : '',
+  ].filter(Boolean).join('');
+
+  return `<div class="game-post-card">` +
+    `<div class="game-post-tags">${tags}</div>` +
+    (gameDesc ? `<p class="game-post-desc">${escapeHTML(gameDesc)}</p>` : '') +
+    `</div>`;
 }
 
 /* ── 이미지 / GIF 업로드 ── */

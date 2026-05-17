@@ -36,56 +36,86 @@
       </div>
 
       <div class="field">
-        <label>내용</label>
+        <label id="contentLabel">내용</label>
 
-        <!-- 커스텀 툴바 -->
-        <div id="quillToolbar">
-          <span class="ql-formats">
-            <select class="ql-font">
-              <option selected>기본</option>
-              <option value="serif">명조</option>
-              <option value="monospace">코드</option>
-            </select>
-            <select class="ql-size">
-              <option value="12px">12px</option>
-              <option value="14px">14px</option>
-              <option selected>16px</option>
-              <option value="18px">18px</option>
-              <option value="24px">24px</option>
-              <option value="32px">32px</option>
-            </select>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-bold"></button>
-            <button class="ql-italic"></button>
-            <button class="ql-underline"></button>
-            <button class="ql-strike"></button>
-          </span>
-          <span class="ql-formats">
-            <select class="ql-color"></select>
-            <select class="ql-background"></select>
-          </span>
-          <span class="ql-formats">
-            <select class="ql-align"></select>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-list" value="ordered"></button>
-            <button class="ql-list" value="bullet"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-image" title="이미지 / GIF 추가"></button>
-            <button class="ql-link"></button>
-          </span>
-          <span class="ql-formats">
-            <button id="attachBtn" type="button" class="ql-attach" title="첨부파일 추가">📎</button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-clean"></button>
-          </span>
+        <!-- 기본: Quill 리치 에디터 -->
+        <div id="quillSection">
+          <div id="quillToolbar">
+            <span class="ql-formats">
+              <select class="ql-font">
+                <option selected>기본</option>
+                <option value="serif">명조</option>
+                <option value="monospace">코드</option>
+              </select>
+              <select class="ql-size">
+                <option value="12px">12px</option>
+                <option value="14px">14px</option>
+                <option selected>16px</option>
+                <option value="18px">18px</option>
+                <option value="24px">24px</option>
+                <option value="32px">32px</option>
+              </select>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-bold"></button>
+              <button class="ql-italic"></button>
+              <button class="ql-underline"></button>
+              <button class="ql-strike"></button>
+            </span>
+            <span class="ql-formats">
+              <select class="ql-color"></select>
+              <select class="ql-background"></select>
+            </span>
+            <span class="ql-formats">
+              <select class="ql-align"></select>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-list" value="ordered"></button>
+              <button class="ql-list" value="bullet"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-image" title="이미지 / GIF 추가"></button>
+              <button class="ql-link"></button>
+            </span>
+            <span class="ql-formats">
+              <button id="attachBtn" type="button" class="ql-attach" title="첨부파일 추가">📎</button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-clean"></button>
+            </span>
+          </div>
+          <div id="quillEditor"></div>
         </div>
 
-        <!-- 에디터 본문 -->
-        <div id="quillEditor"></div>
+        <!-- 게임 타입 전용 양식 -->
+        <div id="gameSection" class="hidden">
+          <div class="game-write-form">
+            <div class="field">
+              <label>게임 이름 <span style="color:#e05252">*</span></label>
+              <input type="text" id="gameTitle" placeholder="게임 이름을 입력하세요" maxlength="60" autocomplete="off">
+            </div>
+            <div style="display:flex;gap:12px">
+              <div class="field" style="flex:1">
+                <label>장르</label>
+                <input type="text" id="gameGenre" placeholder="예: RPG, 전략, 퍼즐" maxlength="30" autocomplete="off">
+              </div>
+              <div class="field" style="flex:1">
+                <label>플랫폼</label>
+                <select id="gamePlatform">
+                  <option value="PC">PC</option>
+                  <option value="모바일">모바일</option>
+                  <option value="콘솔">콘솔</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>게임 소개</label>
+              <textarea id="gameDesc" placeholder="어떤 게임인지 소개해 주세요" maxlength="500"
+                        style="min-height:120px"></textarea>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="post-write-actions">

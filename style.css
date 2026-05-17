@@ -1075,6 +1075,61 @@ header nav a.nav-signup:hover {
   .azitfh-post-grid     { grid-template-columns: 1fr; }
 }
 
+/* ── 게임 양식 ── */
+.game-write-form {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 16px;
+  background: var(--bg);
+}
+
+[data-theme="dark"] .game-write-form { background: #0d1117; }
+
+/* ── 게임 게시물 카드 (post-detail 렌더링) ── */
+.game-post-card {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 18px 20px;
+  margin-bottom: 8px;
+}
+
+.game-post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.game-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #e8f5ef;
+  color: #3a9a70;
+}
+
+.game-tag:first-child {
+  background: #ede8ff;
+  color: #6040c0;
+}
+
+.game-post-desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+[data-theme="dark"] .game-post-card { background: #0d1117; }
+[data-theme="dark"] .game-tag:first-child { background: #1e1838; color: #a888ee; }
+[data-theme="dark"] .game-tag { background: #182e22; color: #5ad4a0; }
+
 /* ── Quill 리치 에디터 ── */
 .ql-toolbar.ql-snow {
   border: 1.5px solid var(--border);
