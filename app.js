@@ -1105,16 +1105,17 @@ async function initPostWrite() {
  *              — allow-popups 제외 → 새 창·탭 열기 불가
  */
 /*
- * 게임 보안 모델 (업데이트):
+ * 게임 보안 모델:
  *
- * [Supabase Storage 업로드 게임 — Godot 등]
- *   sandbox="allow-scripts allow-same-origin allow-pointer-lock"
- *   → 상대경로(.js/.wasm/.pck) 로딩에 same-origin이 필수
- *   → 세션 토큰은 Vercel 도메인 localStorage에 저장되므로
- *     supabase.co origin인 iframe이 접근 불가 (크로스 오리진 격리)
+ * [Supabase Storage 업로드 게임]
+ *   fetch → HTML 소스 획득 → <base href="게임폴더URL"> 주입 → srcdoc 렌더링
+ *   - srcdoc은 브라우저가 반드시 HTML로 해석 (텍스트 표시 문제 없음)
+ *   - <base> 태그로 .js/.wasm/.pck 상대경로가 Storage URL로 해석됨
+ *   - Storage는 public 버킷이므로 CORS(Allow-Origin: *) 허용 → null origin 로드 가능
+ *   - allow-same-origin 불필요 → 더 안전한 null origin 격리 유지
  *
- * [외부 URL — itch.io 등]
- *   fetch 성공 시 → srcdoc + connect-src 'none' CSP 주입 (완전 격리)
+ * [외부 URL]
+ *   fetch 성공 시 → srcdoc + connect-src 'none' CSP 주입 (외부 통신 차단)
  *   fetch 실패(CORS) 시 → src= 직접 (sandbox는 그대로 적용)
  */
 async function loadGameSecurely(gameFrame, rawInput) {
@@ -1131,15 +1132,29 @@ async function loadGameSecurely(gameFrame, rawInput) {
     return;
   }
 
-  // Supabase Storage 업로드 게임 (Godot 웹 빌드 등)
-  // JS/WASM/PCK 상대경로 로딩을 위해 allow-same-origin 필요
+  // Supabase Storage 업로드 게임
   if (url.includes('supabase.co/storage')) {
-    gameFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock');
-    gameFrame.src = url;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('fetch_failed');
+      const html = await res.text();
+
+      // 게임 폴더 경로를 base 태그로 주입 → 상대경로 리소스 로딩 가능
+      const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+      const withBase = /<head/i.test(html)
+        ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseUrl}">`)
+        : `<base href="${baseUrl}">${html}`;
+
+      gameFrame.srcdoc = withBase;
+    } catch {
+      // fetch 실패 시 allow-same-origin 폴백
+      gameFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock');
+      gameFrame.src = url;
+    }
     return;
   }
 
-  // 외부 URL: srcdoc + CSP 주입 시도, CORS 실패 시 src= 폴백
+  // 외부 URL: srcdoc + CSP 주입, CORS 실패 시 src= 폴백
   try {
     const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) throw new Error();
