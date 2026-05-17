@@ -915,6 +915,15 @@ async function initPostWrite() {
   catSelect.addEventListener('change', applyFormType);
   applyFormType();
 
+  /* ── 게임 파일 선택 ── */
+  const gameFileInput = document.getElementById('gameFile');
+  const gameFileBtn   = document.getElementById('gameFileBtn');
+  const gameFileEl    = document.getElementById('gameFileName');
+  gameFileBtn?.addEventListener('click', () => gameFileInput?.click());
+  gameFileInput?.addEventListener('change', () => {
+    gameFileEl.textContent = gameFileInput.files[0]?.name || '선택된 파일 없음';
+  });
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -925,21 +934,12 @@ async function initPostWrite() {
     const category = form.category.value;
     const isGame   = azitMap[category]?.type === '게임';
 
-    let content;
     if (isGame) {
-      const gameTitle = document.getElementById('gameTitle').value.trim();
-      if (!title || !gameTitle) {
+      if (!title || !document.getElementById('gameTitle').value.trim()) {
         showToast('제목과 게임 이름을 모두 입력해 주세요.', 'red');
         return;
       }
-      content = buildGamePostContent({
-        gameTitle,
-        gameGenre:    document.getElementById('gameGenre').value.trim(),
-        gamePlatform: document.getElementById('gamePlatform').value,
-        gameDesc:     document.getElementById('gameDesc').value.trim(),
-      });
     } else {
-      content = quill.root.innerHTML;
       if (!title || !quill.getText().trim()) {
         showToast('제목과 내용을 모두 입력해 주세요.', 'red');
         return;
@@ -948,18 +948,43 @@ async function initPostWrite() {
 
     const u = session.user;
     setLoading(submitBtn, true);
+
     try {
+      let content, game_url = null;
+
+      if (isGame) {
+        const gameFile = gameFileInput?.files[0];
+        if (gameFile) {
+          if (gameFile.size > 20 * 1024 * 1024) throw new Error('게임 파일은 20MB 이하여야 해요.');
+          showToast('게임 파일 업로드 중...', 'green');
+          const path = `games/${Date.now()}.html`;
+          const { error: upErr } = await supabaseClient.storage
+            .from('post-media').upload(path, gameFile, { contentType: 'text/html' });
+          if (upErr) throw new Error('업로드 실패: ' + upErr.message);
+          game_url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+        }
+        content = buildGamePostContent({
+          gameTitle:    document.getElementById('gameTitle').value.trim(),
+          gameGenre:    document.getElementById('gameGenre').value.trim(),
+          gamePlatform: document.getElementById('gamePlatform').value,
+          gameDesc:     document.getElementById('gameDesc').value.trim(),
+        });
+      } else {
+        content = quill.root.innerHTML;
+      }
+
       await insertPost({
         title, content, category,
         author_id:       u.id,
         author_nickname: u.user_metadata?.nickname || u.email,
         views: 0,
+        ...(game_url ? { game_url } : {}),
       });
-      showToast('게시물이 등록됐어요! 🎉', 'green');
+      showToast(isGame ? '게임이 등록됐어요! 🎮' : '게시물이 등록됐어요! 🎉', 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     } catch (err) {
       console.error('insertPost 오류:', err);
-      showToast(`게시물 등록 실패: ${err?.message || '알 수 없는 오류'}`, 'red');
+      showToast(err.message || '등록 실패', 'red');
     } finally {
       setLoading(submitBtn, false);
     }
@@ -1274,6 +1299,19 @@ async function initPostDetail() {
     bodyEl.innerHTML = DOMPurify.sanitize(post.content);
   } else {
     bodyEl.textContent = stripHtml(post.content);
+  }
+
+  // 게임 플레이 영역
+  if (post.game_url) {
+    const playSection = document.getElementById('gamePlaySection');
+    const gameFrame   = document.getElementById('gameFrame');
+    if (playSection && gameFrame) {
+      playSection.classList.remove('hidden');
+      gameFrame.src = post.game_url;
+      document.getElementById('gameFullscreenBtn')?.addEventListener('click', () => {
+        gameFrame.requestFullscreen?.() || gameFrame.webkitRequestFullscreen?.();
+      });
+    }
   }
 
   // 삭제 버튼 (본인만)

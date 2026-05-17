@@ -38,6 +38,19 @@
 
       <div class="post-detail-body" id="postBody"></div>
 
+      <!-- 게임 플레이 -->
+      <div id="gamePlaySection" class="hidden" style="margin:28px 0 0">
+        <div class="game-play-wrap">
+          <div class="game-play-header">
+            <span class="game-play-title">🎮 게임 플레이</span>
+            <button id="gameFullscreenBtn" type="button" class="btn-secondary"
+                    style="font-size:12px;padding:5px 12px">전체화면</button>
+          </div>
+          <iframe id="gameFrame" class="game-iframe"
+                  sandbox="allow-scripts" allowfullscreen></iframe>
+        </div>
+      </div>
+
       <!-- 추천 / 비추천 -->
       <div class="vote-section">
         <button id="voteUpBtn" class="vote-btn" disabled>👍 추천 <span id="voteUpCount">0</span></button>

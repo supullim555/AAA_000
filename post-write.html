@@ -114,6 +114,16 @@
               <textarea id="gameDesc" placeholder="어떤 게임인지 소개해 주세요" maxlength="500"
                         style="min-height:120px"></textarea>
             </div>
+            <div class="field">
+              <label>게임 파일 <span style="font-size:11px;color:var(--text-light);font-weight:400">(선택 · HTML)</span></label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <input type="file" id="gameFile" accept=".html,.htm" style="display:none">
+                <button type="button" id="gameFileBtn" class="btn-secondary"
+                        style="font-size:13px;padding:8px 16px;white-space:nowrap">📂 파일 선택</button>
+                <span id="gameFileName" style="font-size:13px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">선택된 파일 없음</span>
+              </div>
+              <p class="hint">HTML 파일로 만든 게임을 올리면 게시물에서 바로 플레이할 수 있어요. (최대 20MB)</p>
+            </div>
           </div>
         </div>
       </div>
