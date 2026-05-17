@@ -373,8 +373,8 @@ async function insertCategory({ name, description = '', created_by = '익명', c
   if (error) throw error;
 }
 
-async function deleteCategory(name) {
-  const { error } = await supabaseClient.from('azits').delete().eq('name', name);
+async function deleteCategory(id) {
+  const { error } = await supabaseClient.from('azits').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -663,7 +663,7 @@ async function renderCategories(userId) {
   const ul = document.getElementById('catList');
   if (!ul) return;
 
-  const { data: cats, error } = await supabaseClient
+  const { data: rawCats, error } = await supabaseClient
     .from('azits')
     .select('*')
     .eq('creator_id', userId)
@@ -675,9 +675,11 @@ async function renderCategories(userId) {
     return;
   }
 
-  if (_dashType) cats = (cats || []).filter(c => c.type === _dashType);
+  const cats = _dashType
+    ? (rawCats || []).filter(c => c.type === _dashType)
+    : (rawCats || []);
 
-  if (!cats || cats.length === 0) {
+  if (cats.length === 0) {
     ul.innerHTML = '<li class="cat-empty">내가 만든 아지트가 없습니다.</li>';
     return;
   }
@@ -694,14 +696,15 @@ async function renderCategories(userId) {
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
-      <button class="cat-del" data-name="${escapeHTML(c.name)}">×</button>
+      <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">삭제</button>
     </li>`;
   }).join('');
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
     btn.addEventListener('click', async () => {
+      if (!confirm(`"${btn.dataset.name}" 아지트를 삭제할까요?`)) return;
       try {
-        await deleteCategory(btn.dataset.name);
+        await deleteCategory(btn.dataset.id);
         await renderCategories(userId);
       } catch {
         showToast('삭제 실패', 'red');
