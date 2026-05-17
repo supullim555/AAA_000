@@ -720,7 +720,7 @@ async function renderCategories(userId) {
       </div>
       <div class="cat-actions">
         <a href="azit-rename.html?id=${c.id}&name=${encodeURIComponent(c.name)}"
-           class="cat-action-btn cat-action-ren" title="이름 변경">✏️</a>
+           class="cat-action-btn cat-action-ren" title="아지트 수정">✏️</a>
         <button class="cat-action-btn cat-action-del"
                 data-id="${c.id}" data-name="${escapeHTML(c.name)}" title="삭제">×</button>
       </div>
