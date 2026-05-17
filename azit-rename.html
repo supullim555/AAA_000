@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아지트 이름 변경 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-write-wrap">
+    <form id="azitRenameForm" class="post-write-form">
+      <h2>아지트 이름 변경</h2>
+
+      <div class="field">
+        <label>현재 이름</label>
+        <div id="currentAzitName"
+             style="padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+                    font-size:14px;color:var(--text-light);background:var(--bg)"></div>
+      </div>
+
+      <div class="field">
+        <label for="azitNewName">새 이름 <span style="color:#e05252">*</span></label>
+        <input type="text" id="azitNewName" placeholder="새 이름을 입력하세요"
+               maxlength="20" autocomplete="off">
+        <p class="hint">이름을 변경하면 이 아지트에 있는 모든 게시물의 카테고리도 자동으로 바뀝니다.</p>
+      </div>
+
+      <div class="post-write-actions">
+        <a href="dashboard.html" class="btn-secondary">취소</a>
+        <button type="submit" class="btn btn-primary">변경하기</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initAzitRename();</script>
+</body>
+</html>

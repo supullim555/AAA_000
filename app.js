@@ -718,53 +718,14 @@ async function renderCategories(userId) {
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-        <button class="cat-ren" data-id="${c.id}" data-name="${escapeHTML(c.name)}" title="이름 변경">✏️</button>
-        <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">×</button>
+      <div class="cat-actions">
+        <a href="azit-rename.html?id=${c.id}&name=${encodeURIComponent(c.name)}"
+           class="cat-action-btn cat-action-ren" title="이름 변경">✏️</a>
+        <button class="cat-action-btn cat-action-del"
+                data-id="${c.id}" data-name="${escapeHTML(c.name)}" title="삭제">×</button>
       </div>
     </li>`;
   }).join('');
-
-  ul.querySelectorAll('.cat-ren').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const li = btn.closest('li');
-      const nameSpan = li.querySelector('.cat-name');
-      if (!nameSpan || li.querySelector('.cat-rename-input')) return;
-
-      const currentName = btn.dataset.name;
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = currentName;
-      input.className = 'cat-rename-input';
-      input.maxLength = 20;
-      nameSpan.replaceWith(input);
-      input.focus();
-      input.select();
-
-      const cancel = () => {
-        if (li.querySelector('.cat-rename-input')) input.replaceWith(nameSpan);
-      };
-
-      const save = async () => {
-        const newName = input.value.trim();
-        if (!newName || newName === currentName) { cancel(); return; }
-        try {
-          await renameAzit(btn.dataset.id, newName);
-          showToast(`"${newName}" 으로 변경됐어요.`, 'green');
-          await renderCategories(userId);
-        } catch {
-          showToast('이름 변경 실패', 'red');
-          cancel();
-        }
-      };
-
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter')  save();
-        if (e.key === 'Escape') cancel();
-      });
-      input.addEventListener('blur', () => setTimeout(cancel, 150));
-    });
-  });
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -796,6 +757,46 @@ async function initCategoryManager(userId) {
   await renderTypeFilterBtns('dashTypeFilter', (type) => {
     _dashType = type;
     renderCategories(userId);
+  });
+}
+
+/* ════════════════════════════════════════
+   Page: Azit Rename
+════════════════════════════════════════ */
+async function initAzitRename() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const params = new URLSearchParams(location.search);
+  const id   = params.get('id');
+  const name = decodeURIComponent(params.get('name') || '');
+  if (!id || !name) { location.href = 'dashboard.html'; return; }
+
+  document.getElementById('currentAzitName').textContent = name;
+  const input = document.getElementById('azitNewName');
+  input.value = name;
+  input.focus();
+  input.select();
+
+  const form      = document.getElementById('azitRenameForm');
+  const submitBtn = form.querySelector('[type=submit]');
+  submitBtn.dataset.label = submitBtn.textContent;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newName = input.value.trim();
+    if (!newName)        { showToast('이름을 입력해 주세요.', 'red'); return; }
+    if (newName === name) { location.href = 'dashboard.html'; return; }
+
+    setLoading(submitBtn, true);
+    try {
+      await renameAzit(id, newName);
+      showToast(`"${newName}" 으로 변경됐어요.`, 'green');
+      setTimeout(() => { location.href = 'dashboard.html'; }, 800);
+    } catch (err) {
+      showToast('변경 실패', 'red');
+      setLoading(submitBtn, false);
+    }
   });
 }
 

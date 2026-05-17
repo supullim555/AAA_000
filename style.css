@@ -1853,43 +1853,53 @@ header nav a.nav-signup:hover {
   margin-top: 2px;
 }
 
-/* ── 아지트 이름 변경 ── */
+/* ── 아지트 액션 버튼 ── */
 .cat-name-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.cat-ren {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 0 3px;
-  opacity: 0.5;
-  transition: opacity 0.15s;
-  line-height: 1;
+.cat-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: center;
 }
-.cat-ren:hover { opacity: 1; }
 
-.cat-rename-input {
-  padding: 3px 8px;
-  border: 1.5px solid var(--primary);
+.cat-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
   font-size: 14px;
-  font-weight: 700;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  line-height: 1;
+  color: var(--text-light);
   font-family: inherit;
-  color: var(--text);
-  background: var(--card);
-  outline: none;
-  width: 100%;
-  max-width: 200px;
 }
 
-[data-theme="dark"] .cat-rename-input {
-  background: #1a1e2e;
-  color: var(--text);
+.cat-action-ren:hover {
+  border-color: var(--primary);
+  background: #e8f5ef;
+  color: var(--primary);
 }
+
+.cat-action-del:hover {
+  border-color: #e05252;
+  background: #fff0f0;
+  color: #e05252;
+}
+
+[data-theme="dark"] .cat-action-btn         { background: #1a1e2e; }
+[data-theme="dark"] .cat-action-ren:hover   { background: #182e22; }
+[data-theme="dark"] .cat-action-del:hover   { background: #2e1818; }
 
 /* ── 게시물 관리 ── */
 .post-manage-wrap {
