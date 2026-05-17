@@ -915,15 +915,6 @@ async function initPostWrite() {
   catSelect.addEventListener('change', applyFormType);
   applyFormType();
 
-  /* ── 게임 파일 선택 ── */
-  const gameFileInput = document.getElementById('gameFile');
-  const gameFileBtn   = document.getElementById('gameFileBtn');
-  const gameFileEl    = document.getElementById('gameFileName');
-  gameFileBtn?.addEventListener('click', () => gameFileInput?.click());
-  gameFileInput?.addEventListener('change', () => {
-    gameFileEl.textContent = gameFileInput.files[0]?.name || '선택된 파일 없음';
-  });
-
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -934,41 +925,26 @@ async function initPostWrite() {
     const category = form.category.value;
     const isGame   = azitMap[category]?.type === '게임';
 
-    if (isGame) {
-      if (!title || !document.getElementById('gameTitle').value.trim()) {
-        showToast('제목과 게임 이름을 모두 입력해 주세요.', 'red');
-        return;
-      }
-    } else {
-      if (!title || !quill.getText().trim()) {
-        showToast('제목과 내용을 모두 입력해 주세요.', 'red');
-        return;
-      }
+    if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
+    if (!isGame && !quill.getText().trim()) {
+      showToast('내용을 입력해 주세요.', 'red'); return;
     }
 
     const u = session.user;
     setLoading(submitBtn, true);
 
     try {
-      let content, game_url = null;
+      let content;
+      const extra = {};
 
       if (isGame) {
-        const gameFile = gameFileInput?.files[0];
-        if (gameFile) {
-          if (gameFile.size > 20 * 1024 * 1024) throw new Error('게임 파일은 20MB 이하여야 해요.');
-          showToast('게임 파일 업로드 중...', 'green');
-          const path = `games/${Date.now()}.html`;
-          const { error: upErr } = await supabaseClient.storage
-            .from('post-media').upload(path, gameFile, { contentType: 'text/html' });
-          if (upErr) throw new Error('업로드 실패: ' + upErr.message);
-          game_url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
-        }
-        content = buildGamePostContent({
-          gameTitle:    document.getElementById('gameTitle').value.trim(),
-          gameGenre:    document.getElementById('gameGenre').value.trim(),
-          gamePlatform: document.getElementById('gamePlatform').value,
-          gameDesc:     document.getElementById('gameDesc').value.trim(),
-        });
+        content = document.getElementById('gameDesc')?.value.trim() || '';
+        const genre = document.getElementById('gameGenre')?.value;
+        const thumb = document.getElementById('thumbnailUrl')?.value.trim();
+        const gurl  = document.getElementById('gameUrl')?.value.trim();
+        if (genre) extra.game_genre    = genre;
+        if (thumb) extra.thumbnail_url = thumb;
+        if (gurl)  extra.game_url      = gurl;
       } else {
         content = quill.root.innerHTML;
       }
@@ -978,7 +954,7 @@ async function initPostWrite() {
         author_id:       u.id,
         author_nickname: u.user_metadata?.nickname || u.email,
         views: 0,
-        ...(game_url ? { game_url } : {}),
+        ...extra,
       });
       showToast(isGame ? '게임이 등록됐어요! 🎮' : '게시물이 등록됐어요! 🎉', 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
@@ -1001,25 +977,34 @@ async function initPostWrite() {
  *              — allow-top-navigation 제외 → 상위 페이지 리다이렉트 불가
  *              — allow-popups 제외 → 새 창·탭 열기 불가
  */
-async function loadGameSecurely(gameFrame, gameUrl) {
+async function loadGameSecurely(gameFrame, rawInput) {
+  if (!rawInput) return;
+
+  // iframe 코드에서 src URL 추출
+  let url = rawInput.trim();
+  if (/^<iframe/i.test(url)) {
+    const m = url.match(/src=['"]([^'"]+)['"]/i);
+    url = m ? m[1] : '';
+  }
+  if (!url) {
+    gameFrame.srcdoc = `<p style="font-family:sans-serif;color:#e05252;padding:24px;text-align:center">올바른 URL이 아닙니다.</p>`;
+    return;
+  }
+
   try {
-    const res = await fetch(gameUrl);
+    // 동일 출처(Supabase Storage) 파일: srcdoc + CSP 주입으로 강격 격리
+    const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) throw new Error();
     const html = await res.text();
-
-    // CSP 메타태그: 게임 내부에서 외부 네트워크 연결 전면 차단
     const csp = `<meta http-equiv="Content-Security-Policy" ` +
       `content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'none';">`;
-
     const secured = /<head/i.test(html)
       ? html.replace(/<head([^>]*)>/i, `<head$1>${csp}`)
       : csp + html;
-
     gameFrame.srcdoc = secured;
   } catch {
-    gameFrame.srcdoc =
-      `<p style="font-family:sans-serif;color:#e05252;padding:24px;text-align:center">
-        게임을 불러오지 못했어요.</p>`;
+    // 외부 URL (CORS 차단): src= 직접 설정 — sandbox는 그대로 적용됨
+    gameFrame.src = url;
   }
 }
 
@@ -1327,6 +1312,28 @@ async function initPostDetail() {
   document.getElementById('postDate').textContent     = formatDate(post.created_at);
   document.getElementById('postViews').textContent    = post.views || 0;
   const bodyEl = document.getElementById('postBody');
+
+  // 게임 타입: 썸네일·장르를 본문 위에 표시
+  if (post.thumbnail_url || post.game_genre) {
+    const meta = document.createElement('div');
+    meta.className = 'game-detail-meta';
+    if (post.thumbnail_url) {
+      const img = document.createElement('img');
+      img.src = post.thumbnail_url;
+      img.className = 'game-detail-thumb';
+      img.alt = '게임 썸네일';
+      img.onerror = () => { img.style.display = 'none'; };
+      meta.appendChild(img);
+    }
+    if (post.game_genre) {
+      const badge = document.createElement('span');
+      badge.className = 'game-tag';
+      badge.textContent = post.game_genre;
+      meta.appendChild(badge);
+    }
+    bodyEl.before(meta);
+  }
+
   if (typeof DOMPurify !== 'undefined') {
     bodyEl.innerHTML = DOMPurify.sanitize(post.content);
   } else {

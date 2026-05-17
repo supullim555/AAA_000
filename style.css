@@ -1122,6 +1122,18 @@ header nav a.nav-signup:hover {
   .game-iframe { height: 300px; }
 }
 
+/* ── 게임 상세 메타 (썸네일·장르) ── */
+.game-detail-meta {
+  margin-bottom: 20px;
+}
+.game-detail-thumb {
+  max-width: 100%;
+  border-radius: var(--r);
+  margin-bottom: 12px;
+  display: block;
+  object-fit: cover;
+}
+
 /* ── 게임 게시물 카드 (post-detail 렌더링) ── */
 .game-post-card {
   background: var(--bg);
