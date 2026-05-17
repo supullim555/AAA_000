@@ -982,6 +982,21 @@ async function initPostWrite() {
   catSelect.addEventListener('change', applyFormType);
   applyFormType();
 
+  /* ── 게임 폴더 선택 ── */
+  const gameFolderInput = document.getElementById('gameFolderInput');
+  const gameFolderBtn   = document.getElementById('gameFolderBtn');
+  const gameFolderInfo  = document.getElementById('gameFolderInfo');
+  gameFolderBtn?.addEventListener('click', () => gameFolderInput?.click());
+  gameFolderInput?.addEventListener('change', () => {
+    const files = gameFolderInput.files;
+    if (files.length > 0) {
+      const folderName = files[0].webkitRelativePath.split('/')[0];
+      gameFolderInfo.textContent = `${folderName} (${files.length}개 파일)`;
+    } else {
+      gameFolderInfo.textContent = '선택된 폴더 없음';
+    }
+  });
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -1008,10 +1023,57 @@ async function initPostWrite() {
         content = document.getElementById('gameDesc')?.value.trim() || '';
         const genre = document.getElementById('gameGenre')?.value;
         const thumb = document.getElementById('thumbnailUrl')?.value.trim();
-        const gurl  = document.getElementById('gameUrl')?.value.trim();
         if (genre) extra.game_genre    = genre;
         if (thumb) extra.thumbnail_url = thumb;
-        if (gurl)  extra.game_url      = gurl;
+
+        // ── 폴더 업로드 ──
+        const files = gameFolderInput?.files;
+        if (files && files.length > 0) {
+          const gameUUID = crypto.randomUUID();
+          const basePath = `games/${gameUUID}`;
+          const total    = files.length;
+          let   indexUrl = null;
+
+          for (let i = 0; i < total; i++) {
+            const file         = files[i];
+            const relativePath = file.webkitRelativePath.split('/').slice(1).join('/');
+            const uploadPath   = `${basePath}/${relativePath}`;
+
+            // 진행 상태 표시
+            submitBtn.textContent = `게임을 서버에 올리는 중... (${i + 1}/${total})`;
+
+            // .wasm은 반드시 application/wasm 지정 (브라우저 실행 필수)
+            const contentType = file.name.endsWith('.wasm')
+              ? 'application/wasm'
+              : (file.type || 'application/octet-stream');
+
+            const { error: upErr } = await supabaseClient.storage
+              .from('post-media')
+              .upload(uploadPath, file, { contentType });
+
+            if (upErr) throw new Error(`'${file.name}' 업로드 실패: ${upErr.message}`);
+
+            // index.html 우선, 없으면 첫 번째 .html
+            if (relativePath === 'index.html' && !indexUrl) {
+              indexUrl = supabaseClient.storage
+                .from('post-media').getPublicUrl(uploadPath).data.publicUrl;
+            }
+          }
+
+          // index.html이 없으면 첫 번째 .html 파일로 대체
+          if (!indexUrl) {
+            for (const file of files) {
+              const rel = file.webkitRelativePath.split('/').slice(1).join('/');
+              if (rel.endsWith('.html')) {
+                indexUrl = supabaseClient.storage
+                  .from('post-media').getPublicUrl(`${basePath}/${rel}`).data.publicUrl;
+                break;
+              }
+            }
+          }
+
+          if (indexUrl) extra.game_url = indexUrl;
+        }
       } else {
         content = quill.root.innerHTML;
       }
@@ -1044,6 +1106,19 @@ async function initPostWrite() {
  *              — allow-top-navigation 제외 → 상위 페이지 리다이렉트 불가
  *              — allow-popups 제외 → 새 창·탭 열기 불가
  */
+/*
+ * 게임 보안 모델 (업데이트):
+ *
+ * [Supabase Storage 업로드 게임 — Godot 등]
+ *   sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+ *   → 상대경로(.js/.wasm/.pck) 로딩에 same-origin이 필수
+ *   → 세션 토큰은 Vercel 도메인 localStorage에 저장되므로
+ *     supabase.co origin인 iframe이 접근 불가 (크로스 오리진 격리)
+ *
+ * [외부 URL — itch.io 등]
+ *   fetch 성공 시 → srcdoc + connect-src 'none' CSP 주입 (완전 격리)
+ *   fetch 실패(CORS) 시 → src= 직접 (sandbox는 그대로 적용)
+ */
 async function loadGameSecurely(gameFrame, rawInput) {
   if (!rawInput) return;
 
@@ -1058,8 +1133,16 @@ async function loadGameSecurely(gameFrame, rawInput) {
     return;
   }
 
+  // Supabase Storage 업로드 게임 (Godot 웹 빌드 등)
+  // JS/WASM/PCK 상대경로 로딩을 위해 allow-same-origin 필요
+  if (url.includes('supabase.co/storage')) {
+    gameFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock');
+    gameFrame.src = url;
+    return;
+  }
+
+  // 외부 URL: srcdoc + CSP 주입 시도, CORS 실패 시 src= 폴백
   try {
-    // 동일 출처(Supabase Storage) 파일: srcdoc + CSP 주입으로 강격 격리
     const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) throw new Error();
     const html = await res.text();
@@ -1070,7 +1153,6 @@ async function loadGameSecurely(gameFrame, rawInput) {
       : csp + html;
     gameFrame.srcdoc = secured;
   } catch {
-    // 외부 URL (CORS 차단): src= 직접 설정 — sandbox는 그대로 적용됨
     gameFrame.src = url;
   }
 }
