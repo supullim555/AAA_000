@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>게시물 관리 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-manage-wrap">
+    <div class="post-manage-header">
+      <h2 class="section-title" style="margin-bottom:0">내 게시물</h2>
+      <a href="dashboard.html" class="btn-secondary" style="font-size:13px;padding:8px 16px">← 내 공간</a>
+    </div>
+    <div id="myPostsList"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initPostManage();</script>
+</body>
+</html>

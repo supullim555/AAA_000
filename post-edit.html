@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>게시물 수정 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="post-manage.html" class="active">게시물 관리</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="post-write-wrap">
+    <form id="postEditForm" class="post-write-form">
+      <h2>게시물 수정</h2>
+
+      <!-- 아지트 (읽기 전용) -->
+      <div class="field">
+        <label>아지트</label>
+        <div id="editCategory" style="padding:10px 13px;border:1.5px solid var(--border);
+             border-radius:var(--r-sm);font-size:14px;color:var(--text-light);background:var(--bg)"></div>
+      </div>
+
+      <div class="field">
+        <label for="editTitle">제목</label>
+        <input type="text" id="editTitle" name="title" placeholder="제목을 입력하세요"
+               maxlength="80" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label id="editContentLabel">내용</label>
+
+        <!-- 기본: Quill 에디터 -->
+        <div id="editQuillSection">
+          <div id="editQuillToolbar">
+            <span class="ql-formats">
+              <select class="ql-font">
+                <option selected>기본</option>
+                <option value="serif">명조</option>
+                <option value="monospace">코드</option>
+              </select>
+              <select class="ql-size">
+                <option value="12px">12px</option>
+                <option value="14px">14px</option>
+                <option selected>16px</option>
+                <option value="18px">18px</option>
+                <option value="24px">24px</option>
+                <option value="32px">32px</option>
+              </select>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-bold"></button>
+              <button class="ql-italic"></button>
+              <button class="ql-underline"></button>
+              <button class="ql-strike"></button>
+            </span>
+            <span class="ql-formats">
+              <select class="ql-color"></select>
+              <select class="ql-background"></select>
+            </span>
+            <span class="ql-formats">
+              <select class="ql-align"></select>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-list" value="ordered"></button>
+              <button class="ql-list" value="bullet"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-image" title="이미지 / GIF 추가"></button>
+              <button class="ql-link"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-clean"></button>
+            </span>
+          </div>
+          <div id="editQuillEditor"></div>
+        </div>
+
+        <!-- 게임 타입 전용 양식 -->
+        <div id="editGameSection" class="hidden">
+          <div class="game-write-form">
+            <div class="field">
+              <label>게임 설명</label>
+              <textarea id="editGameDesc" placeholder="게임을 소개해 주세요"
+                        maxlength="1000" style="min-height:120px"></textarea>
+            </div>
+            <div class="field">
+              <label>장르</label>
+              <select id="editGameGenre">
+                <option value="">선택 안 함</option>
+                <option value="액션">액션</option>
+                <option value="퍼즐">퍼즐</option>
+                <option value="아케이드">아케이드</option>
+                <option value="롤플레잉">롤플레잉</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>썸네일 이미지 URL</label>
+              <input type="url" id="editThumbnailUrl" placeholder="https://...">
+            </div>
+            <div class="field">
+              <label>게임 실행 URL <span style="font-size:11px;color:var(--text-light);font-weight:400">(선택)</span></label>
+              <input type="text" id="editGameUrl" placeholder="URL 또는 iframe 코드">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="post-write-actions">
+        <a id="editCancelBtn" href="post-manage.html" class="btn-secondary">취소</a>
+        <button type="submit" class="btn btn-primary">수정 완료</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initPostEdit();</script>
+</body>
+</html>

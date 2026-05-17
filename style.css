@@ -1853,6 +1853,98 @@ header nav a.nav-signup:hover {
   margin-top: 2px;
 }
 
+/* ── 아지트 이름 변경 ── */
+.cat-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-ren {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 3px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+.cat-ren:hover { opacity: 1; }
+
+.cat-rename-input {
+  padding: 3px 8px;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--card);
+  outline: none;
+  width: 100%;
+  max-width: 200px;
+}
+
+[data-theme="dark"] .cat-rename-input {
+  background: #1a1e2e;
+  color: var(--text);
+}
+
+/* ── 게시물 관리 ── */
+.post-manage-wrap {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.post-manage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.post-manage-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+}
+
+.post-manage-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.post-manage-title {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.post-manage-meta {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
+.post-manage-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ── 게시물 목록 (리스트 뷰) ── */
 .posts-list-section {
   max-width: 980px;

@@ -378,6 +378,28 @@ async function deleteCategory(id) {
   if (error) throw error;
 }
 
+async function renameAzit(id, newName) {
+  const { error } = await supabaseClient.rpc('rename_azit', {
+    p_azit_id: id,
+    p_new_name: newName,
+  });
+  if (error) throw error;
+  invalidatePostsCache();
+}
+
+async function getAzitByName(name) {
+  const { data } = await supabaseClient
+    .from('azits').select('*').eq('name', name).maybeSingle();
+  return data;
+}
+
+async function updatePost(id, data) {
+  const { error } = await supabaseClient
+    .from('posts').update(data).eq('id', id);
+  if (error) throw error;
+  invalidatePostsCache();
+}
+
 /* 카테고리별 게시물 수 / 고유 유저 수 (posts 배열 받아 계산) */
 function getCatCounts(posts) {
   const counts = {};
@@ -688,17 +710,61 @@ async function renderCategories(userId) {
     const typeLabel = TYPE_LABELS[c.type] || c.type || '';
     return `
     <li class="cat-item">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div class="cat-name-row">
           <span class="cat-name">${escapeHTML(c.name)}</span>
           ${typeLabel ? `<span class="cat-item-type">${escapeHTML(typeLabel)}</span>` : ''}
         </div>
         ${c.description ? `<div class="cat-item-desc">${escapeHTML(c.description)}</div>` : ''}
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
-      <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">×</button>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <button class="cat-ren" data-id="${c.id}" data-name="${escapeHTML(c.name)}" title="이름 변경">✏️</button>
+        <button class="cat-del" data-id="${c.id}" data-name="${escapeHTML(c.name)}">×</button>
+      </div>
     </li>`;
   }).join('');
+
+  ul.querySelectorAll('.cat-ren').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const li = btn.closest('li');
+      const nameSpan = li.querySelector('.cat-name');
+      if (!nameSpan || li.querySelector('.cat-rename-input')) return;
+
+      const currentName = btn.dataset.name;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentName;
+      input.className = 'cat-rename-input';
+      input.maxLength = 20;
+      nameSpan.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const cancel = () => {
+        if (li.querySelector('.cat-rename-input')) input.replaceWith(nameSpan);
+      };
+
+      const save = async () => {
+        const newName = input.value.trim();
+        if (!newName || newName === currentName) { cancel(); return; }
+        try {
+          await renameAzit(btn.dataset.id, newName);
+          showToast(`"${newName}" 으로 변경됐어요.`, 'green');
+          await renderCategories(userId);
+        } catch {
+          showToast('이름 변경 실패', 'red');
+          cancel();
+        }
+      };
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  save();
+        if (e.key === 'Escape') cancel();
+      });
+      input.addEventListener('blur', () => setTimeout(cancel, 150));
+    });
+  });
 
   ul.querySelectorAll('.cat-del').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -1629,6 +1695,138 @@ async function initLogin() {
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
     } catch (err) {
       showError('err-login', toKoreanError(err));
+    } finally {
+      setLoading(submitBtn, false);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   Page: Post Manage (게시물 관리 목록)
+════════════════════════════════════════ */
+async function initPostManage() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const wrap = document.getElementById('myPostsList');
+  if (!wrap) return;
+
+  const { data: posts, error } = await supabaseClient
+    .from('posts')
+    .select('id, title, category, views, created_at, hidden')
+    .eq('author_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error || !posts || posts.length === 0) {
+    wrap.innerHTML = '<p class="news-empty">작성한 게시물이 없습니다.</p>';
+    return;
+  }
+
+  wrap.innerHTML = posts.map(p => `
+    <div class="post-manage-card">
+      <div class="post-manage-info">
+        <span class="post-row-cat">${escapeHTML(p.category)}</span>
+        <span class="post-manage-title">${escapeHTML(p.title)}</span>
+        ${p.hidden ? `<span class="admin-badge-hidden">숨김</span>` : ''}
+      </div>
+      <div class="post-manage-meta">${formatDate(p.created_at)} &nbsp;·&nbsp; 조회 ${p.views || 0}</div>
+      <div class="post-manage-actions">
+        <a href="post-detail.html?id=${p.id}" class="btn-secondary" style="font-size:12px;padding:6px 14px">보기</a>
+        <a href="post-edit.html?id=${p.id}"   class="btn btn-primary" style="font-size:12px;padding:6px 14px">수정</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ════════════════════════════════════════
+   Page: Post Edit (게시물 수정)
+════════════════════════════════════════ */
+async function initPostEdit() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { location.href = 'post-manage.html'; return; }
+
+  const post = await getPost(id);
+  if (!post || post.author_id !== session.user.id) {
+    showToast('수정 권한이 없어요.', 'red');
+    setTimeout(() => { location.href = 'post-manage.html'; }, 1000);
+    return;
+  }
+
+  const azit   = await getAzitByName(post.category);
+  const isGame = azit?.type === '게임';
+
+  document.getElementById('editCategory').textContent = post.category;
+  document.getElementById('editTitle').value = post.title;
+  document.getElementById('editCancelBtn').href = `post-detail.html?id=${id}`;
+
+  if (isGame) {
+    document.getElementById('editQuillSection').classList.add('hidden');
+    document.getElementById('editGameSection').classList.remove('hidden');
+    document.getElementById('editGameDesc').value     = post.content      || '';
+    document.getElementById('editGameGenre').value    = post.game_genre   || '';
+    document.getElementById('editThumbnailUrl').value = post.thumbnail_url || '';
+    document.getElementById('editGameUrl').value      = post.game_url     || '';
+  } else {
+    const Font = Quill.import('formats/font');
+    Font.whitelist = ['serif', 'monospace'];
+    Quill.register(Font, true);
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['12px', '14px', '18px', '24px', '32px'];
+    Quill.register(Size, true);
+
+    const quill = new Quill('#editQuillEditor', {
+      theme: 'snow',
+      modules: { toolbar: { container: '#editQuillToolbar' } },
+    });
+    quill.clipboard.dangerouslyPasteHTML(post.content || '');
+
+    const form = document.getElementById('postEditForm');
+    const submitBtn = form.querySelector('[type=submit]');
+    submitBtn.dataset.label = submitBtn.textContent;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('editTitle').value.trim();
+      if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
+      setLoading(submitBtn, true);
+      try {
+        await updatePost(id, { title, content: quill.root.innerHTML });
+        showToast('수정됐어요!', 'green');
+        setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
+      } catch (err) {
+        showToast('수정 실패: ' + (err.message || ''), 'red');
+      } finally {
+        setLoading(submitBtn, false);
+      }
+    });
+    return;
+  }
+
+  const form = document.getElementById('postEditForm');
+  const submitBtn = form.querySelector('[type=submit]');
+  submitBtn.dataset.label = submitBtn.textContent;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('editTitle').value.trim();
+    if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
+    setLoading(submitBtn, true);
+    try {
+      const data = {
+        title,
+        content:       document.getElementById('editGameDesc').value.trim(),
+        game_genre:    document.getElementById('editGameGenre').value    || null,
+        thumbnail_url: document.getElementById('editThumbnailUrl').value.trim() || null,
+        game_url:      document.getElementById('editGameUrl').value.trim() || null,
+      };
+      await updatePost(id, data);
+      showToast('수정됐어요!', 'green');
+      setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
+    } catch (err) {
+      showToast('수정 실패: ' + (err.message || ''), 'red');
     } finally {
       setLoading(submitBtn, false);
     }
