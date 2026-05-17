@@ -1798,13 +1798,14 @@ header nav a.nav-signup:hover {
 }
 
 .cat-item-type {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 7px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 9px;
   border-radius: 10px;
   background: var(--border);
   color: var(--text-light);
   flex-shrink: 0;
+  line-height: 1.4;
 }
 
 .cat-card-type {
