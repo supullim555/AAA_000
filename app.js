@@ -974,7 +974,7 @@ async function initPostWrite() {
   const gameSection  = document.getElementById('gameSection');
 
   function applyFormType() {
-    const isGame = azitMap[catSelect.value]?.type === '게임';
+    const isGame = azitMap[catSelect.value]?.type === '웹게임';
     quillSection?.classList.toggle('hidden', isGame);
     gameSection?.classList.toggle('hidden', !isGame);
   }
@@ -1005,7 +1005,7 @@ async function initPostWrite() {
     e.preventDefault();
     const title    = form.title.value.trim();
     const category = form.category.value;
-    const isGame   = azitMap[category]?.type === '게임';
+    const isGame   = azitMap[category]?.type === '웹게임';
 
     if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
     if (!isGame && !quill.getText().trim()) {
@@ -1042,10 +1042,8 @@ async function initPostWrite() {
             // 진행 상태 표시
             submitBtn.textContent = `게임을 서버에 올리는 중... (${i + 1}/${total})`;
 
-            // .wasm은 반드시 application/wasm 지정 (브라우저 실행 필수)
-            const contentType = file.name.endsWith('.wasm')
-              ? 'application/wasm'
-              : (file.type || 'application/octet-stream');
+            // HTML5 게임 파일별 MIME 타입 명시 (브라우저 실행 정확도 향상)
+            const contentType = getGameFileContentType(file);
 
             const { error: upErr } = await supabaseClient.storage
               .from('post-media')
@@ -1155,6 +1153,34 @@ async function loadGameSecurely(gameFrame, rawInput) {
   } catch {
     gameFrame.src = url;
   }
+}
+
+/* HTML5 게임 파일 MIME 타입 매핑 — 브라우저가 파일을 정확히 해석하도록 강제 지정 */
+function getGameFileContentType(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const map = {
+    'wasm': 'application/wasm',          // 필수: 없으면 브라우저가 실행 거부
+    'js':   'text/javascript',
+    'mjs':  'text/javascript',
+    'html': 'text/html',
+    'css':  'text/css',
+    'json': 'application/json',
+    'pck':  'application/octet-stream',  // Godot 패키지
+    'data': 'application/octet-stream',  // Unity WebGL 등
+    'png':  'image/png',
+    'jpg':  'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif':  'image/gif',
+    'webp': 'image/webp',
+    'svg':  'image/svg+xml',
+    'ico':  'image/x-icon',
+    'ogg':  'audio/ogg',
+    'mp3':  'audio/mpeg',
+    'wav':  'audio/wav',
+    'mp4':  'video/mp4',
+    'webm': 'video/webm',
+  };
+  return map[ext] || file.type || 'application/octet-stream';
 }
 
 function buildGamePostContent({ gameTitle, gameGenre, gamePlatform, gameDesc }) {
@@ -1839,7 +1865,7 @@ async function initPostEdit() {
   }
 
   const azit   = await getAzitByName(post.category);
-  const isGame = azit?.type === '게임';
+  const isGame = azit?.type === '웹게임';
 
   document.getElementById('editCategory').textContent = post.category;
   document.getElementById('editTitle').value = post.title;
