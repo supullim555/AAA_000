@@ -1262,19 +1262,6 @@ function getGameFileContentType(file) {
   return map[ext] || file.type || 'application/octet-stream';
 }
 
-function buildGamePostContent({ gameTitle, gameGenre, gamePlatform, gameDesc }) {
-  const tags = [
-    `<span class="game-tag">🎮 ${escapeHTML(gameTitle)}</span>`,
-    gameGenre    ? `<span class="game-tag">${escapeHTML(gameGenre)}</span>`    : '',
-    gamePlatform ? `<span class="game-tag">${escapeHTML(gamePlatform)}</span>` : '',
-  ].filter(Boolean).join('');
-
-  return `<div class="game-post-card">` +
-    `<div class="game-post-tags">${tags}</div>` +
-    (gameDesc ? `<p class="game-post-desc">${escapeHTML(gameDesc)}</p>` : '') +
-    `</div>`;
-}
-
 /* ── 이미지 / GIF 업로드 ── */
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_IMAGE_BYTES     = 10 * 1024 * 1024; // 10 MB
