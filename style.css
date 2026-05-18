@@ -1842,9 +1842,30 @@ header nav a.nav-signup:hover {
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
+  transition: opacity 0.15s, background 0.15s;
 }
 
 .cat-item:last-child { border-bottom: none; }
+
+.cat-item.dragging {
+  opacity: 0.35;
+  background: var(--bg);
+  border-radius: var(--r-sm);
+}
+
+.cat-drag-handle {
+  font-size: 18px;
+  color: var(--text-light);
+  opacity: 0.35;
+  cursor: grab;
+  padding: 0 10px 0 0;
+  flex-shrink: 0;
+  user-select: none;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.cat-drag-handle:hover { opacity: 0.75; }
+.cat-item.dragging .cat-drag-handle { cursor: grabbing; }
 
 .cat-name { flex: 1; color: var(--text); }
 

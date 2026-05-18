@@ -717,7 +717,8 @@ async function renderCategories(userId) {
     .from('azits')
     .select('*')
     .eq('creator_id', userId)
-    .order('created_at', { ascending: true });
+    .order('sort_order', { ascending: true, nullsFirst: false })
+    .order('created_at',  { ascending: true });
 
   if (error) {
     ul.innerHTML = '<li class="cat-empty">아지트를 불러오지 못했어요.</li>';
@@ -737,7 +738,8 @@ async function renderCategories(userId) {
   ul.innerHTML = cats.map(c => {
     const typeLabel = TYPE_LABELS[c.type] || c.type || '';
     return `
-    <li class="cat-item">
+    <li class="cat-item" data-id="${c.id}">
+      <div class="cat-drag-handle" title="드래그하여 순서 변경">⠿</div>
       <div style="flex:1;min-width:0;overflow:hidden">
         <div class="cat-name-row">
           <span class="cat-name">${escapeHTML(c.name)}</span>
@@ -755,7 +757,7 @@ async function renderCategories(userId) {
     </li>`;
   }).join('');
 
-  ul.querySelectorAll('.cat-del').forEach(btn => {
+  ul.querySelectorAll('.cat-action-del').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { count } = await supabaseClient
         .from('posts')
@@ -777,6 +779,63 @@ async function renderCategories(userId) {
       }
     });
   });
+
+  initDragSort(ul);
+}
+
+/* ── 아지트 순서 드래그 정렬 ── */
+function initDragSort(ul) {
+  // 핸들을 누를 때만 드래그 활성화
+  ul.querySelectorAll('.cat-drag-handle').forEach(handle => {
+    handle.addEventListener('mousedown', () => {
+      handle.closest('.cat-item').draggable = true;
+    });
+    handle.addEventListener('touchstart', () => {
+      handle.closest('.cat-item').draggable = true;
+    }, { passive: true });
+  });
+
+  ul.addEventListener('dragstart', e => {
+    const item = e.target.closest('.cat-item');
+    if (!item) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // Firefox 필수
+    setTimeout(() => item.classList.add('dragging'), 0);
+  });
+
+  ul.addEventListener('dragend', e => {
+    const item = e.target.closest('.cat-item');
+    item?.classList.remove('dragging');
+    ul.querySelectorAll('.cat-item').forEach(i => { i.draggable = false; });
+    saveAzitOrder(ul);
+  });
+
+  ul.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('.cat-item');
+    if (!target) return;
+    const dragging = ul.querySelector('.cat-item.dragging');
+    if (!dragging || dragging === target) return;
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      ul.insertBefore(dragging, target);
+    } else {
+      target.after(dragging);
+    }
+  });
+}
+
+async function saveAzitOrder(ul) {
+  const items = [...ul.querySelectorAll('.cat-item[data-id]')];
+  try {
+    await Promise.all(
+      items.map((item, idx) =>
+        supabaseClient.from('azits').update({ sort_order: idx + 1 }).eq('id', item.dataset.id)
+      )
+    );
+  } catch (err) {
+    console.error('순서 저장 실패:', err);
+  }
 }
 
 async function initCategoryManager(userId) {
