@@ -1130,6 +1130,29 @@ header nav a.nav-signup:hover {
 
 [data-theme="dark"] .game-write-form { background: #0d1117; }
 
+/* ── 영상 플레이어 ── */
+.video-play-wrap {
+  border-radius: var(--r);
+  overflow: hidden;
+  background: #000;
+}
+.video-player {
+  width: 100%;
+  max-height: 70vh;
+  display: block;
+  background: #000;
+}
+
+/* 영상 카드 썸네일 플레이스홀더 */
+.video-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a2e;
+  font-size: 40px;
+}
+[data-theme="dark"] .video-thumb-placeholder { background: #111; }
+
 /* ── 게임 플레이 영역 ── */
 .game-play-wrap {
   border: 1.5px solid var(--border);

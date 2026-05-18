@@ -623,13 +623,15 @@ async function renderPosts() {
     }
 
     grid.innerHTML = posts.map(p => {
-      const isGame = !!p.game_url;
-      const thumb  = p.thumbnail_url || extractFirstImage(p.content);
+      const isGame  = !!p.game_url;
+      const isVideo = !!p.video_url;
+      const isRich  = isGame || isVideo;
+      const thumb   = p.thumbnail_url || extractFirstImage(p.content);
       const thumbHtml = thumb
         ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
-        : '';
-      const desc = isGame ? escapeHTML(p.content || '') : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
-      const descHtml = isGame
+        : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : '');
+      const desc = isRich ? escapeHTML(p.content || '') : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
+      const descHtml = isRich
         ? `<div class="game-card-desc-wrap">
             <p class="game-card-desc">${desc}</p>
             ${desc ? `<button class="expand-btn" type="button" data-expanded="false">펼쳐보기</button>` : ''}
@@ -998,11 +1000,15 @@ async function initPostWrite() {
   /* ── 아지트 타입에 따라 폼 전환 ── */
   const quillSection = document.getElementById('quillSection');
   const gameSection  = document.getElementById('gameSection');
+  const videoSection = document.getElementById('videoSection');
 
   function applyFormType() {
-    const isGame = azitMap[catSelect.value]?.type === '웹게임';
-    quillSection?.classList.toggle('hidden', isGame);
-    gameSection?.classList.toggle('hidden', !isGame);
+    const type    = azitMap[catSelect.value]?.type;
+    const isGame  = type === '웹게임';
+    const isVideo = type === '영상';
+    quillSection?.classList.toggle('hidden', isGame || isVideo);
+    gameSection?.classList.toggle('hidden',  !isGame);
+    videoSection?.classList.toggle('hidden', !isVideo);
   }
 
   catSelect.addEventListener('change', applyFormType);
@@ -1023,6 +1029,24 @@ async function initPostWrite() {
     }
   });
 
+  /* ── 영상 파일 선택 ── */
+  const videoFileInput = document.getElementById('videoFileInput');
+  const videoFileBtn   = document.getElementById('videoFileBtn');
+  const videoFileInfo  = document.getElementById('videoFileInfo');
+  const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB
+  videoFileBtn?.addEventListener('click', () => videoFileInput?.click());
+  videoFileInput?.addEventListener('change', () => {
+    const file = videoFileInput.files[0];
+    if (!file) { videoFileInfo.textContent = '선택된 파일 없음'; return; }
+    if (file.size > MAX_VIDEO_BYTES) {
+      showToast('영상 파일은 200MB 이하여야 해요.', 'red');
+      videoFileInput.value = '';
+      videoFileInfo.textContent = '선택된 파일 없음';
+      return;
+    }
+    videoFileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  });
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -1031,10 +1055,12 @@ async function initPostWrite() {
     e.preventDefault();
     const title    = form.title.value.trim();
     const category = form.category.value;
-    const isGame   = azitMap[category]?.type === '웹게임';
+    const type     = azitMap[category]?.type;
+    const isGame   = type === '웹게임';
+    const isVideo  = type === '영상';
 
     if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
-    if (!isGame && !quill.getText().trim()) {
+    if (!isGame && !isVideo && !quill.getText().trim()) {
       showToast('내용을 입력해 주세요.', 'red'); return;
     }
 
@@ -1045,7 +1071,23 @@ async function initPostWrite() {
       let content;
       const extra = {};
 
-      if (isGame) {
+      if (isVideo) {
+        content = document.getElementById('videoDesc')?.value.trim() || '';
+        const thumb = document.getElementById('videoThumbnailUrl')?.value.trim();
+        if (thumb) extra.thumbnail_url = thumb;
+
+        const file = videoFileInput?.files[0];
+        if (!file) { showToast('영상 파일을 선택해 주세요.', 'red'); setLoading(submitBtn, false); return; }
+
+        submitBtn.textContent = '영상을 업로드하는 중...';
+        const ext      = file.name.split('.').pop().toLowerCase();
+        const path     = `videos/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, file, { contentType: file.type || 'video/mp4' });
+        if (upErr) throw new Error(`영상 업로드 실패: ${upErr.message}`);
+        extra.video_url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+
+      } else if (isGame) {
         content = document.getElementById('gameDesc')?.value.trim() || '';
         const genre = document.getElementById('gameGenre')?.value;
         const thumb = document.getElementById('thumbnailUrl')?.value.trim();
@@ -1065,26 +1107,21 @@ async function initPostWrite() {
             const relativePath = file.webkitRelativePath.split('/').slice(1).join('/');
             const uploadPath   = `${basePath}/${relativePath}`;
 
-            // 진행 상태 표시
             submitBtn.textContent = `게임을 서버에 올리는 중... (${i + 1}/${total})`;
 
-            // HTML5 게임 파일별 MIME 타입 명시 (브라우저 실행 정확도 향상)
             const contentType = getGameFileContentType(file);
-
             const { error: upErr } = await supabaseClient.storage
               .from('post-media')
               .upload(uploadPath, file, { contentType });
 
             if (upErr) throw new Error(`'${file.name}' 업로드 실패: ${upErr.message}`);
 
-            // index.html 우선, 없으면 첫 번째 .html
             if (relativePath === 'index.html' && !indexUrl) {
               indexUrl = supabaseClient.storage
                 .from('post-media').getPublicUrl(uploadPath).data.publicUrl;
             }
           }
 
-          // index.html이 없으면 첫 번째 .html 파일로 대체
           if (!indexUrl) {
             for (const file of files) {
               const rel = file.webkitRelativePath.split('/').slice(1).join('/');
@@ -1109,7 +1146,8 @@ async function initPostWrite() {
         views: 0,
         ...extra,
       });
-      showToast(isGame ? '게임이 등록됐어요! 🎮' : '게시물이 등록됐어요! 🎉', 'green');
+      const successMsg = isVideo ? '영상이 등록됐어요! 🎬' : isGame ? '게임이 등록됐어요! 🎮' : '게시물이 등록됐어요! 🎉';
+      showToast(successMsg, 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     } catch (err) {
       console.error('insertPost 오류:', err);
@@ -1550,8 +1588,8 @@ async function initPostDetail() {
     bodyEl.before(meta);
   }
 
-  // 웹게임 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
-  if (post.game_url && post.content) {
+  // 웹게임·영상 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
+  if ((post.game_url || post.video_url) && post.content) {
     const descWrap = document.createElement('div');
     descWrap.className = 'game-card-desc-wrap';
     descWrap.style.marginBottom = '16px';
@@ -1587,6 +1625,17 @@ async function initPostDetail() {
     bodyEl.innerHTML = DOMPurify.sanitize(post.content);
   } else {
     bodyEl.textContent = stripHtml(post.content);
+  }
+
+  // 영상 플레이어
+  if (post.video_url) {
+    const videoSection = document.getElementById('videoPlaySection');
+    const videoPlayer  = document.getElementById('videoPlayer');
+    if (videoSection && videoPlayer) {
+      videoPlayer.src = post.video_url;
+      if (post.thumbnail_url) videoPlayer.poster = post.thumbnail_url;
+      videoSection.classList.remove('hidden');
+    }
   }
 
   // 게임 플레이 영역 + iframe 자동 크기 조정
@@ -1950,12 +1999,47 @@ async function initPostEdit() {
     return;
   }
 
-  const azit   = await getAzitByName(post.category);
-  const isGame = azit?.type === '웹게임';
+  const azit    = await getAzitByName(post.category);
+  const isGame  = azit?.type === '웹게임';
+  const isVideo = azit?.type === '영상';
 
   document.getElementById('editCategory').textContent = post.category;
   document.getElementById('editTitle').value = post.title;
   document.getElementById('editCancelBtn').href = `post-detail.html?id=${id}`;
+
+  if (isVideo) {
+    document.getElementById('editQuillSection').classList.add('hidden');
+    document.getElementById('editVideoSection').classList.remove('hidden');
+    document.getElementById('editVideoDesc').value          = post.content       || '';
+    document.getElementById('editVideoUrl').value           = post.video_url     || '';
+    document.getElementById('editVideoThumbnailUrl').value  = post.thumbnail_url || '';
+
+    const form = document.getElementById('postEditForm');
+    const submitBtn = form.querySelector('[type=submit]');
+    submitBtn.dataset.label = submitBtn.textContent;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('editTitle').value.trim();
+      if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
+      setLoading(submitBtn, true);
+      try {
+        await updatePost(id, {
+          title,
+          content:       document.getElementById('editVideoDesc').value.trim(),
+          video_url:     document.getElementById('editVideoUrl').value.trim() || null,
+          thumbnail_url: document.getElementById('editVideoThumbnailUrl').value.trim() || null,
+        });
+        showToast('수정됐어요!', 'green');
+        setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
+      } catch (err) {
+        showToast('수정 실패: ' + (err.message || ''), 'red');
+      } finally {
+        setLoading(submitBtn, false);
+      }
+    });
+    return;
+  }
 
   if (isGame) {
     document.getElementById('editQuillSection').classList.add('hidden');

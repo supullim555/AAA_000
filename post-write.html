@@ -87,6 +87,30 @@
           <div id="quillEditor"></div>
         </div>
 
+        <!-- 영상 타입 전용 양식 -->
+        <div id="videoSection" class="hidden">
+          <div class="game-write-form">
+            <div class="field">
+              <label>영상 설명</label>
+              <textarea id="videoDesc" placeholder="영상을 소개해 주세요" maxlength="500"
+                        style="min-height:100px"></textarea>
+            </div>
+            <div class="field">
+              <label>영상 파일 <span style="font-size:11px;color:var(--text-light);font-weight:400">(MP4·WebM·MOV, 최대 200MB)</span></label>
+              <input type="file" id="videoFileInput" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo" style="display:none">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button type="button" id="videoFileBtn" class="btn-secondary"
+                        style="font-size:13px;padding:8px 16px;white-space:nowrap">🎬 영상 선택</button>
+                <span id="videoFileInfo" style="font-size:13px;color:var(--text-light)">선택된 파일 없음</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>썸네일 이미지 URL <span style="font-size:11px;color:var(--text-light);font-weight:400">(선택)</span></label>
+              <input type="url" id="videoThumbnailUrl" placeholder="https://...">
+            </div>
+          </div>
+        </div>
+
         <!-- 게임 타입 전용 양식 -->
         <div id="gameSection" class="hidden">
           <div class="game-write-form">
