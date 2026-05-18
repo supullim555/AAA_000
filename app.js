@@ -340,19 +340,6 @@ let _typeVisible  = false;
 
 const TYPE_LABELS = { general: '기본' };
 
-/* 카드 너비를 글자 수에 맞춰 자동 조정 */
-function adjustCardWidths() {
-  const showType = _typeVisible;
-  document.querySelectorAll('#catChips .cat-card-btn').forEach(btn => {
-    btn.style.minWidth = '';
-    const nameLen = btn.querySelector('.cat-card-name')?.textContent.length || 0;
-    const typeLen = showType ? (btn.querySelector('.cat-card-type')?.textContent.length || 0) : 0;
-    const hotW    = btn.querySelector('.cat-hot-badge') ? 36 : 0;
-    // 한글 1자 ≈ 14px, 영문 1자 ≈ 8px — 보수적으로 14px 사용
-    const minW = nameLen * 14 + (typeLen > 0 ? typeLen * 13 + 18 : 0) + hotW + 28;
-    btn.style.minWidth = `${Math.max(60, minW)}px`;
-  });
-}
 
 async function getCategories() {
   try {
@@ -528,15 +515,14 @@ function updateWriteBtn() {
 /* ── 홈 카테고리 섹션 초기화 ── */
 async function initCategorySection() {
   await renderCategoryCards();
-  adjustCardWidths();
 
   document.getElementById('catSearch')?.addEventListener('input', () => {
-    renderCategoryCards().then(adjustCardWidths);
+    renderCategoryCards();
   });
 
   await renderTypeFilterBtns('azitTypeFilter', (type) => {
     _selectedType = type;
-    renderCategoryCards().then(adjustCardWidths);
+    renderCategoryCards();
   });
 
   const toggleBtn = document.getElementById('typeToggleBtn');
@@ -547,7 +533,6 @@ async function initCategorySection() {
       catChips.classList.toggle('azit-type-show', _typeVisible);
       toggleBtn.textContent = _typeVisible ? '타입 숨기기' : '타입 보기';
       toggleBtn.classList.toggle('active', _typeVisible);
-      adjustCardWidths();
     });
   }
 }

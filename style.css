@@ -511,6 +511,8 @@ header nav a.nav-signup:hover {
   text-align: left;
   font-family: inherit;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  min-width: 60px;
+  max-width: 220px;
 }
 .cat-card-btn:hover {
   border-color: var(--primary);
