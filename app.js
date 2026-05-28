@@ -178,9 +178,9 @@ function toKoreanError(err) {
 async function getAzitTypes() {
   const { data } = await supabaseClient
     .from('azit_types')
-    .select('key, label')
+    .select('key, label, description, default_icon, default_color')
     .order('created_at');
-  return data && data.length > 0 ? data : [{ key: 'general', label: '기본' }];
+  return data && data.length > 0 ? data : [{ key: 'general', label: '기본', description: '', default_icon: '🏠', default_color: '#4aab8e' }];
 }
 
 async function insertAzitType({ label, description = '', default_icon = '🏠', default_color = '#4aab8e' }) {
