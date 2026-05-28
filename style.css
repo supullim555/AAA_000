@@ -2099,6 +2099,12 @@ header nav a.nav-signup:hover {
   min-width: 0;
 }
 
+.post-row-type-icon {
+  font-size: 12px;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
 .post-row-author {
   font-size: 12px;
   color: var(--text-light);

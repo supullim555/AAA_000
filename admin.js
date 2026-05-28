@@ -58,7 +58,7 @@ async function loadReportedPosts() {
             &nbsp;${escapeHTML(p.category)} · ${escapeHTML(p.author_nickname)} · ${formatDate(p.created_at)}
           </div>
           <div class="admin-card-meta" style="margin-top:6px;white-space:pre-wrap;line-height:1.5">
-            ${escapeHTML(p.content.slice(0, 120))}${p.content.length > 120 ? '…' : ''}
+            ${escapeHTML((p.content || '').slice(0, 120))}${(p.content || '').length > 120 ? '…' : ''}
           </div>
         </div>
       </div>

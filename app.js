@@ -92,6 +92,17 @@ function extractFirstImage(html) {
   return m ? m[1] : null;
 }
 
+/* 16진수 색상 어둡게 (아지트 히어로 배너 그라디언트용) */
+function darkenHex(hex, amount = 40) {
+  try {
+    const n = parseInt(hex.replace('#', ''), 16);
+    const r = Math.max(0, (n >> 16)         - amount);
+    const g = Math.max(0, ((n >> 8) & 0xff) - amount);
+    const b = Math.max(0, (n & 0xff)        - amount);
+    return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+  } catch { return hex; }
+}
+
 /* ── Supabase Auth ── */
 async function authSignUp(email, password, nickname) {
   const { data, error } = await supabaseClient.auth.signUp({
@@ -361,9 +372,18 @@ async function getCategoryNames() {
 }
 
 async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e' }) {
+  let sortOrder = 1;
+  if (creator_id) {
+    const { data: last } = await supabaseClient
+      .from('azits').select('sort_order')
+      .eq('creator_id', creator_id)
+      .order('sort_order', { ascending: false, nullsFirst: false })
+      .limit(1).maybeSingle();
+    sortOrder = (last?.sort_order || 0) + 1;
+  }
   const { error } = await supabaseClient
     .from('azits')
-    .insert({ name, description, created_by, creator_id, type, icon, cover_color });
+    .insert({ name, description, created_by, creator_id, type, icon, cover_color, sort_order: sortOrder });
   if (error) throw error;
 }
 
@@ -542,9 +562,9 @@ async function initCategorySection() {
    게시물 (Supabase)
 ════════════════════════════════════════ */
 async function getPosts(categoryFilter = '') {
-  let query = supabaseClient.from('posts').select('*');
+  let query = supabaseClient.from('posts').select('*').eq('hidden', false);
   if (categoryFilter) query = query.eq('category', categoryFilter);
-  const { data, error } = await query;
+  const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
@@ -693,15 +713,17 @@ async function renderPostsList() {
       return;
     }
 
-    wrap.innerHTML = posts.map(p => `
+    wrap.innerHTML = posts.map(p => {
+      const typeIcon = p.game_url ? '<span class="post-row-type-icon">🎮</span>' : p.video_url ? '<span class="post-row-type-icon">🎬</span>' : '';
+      return `
       <a class="post-row" href="post-detail.html?id=${p.id}">
         <span class="post-row-cat">${escapeHTML(p.category)}</span>
-        <span class="post-row-title">${escapeHTML(p.title)}</span>
+        <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
         <span class="post-row-views">👁 ${p.views || 0}</span>
-      </a>
-    `).join('');
+      </a>`;
+    }).join('');
   } catch (err) {
     console.error('renderPostsList 오류:', err);
     wrap.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.<br><small style="font-size:11px;opacity:.7">${escapeHTML(err.message || '')}</small></p>`;
@@ -1558,7 +1580,7 @@ async function renderComments(postId, session) {
         ${session?.user?.id === c.author_id
           ? `<button class="comment-del-btn" data-id="${c.id}">×</button>` : ''}
       </div>
-      <p class="comment-content">${escapeHTML(c.content)}</p>
+      <p class="comment-content">${escapeHTML(c.content).replace(/\n/g, '<br>')}</p>
     </div>
   `).join('');
 
@@ -1629,6 +1651,7 @@ async function initPostDetail() {
   const post = await getPost(id);
   if (!post) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
+  document.title = `${post.title} — Open Azitfh`;
   document.getElementById('postCategory').textContent = post.category;
   document.getElementById('postTitle').textContent    = post.title;
   document.getElementById('postAuthor').textContent   = post.author_nickname;
@@ -1648,42 +1671,44 @@ async function initPostDetail() {
   }
 
   // 웹게임·영상 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
-  if ((post.game_url || post.video_url) && post.content) {
-    const descWrap = document.createElement('div');
-    descWrap.className = 'game-card-desc-wrap';
-    descWrap.style.marginBottom = '16px';
+  if (post.game_url || post.video_url) {
+    bodyEl.style.display = 'none';
+    if (post.content) {
+      const descWrap = document.createElement('div');
+      descWrap.className = 'game-card-desc-wrap';
+      descWrap.style.marginBottom = '16px';
 
-    const descEl = document.createElement('p');
-    descEl.className = 'game-card-desc';
-    descEl.textContent = post.content;
-    descWrap.appendChild(descEl);
+      const descEl = document.createElement('p');
+      descEl.className = 'game-card-desc';
+      descEl.textContent = post.content;
+      descWrap.appendChild(descEl);
 
-    const expandBtn = document.createElement('button');
-    expandBtn.className = 'expand-btn';
-    expandBtn.type = 'button';
-    expandBtn.dataset.expanded = 'false';
-    expandBtn.textContent = '펼쳐보기';
-    descWrap.appendChild(expandBtn);
+      const expandBtn = document.createElement('button');
+      expandBtn.className = 'expand-btn';
+      expandBtn.type = 'button';
+      expandBtn.dataset.expanded = 'false';
+      expandBtn.textContent = '펼쳐보기';
+      descWrap.appendChild(expandBtn);
 
-    bodyEl.before(descWrap);
-    bodyEl.style.display = 'none'; // 게임 포스트는 body 대신 descWrap에 설명 표시
+      bodyEl.before(descWrap);
 
-    setTimeout(() => {
-      if (descEl.scrollHeight <= descEl.clientHeight + 2) {
-        expandBtn.style.display = 'none';
-      } else {
-        expandBtn.addEventListener('click', () => {
-          const expanded = expandBtn.dataset.expanded === 'true';
-          descEl.classList.toggle('expanded', !expanded);
-          expandBtn.dataset.expanded = String(!expanded);
-          expandBtn.textContent = !expanded ? '접기' : '펼쳐보기';
-        });
-      }
-    }, 0);
+      setTimeout(() => {
+        if (descEl.scrollHeight <= descEl.clientHeight + 2) {
+          expandBtn.style.display = 'none';
+        } else {
+          expandBtn.addEventListener('click', () => {
+            const expanded = expandBtn.dataset.expanded === 'true';
+            descEl.classList.toggle('expanded', !expanded);
+            expandBtn.dataset.expanded = String(!expanded);
+            expandBtn.textContent = !expanded ? '접기' : '펼쳐보기';
+          });
+        }
+      }, 0);
+    }
   } else if (typeof DOMPurify !== 'undefined') {
-    bodyEl.innerHTML = DOMPurify.sanitize(post.content);
+    bodyEl.innerHTML = DOMPurify.sanitize(post.content || '');
   } else {
-    bodyEl.textContent = stripHtml(post.content);
+    bodyEl.textContent = stripHtml(post.content || '');
   }
 
   // 영상 플레이어
@@ -1708,16 +1733,26 @@ async function initPostDetail() {
         gameFrame.requestFullscreen?.() || gameFrame.webkitRequestFullscreen?.();
       });
 
-      // 게임이 postMessage로 canvas 크기를 알려주면 iframe 높이 자동 조정
-      window.addEventListener('message', function onGameResize(e) {
-        if (!e.data || e.data.type !== 'gameResize') return;
-        const { w, h } = e.data;
-        if (!w || !h || w < 80 || h < 80 || w > 8000 || h > 8000) return;
+      let _lastGameW = 0, _lastGameH = 0;
+
+      function _applyGameSize(w, h) {
         const wrapEl = gameFrame.closest('.game-play-wrap') || gameFrame.parentElement;
         const maxW   = wrapEl.clientWidth || 800;
         const scale  = Math.min(1, maxW / w);
         const dispH  = Math.round(h * scale);
         gameFrame.style.height = Math.min(dispH, Math.round(window.innerHeight * 0.85)) + 'px';
+      }
+
+      window.addEventListener('message', function onGameResize(e) {
+        if (!e.data || e.data.type !== 'gameResize') return;
+        const { w, h } = e.data;
+        if (!w || !h || w < 80 || h < 80 || w > 8000 || h > 8000) return;
+        _lastGameW = w; _lastGameH = h;
+        _applyGameSize(w, h);
+      });
+
+      window.addEventListener('resize', function onWindowResize() {
+        if (_lastGameW && _lastGameH) _applyGameSize(_lastGameW, _lastGameH);
       });
     }
   }
