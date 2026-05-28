@@ -1169,15 +1169,6 @@ async function initPostWrite() {
   });
 
   /* ── 멀티파일 코드 에디터 ── */
-  const _CODE_HINTS = {
-    HTML: '<h1>Hello!</h1>\n<p>HTML을 작성하세요.</p>',
-    JavaScript: 'console.log("Hello, World!");\n// JavaScript를 작성하세요.',
-    CSS: 'body {\n  background: #f0f0f0;\n}\n/* CSS를 작성하세요. */',
-    '혼합': '<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello!</h1>\n</body>\n</html>',
-    Python: 'print("Hello, World!")\n# Python을 작성하세요.',
-    C: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
-    'C++': '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}',
-  };
 
   // 멀티파일 상태
   let _codeFiles    = [];
@@ -1397,6 +1388,17 @@ async function initPostWrite() {
   });
 }
 
+/* ── 코드 에디터 공통 상수 ── */
+const _CODE_HINTS = {
+  HTML:       '<h1>Hello!</h1>\n<p>HTML을 작성하세요.</p>',
+  JavaScript: 'console.log("Hello, World!");\n// JavaScript를 작성하세요.',
+  CSS:        'body {\n  background: #f0f0f0;\n}\n/* CSS를 작성하세요. */',
+  '혼합':     '<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello!</h1>\n</body>\n</html>',
+  Python:     'print("Hello, World!")\n# Python을 작성하세요.',
+  C:          '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
+  'C++':      '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}',
+};
+
 /* ── 멀티파일 코드 에디터 유틸리티 ── */
 const _LANG_DEFAULT_FILE = {
   HTML: 'index.html', JavaScript: 'main.js', CSS: 'style.css',
@@ -1475,35 +1477,98 @@ async function runWithJudge0(code, lang) {
   };
 }
 
-// 멀티파일 Judge0 실행
+// 멀티파일을 ZIP base64로 묶는 유틸리티 (브라우저 환경)
+function _buildZipBase64(entries) {
+  // entries: [{name: string, data: Uint8Array}]
+  const enc = new TextEncoder();
+
+  function crc32(data) {
+    let crc = 0xFFFFFFFF;
+    for (const b of data) {
+      crc ^= b;
+      for (let i = 0; i < 8; i++) crc = (crc & 1) ? ((crc >>> 1) ^ 0xEDB88320) : (crc >>> 1);
+    }
+    return (~crc) >>> 0;
+  }
+  function w16(n) { const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, n, true); return a; }
+  function w32(n) { const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, n, true); return a; }
+  function cat(...parts) {
+    const total = parts.reduce((s, p) => s + p.length, 0);
+    const out = new Uint8Array(total); let off = 0;
+    for (const p of parts) { out.set(p, off); off += p.length; }
+    return out;
+  }
+
+  const localParts = [], centralParts = [];
+  let offset = 0;
+
+  for (const { name, data } of entries) {
+    const nb  = enc.encode(name);
+    const crc = crc32(data);
+    const local = cat(
+      new Uint8Array([0x50,0x4B,0x03,0x04]),
+      w16(20), w16(0), w16(0), w16(0), w16(0),
+      w32(crc), w32(data.length), w32(data.length),
+      w16(nb.length), w16(0), nb
+    );
+    centralParts.push(cat(
+      new Uint8Array([0x50,0x4B,0x01,0x02]),
+      w16(20), w16(20), w16(0), w16(0), w16(0), w16(0),
+      w32(crc), w32(data.length), w32(data.length),
+      w16(nb.length), w16(0), w16(0), w16(0), w16(0), w32(0), w32(offset),
+      nb
+    ));
+    localParts.push(cat(local, data));
+    offset += local.length + data.length;
+  }
+
+  const cd    = cat(...centralParts);
+  const eocd  = cat(
+    new Uint8Array([0x50,0x4B,0x05,0x06]), w16(0), w16(0),
+    w16(entries.length), w16(entries.length),
+    w32(cd.length), w32(offset), w16(0)
+  );
+  const zip = cat(...localParts, cd, eocd);
+  let bin = ''; zip.forEach(b => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+}
+
+// 멀티파일 Judge0 실행 — main 파일 + 나머지를 ZIP additional_files로 전송
 async function runMultiFilesWithJudge0(files, mainLang) {
   const langId = _JUDGE0_IDS[mainLang];
   if (!langId) throw new Error(`지원하지 않는 언어: ${mainLang}`);
 
-  const encode = str => {
-    const bytes = new TextEncoder().encode(str);
-    let bin = ''; bytes.forEach(b => (bin += String.fromCharCode(b)));
+  const enc = new TextEncoder();
+  function encB64(str) {
+    const b = enc.encode(str); let bin = '';
+    b.forEach(c => (bin += String.fromCharCode(c)));
     return btoa(bin);
-  };
-  const serverExt = ['py','c','cpp','cc','h','hpp'];
-  const relevant  = files.filter(f => serverExt.includes((f.name.split('.').pop()||'').toLowerCase()));
-  const toRun     = relevant.length > 0 ? relevant : files;
+  }
+
+  // 메인 파일 결정: 이름이 main.* 인 것 우선, 없으면 첫 번째
+  const mainExt = { Python: 'py', C: 'c', 'C++': 'cpp' }[mainLang] || 'py';
+  const mainFile = files.find(f => f.name === `main.${mainExt}`) || files[0];
+  const otherFiles = files.filter(f => f !== mainFile);
+
+  const body = { language_id: langId, source_code: encB64(mainFile.code) };
+
+  if (otherFiles.length > 0) {
+    body.additional_files = _buildZipBase64(
+      otherFiles.map(f => ({ name: f.name, data: enc.encode(f.code) }))
+    );
+  }
 
   const res = await fetch(_JUDGE0_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      language_id: langId,
-      files: toRun.map(f => ({ name: f.name, content: encode(f.code) })),
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Judge0 오류 (HTTP ${res.status})`);
   const d = await res.json();
 
   const dec = b64 => {
     if (!b64) return '';
-    const b = atob(b64);
-    const arr = new Uint8Array(b.length);
+    const b = atob(b64); const arr = new Uint8Array(b.length);
     for (let i = 0; i < b.length; i++) arr[i] = b.charCodeAt(i);
     return new TextDecoder().decode(arr);
   };
