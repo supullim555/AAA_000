@@ -115,7 +115,7 @@
         <div id="codeSection" class="hidden">
           <div class="game-write-form">
             <div class="field">
-              <label>언어</label>
+              <label>첫 번째 파일 언어</label>
               <select id="codeLang">
                 <optgroup label="🌐 브라우저 실행">
                   <option value="HTML">HTML</option>
@@ -130,12 +130,19 @@
                 </optgroup>
               </select>
             </div>
-            <div class="field">
-              <label>코드</label>
-              <textarea id="codeContent" class="code-editor"
-                        placeholder="코드를 입력하세요..."
-                        spellcheck="false"></textarea>
-              <p class="hint">HTML·CSS·JavaScript를 작성하면 게시물에서 바로 실행할 수 있어요. Tab키로 들여쓰기.</p>
+
+            <!-- 멀티파일 탭 에디터 -->
+            <div class="code-files-wrap">
+              <div class="code-files-tabbar">
+                <div id="codeFileTabs" class="code-file-tabs"></div>
+                <button type="button" id="addCodeFileBtn" class="code-file-add-btn" title="파일 추가">＋ 파일 추가</button>
+              </div>
+              <div class="field" style="margin:0">
+                <textarea id="codeContent" class="code-editor code-editor-multi"
+                          placeholder="코드를 입력하세요..."
+                          spellcheck="false"></textarea>
+              </div>
+              <p class="hint" style="margin-top:6px">파일 이름으로 언어 자동 감지 (.py · .c · .cpp · .js · .html · .css) &nbsp;|&nbsp; Tab = 들여쓰기 &nbsp;|&nbsp; 여러 파일은 함께 실행됩니다</p>
             </div>
           </div>
         </div>

@@ -679,7 +679,9 @@ async function renderPosts() {
       const langBadge = isCode ? `<span class="code-lang-badge-sm">${escapeHTML(p.code_lang)}</span>` : '';
       let descHtml;
       if (isCode) {
-        descHtml = `<pre class="code-card-preview">${escapeHTML(truncate(p.content || '', 120))}</pre>`;
+        const firstCode = (p.code_files && p.code_files.length > 0) ? (p.code_files[0]?.code || '') : (p.content || '');
+        const filesInfo = (p.code_files && p.code_files.length > 1) ? `<span class="code-files-badge">${p.code_files.length}개 파일</span>` : '';
+        descHtml = `<pre class="code-card-preview">${escapeHTML(truncate(firstCode, 120))}</pre>${filesInfo}`;
       } else if (isRich) {
         const desc = escapeHTML(p.content || '');
         descHtml = `<div class="game-card-desc-wrap">
@@ -1166,23 +1168,104 @@ async function initPostWrite() {
     videoFileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
   });
 
-  /* ── 코드 에디터 Tab 들여쓰기 + 언어별 플레이스홀더 ── */
+  /* ── 멀티파일 코드 에디터 ── */
   const _CODE_HINTS = {
-    'HTML':       '<h1>Hello!</h1>\n<p>HTML을 작성하세요.</p>',
-    'JavaScript': 'console.log("Hello, World!");\n// JavaScript를 작성하세요.',
-    'CSS':        'body {\n  background: #f0f0f0;\n}\n/* CSS를 작성하세요. */',
-    '혼합':       '<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello!</h1>\n</body>\n</html>',
-    'Python':     'print("Hello, World!")\n# Python을 작성하세요.',
-    'C':          '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
-    'C++':        '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}',
+    HTML: '<h1>Hello!</h1>\n<p>HTML을 작성하세요.</p>',
+    JavaScript: 'console.log("Hello, World!");\n// JavaScript를 작성하세요.',
+    CSS: 'body {\n  background: #f0f0f0;\n}\n/* CSS를 작성하세요. */',
+    '혼합': '<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello!</h1>\n</body>\n</html>',
+    Python: 'print("Hello, World!")\n# Python을 작성하세요.',
+    C: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
+    'C++': '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}',
   };
-  const _codeTA = document.getElementById('codeContent');
+
+  // 멀티파일 상태
+  let _codeFiles    = [];
+  let _activeFileId = null;
+  const _codeTA     = document.getElementById('codeContent');
   const _codeLangSel = document.getElementById('codeLang');
-  if (_codeTA && _codeLangSel) {
-    const _updateHint = () => { _codeTA.placeholder = _CODE_HINTS[_codeLangSel.value] || '코드를 입력하세요...'; };
-    _codeLangSel.addEventListener('change', _updateHint);
-    _updateHint();
+
+  function _saveActiveCode() {
+    const file = _codeFiles.find(f => f.id === _activeFileId);
+    if (file && _codeTA) file.code = _codeTA.value;
   }
+
+  function _loadActiveCode() {
+    const file = _codeFiles.find(f => f.id === _activeFileId);
+    if (!_codeTA || !file) return;
+    _codeTA.value       = file.code;
+    _codeTA.placeholder = _CODE_HINTS[file.lang] || '코드를 입력하세요...';
+    _codeTA.focus();
+  }
+
+  function _renderCodeFileTabs() {
+    const tabsEl = document.getElementById('codeFileTabs');
+    if (!tabsEl) return;
+    tabsEl.innerHTML = '';
+    _codeFiles.forEach(file => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'code-file-tab' + (file.id === _activeFileId ? ' active' : '');
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'code-file-tab-name';
+      nameSpan.textContent = file.name;
+      tab.appendChild(nameSpan);
+      if (_codeFiles.length > 1) {
+        const close = document.createElement('span');
+        close.className = 'code-file-tab-close';
+        close.textContent = '×';
+        close.addEventListener('click', e => {
+          e.stopPropagation();
+          _saveActiveCode();
+          _codeFiles = _codeFiles.filter(f => f.id !== file.id);
+          if (_activeFileId === file.id) _activeFileId = _codeFiles[0]?.id || null;
+          _renderCodeFileTabs();
+          _loadActiveCode();
+        });
+        tab.appendChild(close);
+      }
+      tab.addEventListener('click', () => {
+        _saveActiveCode();
+        _activeFileId = file.id;
+        _renderCodeFileTabs();
+        _loadActiveCode();
+      });
+      tabsEl.appendChild(tab);
+    });
+  }
+
+  function _initCodeFiles(lang) {
+    const firstName = _LANG_DEFAULT_FILE[lang] || 'main.txt';
+    _codeFiles    = [{ id: Date.now(), name: firstName, lang, code: '' }];
+    _activeFileId = _codeFiles[0].id;
+    _renderCodeFileTabs();
+    _loadActiveCode();
+  }
+
+  _codeLangSel?.addEventListener('change', () => {
+    _saveActiveCode();
+    // 첫 번째 파일의 언어와 이름을 변경 (코드 보존)
+    const first = _codeFiles[0];
+    if (first) {
+      first.lang = _codeLangSel.value;
+      first.name = _LANG_DEFAULT_FILE[_codeLangSel.value] || first.name;
+      if (_activeFileId === first.id) _loadActiveCode();
+      _renderCodeFileTabs();
+    }
+  });
+
+  document.getElementById('addCodeFileBtn')?.addEventListener('click', () => {
+    const name = prompt('추가할 파일 이름을 입력하세요\n예) utils.py, helper.h, module.js, style.css');
+    if (!name?.trim()) return;
+    _saveActiveCode();
+    const lang   = detectLangFromFilename(name.trim()) || _codeLangSel?.value || 'Python';
+    const newFile = { id: Date.now(), name: name.trim(), lang, code: '' };
+    _codeFiles.push(newFile);
+    _activeFileId = newFile.id;
+    _renderCodeFileTabs();
+    _loadActiveCode();
+  });
+
   _codeTA?.addEventListener('keydown', function(e) {
     if (e.key !== 'Tab') return;
     e.preventDefault();
@@ -1190,6 +1273,9 @@ async function initPostWrite() {
     this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
     this.selectionStart = this.selectionEnd = s + 2;
   });
+
+  // 초기 파일 생성
+  _initCodeFiles(_codeLangSel?.value || 'Python');
 
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
@@ -1217,9 +1303,12 @@ async function initPostWrite() {
       const extra = {};
 
       if (isCode) {
-        content = document.getElementById('codeContent')?.value || '';
-        if (!content.trim()) { showToast('코드를 입력해 주세요.', 'red'); setLoading(submitBtn, false); return; }
-        extra.code_lang = document.getElementById('codeLang')?.value || 'HTML';
+        _saveActiveCode();
+        const hasCode = _codeFiles.some(f => f.code.trim());
+        if (!hasCode) { showToast('코드를 입력해 주세요.', 'red'); setLoading(submitBtn, false); return; }
+        content             = null;
+        extra.code_lang     = _codeFiles[0]?.lang || 'Python';
+        extra.code_files    = _codeFiles.map(f => ({ name: f.name, lang: f.lang, code: f.code }));
 
       } else if (isVideo) {
         content = nullIfEmpty(document.getElementById('videoDesc')?.value);
@@ -1308,6 +1397,46 @@ async function initPostWrite() {
   });
 }
 
+/* ── 멀티파일 코드 에디터 유틸리티 ── */
+const _LANG_DEFAULT_FILE = {
+  HTML: 'index.html', JavaScript: 'main.js', CSS: 'style.css',
+  '혼합': 'index.html', Python: 'main.py', C: 'main.c', 'C++': 'main.cpp',
+};
+
+function detectLangFromFilename(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return { py:'Python', c:'C', cpp:'C++', cc:'C++', h:'C', hpp:'C++',
+           js:'JavaScript', mjs:'JavaScript', html:'HTML', htm:'HTML', css:'CSS' }[ext] || null;
+}
+
+// 브라우저 실행용 멀티파일 → 단일 srcdoc 빌드
+function buildMultiFileSrcdoc(files) {
+  const ext     = n => (n.split('.').pop() || '').toLowerCase();
+  const htmlF   = files.filter(f => ['html','htm'].includes(ext(f.name)));
+  const cssF    = files.filter(f => ext(f.name) === 'css');
+  const jsF     = files.filter(f => ['js','mjs'].includes(ext(f.name)));
+
+  if (htmlF.length > 0) {
+    let html      = htmlF[0].code;
+    const cssBlk  = cssF.map(f  => `<style>\n${f.code}\n</style>`).join('\n');
+    const jsBlk   = jsF.map(f   => `<script>\n${f.code}\n<\/script>`).join('\n');
+    html = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${cssBlk}\n</head>`) : cssBlk + html;
+    html = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${jsBlk}\n</body>`) : html + jsBlk;
+    return html;
+  }
+  if (jsF.length > 0 && cssF.length === 0) {
+    const combined = files.map(f => `/* === ${f.name} === */\n${f.code}`).join('\n\n');
+    return buildCodeSrcdoc(combined, 'JavaScript');
+  }
+  if (cssF.length > 0 && jsF.length === 0) {
+    return buildCodeSrcdoc(cssF.map(f => f.code).join('\n'), 'CSS');
+  }
+  // 혼합
+  const cssBlk = cssF.map(f => `<style>\n${f.code}\n</style>`).join('\n');
+  const jsBlk  = jsF.map(f  => `<script>\n${f.code}\n<\/script>`).join('\n');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">${cssBlk}</head><body>${jsBlk}</body></html>`;
+}
+
 /* ── Judge0 CE 서버 실행 (Python / C / C++) ── */
 const _JUDGE0_URL  = 'https://ce.judge0.com/submissions?base64_encoded=true&wait=true';
 const _JUDGE0_IDS  = { Python: 71, C: 50, 'C++': 54 };
@@ -1344,6 +1473,41 @@ async function runWithJudge0(code, lang) {
     stdout:    dec(d.stdout),
     stderr:    dec(d.compile_output) || dec(d.stderr),
   };
+}
+
+// 멀티파일 Judge0 실행
+async function runMultiFilesWithJudge0(files, mainLang) {
+  const langId = _JUDGE0_IDS[mainLang];
+  if (!langId) throw new Error(`지원하지 않는 언어: ${mainLang}`);
+
+  const encode = str => {
+    const bytes = new TextEncoder().encode(str);
+    let bin = ''; bytes.forEach(b => (bin += String.fromCharCode(b)));
+    return btoa(bin);
+  };
+  const serverExt = ['py','c','cpp','cc','h','hpp'];
+  const relevant  = files.filter(f => serverExt.includes((f.name.split('.').pop()||'').toLowerCase()));
+  const toRun     = relevant.length > 0 ? relevant : files;
+
+  const res = await fetch(_JUDGE0_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      language_id: langId,
+      files: toRun.map(f => ({ name: f.name, content: encode(f.code) })),
+    }),
+  });
+  if (!res.ok) throw new Error(`Judge0 오류 (HTTP ${res.status})`);
+  const d = await res.json();
+
+  const dec = b64 => {
+    if (!b64) return '';
+    const b = atob(b64);
+    const arr = new Uint8Array(b.length);
+    for (let i = 0; i < b.length; i++) arr[i] = b.charCodeAt(i);
+    return new TextDecoder().decode(arr);
+  };
+  return { statusId: d.status?.id, statusMsg: d.status?.description || '알 수 없음', stdout: dec(d.stdout), stderr: dec(d.compile_output) || dec(d.stderr) };
 }
 
 /* ── 코드 실행 srcdoc 빌더 ── */
@@ -1815,20 +1979,52 @@ async function initPostDetail() {
 
   // 웹게임·영상 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
   if (post.code_lang) {
-    // 코드 타입: 코드 실행 섹션 표시
     bodyEl.style.display = 'none';
     const codeRunSection = document.getElementById('codeRunSection');
     const codeDisplay    = document.getElementById('codeDisplay');
     const codeLangBadge  = document.getElementById('codeLangBadge');
-    if (codeRunSection && codeDisplay) {
-      codeDisplay.textContent   = post.content || '';
-      if (codeLangBadge) codeLangBadge.textContent = post.code_lang;
+    if (!codeRunSection || !codeDisplay) { /* no-op */ }
+    else {
+      // ── 멀티파일 or 단일파일 결정 ──
+      const files = post.code_files && post.code_files.length > 0
+        ? post.code_files
+        : [{ name: _LANG_DEFAULT_FILE[post.code_lang] || 'main', lang: post.code_lang, code: post.content || '' }];
+
+      // 배지 표시
+      if (codeLangBadge) {
+        codeLangBadge.textContent = files.length > 1 ? `${post.code_lang} +${files.length - 1}` : post.code_lang;
+      }
       codeRunSection.classList.remove('hidden');
+
+      // ── 파일 탭 렌더링 ──
+      let _detailActiveIdx = 0;
+      const detailTabsEl = document.getElementById('codeDetailTabs');
+      if (files.length > 1 && detailTabsEl) {
+        detailTabsEl.classList.remove('hidden');
+        function _renderDetailTabs() {
+          detailTabsEl.innerHTML = files.map((f, i) =>
+            `<button type="button" class="code-detail-tab${i === _detailActiveIdx ? ' active' : ''}" data-i="${i}">${escapeHTML(f.name)}</button>`
+          ).join('');
+          detailTabsEl.querySelectorAll('.code-detail-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+              _detailActiveIdx = parseInt(btn.dataset.i);
+              codeDisplay.textContent = files[_detailActiveIdx]?.code || '';
+              _renderDetailTabs();
+            });
+          });
+        }
+        _renderDetailTabs();
+      }
+      codeDisplay.textContent = files[_detailActiveIdx]?.code || '';
+
+      // ── 실행 버튼 ──
+      const isBrowser = files.every(f => !_SERVER_LANGS.has(f.lang));
+      const mainLang  = files.find(f => _SERVER_LANGS.has(f.lang))?.lang || post.code_lang;
 
       const runBtn = document.getElementById('codeRunBtn');
       runBtn?.addEventListener('click', async () => {
-        if (_SERVER_LANGS.has(post.code_lang)) {
-          // ── 서버 실행: Python / C / C++ → Judge0 ──
+        if (!isBrowser) {
+          // 서버 실행 (Python / C / C++)
           const serverWrap = document.getElementById('codeServerOutputWrap');
           const stdoutEl   = document.getElementById('codeServerStdout');
           const stderrEl   = document.getElementById('codeServerStderr');
@@ -1844,16 +2040,12 @@ async function initPostDetail() {
           stdoutEl.textContent = '잠시 기다려 주세요...';
 
           try {
-            const r = await runWithJudge0(post.content || '', post.code_lang);
+            const r = files.length > 1
+              ? await runMultiFilesWithJudge0(files, mainLang)
+              : await runWithJudge0(files[0].code, mainLang);
             stdoutEl.textContent = r.stdout || '(출력 없음)';
-            if (r.stderr) {
-              stderrEl.textContent = r.stderr;
-              stderrEl.classList.remove('hidden');
-            }
-            if (r.statusId !== 3) {
-              statusEl.textContent = `종료 상태: ${r.statusMsg}`;
-              statusEl.classList.remove('hidden');
-            }
+            if (r.stderr) { stderrEl.textContent = r.stderr; stderrEl.classList.remove('hidden'); }
+            if (r.statusId !== 3) { statusEl.textContent = `종료 상태: ${r.statusMsg}`; statusEl.classList.remove('hidden'); }
           } catch (err) {
             stdoutEl.textContent = '';
             stderrEl.textContent = '실행 실패: ' + (err.message || '네트워크 오류');
@@ -1864,12 +2056,14 @@ async function initPostDetail() {
             serverWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         } else {
-          // ── 브라우저 실행: HTML / CSS / JavaScript / 혼합 ──
+          // 브라우저 실행
           const outputWrap  = document.getElementById('codeOutputWrap');
           const outputFrame = document.getElementById('codeOutputFrame');
           if (!outputWrap || !outputFrame) return;
           outputWrap.classList.remove('hidden');
-          outputFrame.srcdoc = buildCodeSrcdoc(post.content || '', post.code_lang);
+          outputFrame.srcdoc = files.length > 1
+            ? buildMultiFileSrcdoc(files)
+            : buildCodeSrcdoc(files[0].code, files[0].lang);
           outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       });
@@ -2315,11 +2509,61 @@ async function initPostEdit() {
   if (isCode) {
     document.getElementById('editQuillSection').classList.add('hidden');
     document.getElementById('editCodeSection').classList.remove('hidden');
-    document.getElementById('editCodeLang').value    = post.code_lang || 'HTML';
-    document.getElementById('editCodeContent').value = post.content   || '';
 
-    // Tab 들여쓰기
-    document.getElementById('editCodeContent')?.addEventListener('keydown', function(e) {
+    // 멀티파일 상태
+    let _editFiles    = [];
+    let _editActiveId = null;
+    const _editTA     = document.getElementById('editCodeContent');
+    const _editLangSel = document.getElementById('editCodeLang');
+
+    // 기존 파일 로드
+    const existingFiles = post.code_files && post.code_files.length > 0
+      ? post.code_files
+      : [{ id: Date.now(), name: _LANG_DEFAULT_FILE[post.code_lang] || 'main', lang: post.code_lang || 'Python', code: post.content || '' }];
+    _editFiles    = existingFiles.map(f => ({ ...f, id: f.id || Date.now() + Math.random() }));
+    _editActiveId = _editFiles[0]?.id;
+    if (_editLangSel) _editLangSel.value = _editFiles[0]?.lang || 'Python';
+
+    function _editSave() { const f = _editFiles.find(x => x.id === _editActiveId); if (f && _editTA) f.code = _editTA.value; }
+    function _editLoad() {
+      const f = _editFiles.find(x => x.id === _editActiveId);
+      if (_editTA && f) { _editTA.value = f.code; _editTA.placeholder = _CODE_HINTS[f.lang] || '코드를 입력하세요...'; }
+    }
+    function _editRenderTabs() {
+      const tabsEl = document.getElementById('editCodeFileTabs');
+      if (!tabsEl) return;
+      tabsEl.innerHTML = '';
+      _editFiles.forEach(file => {
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'code-file-tab' + (file.id === _editActiveId ? ' active' : '');
+        const ns = document.createElement('span'); ns.className = 'code-file-tab-name'; ns.textContent = file.name;
+        tab.appendChild(ns);
+        if (_editFiles.length > 1) {
+          const cls = document.createElement('span'); cls.className = 'code-file-tab-close'; cls.textContent = '×';
+          cls.addEventListener('click', e => {
+            e.stopPropagation(); _editSave();
+            _editFiles = _editFiles.filter(f => f.id !== file.id);
+            if (_editActiveId === file.id) _editActiveId = _editFiles[0]?.id;
+            _editRenderTabs(); _editLoad();
+          });
+          tab.appendChild(cls);
+        }
+        tab.addEventListener('click', () => { _editSave(); _editActiveId = file.id; _editRenderTabs(); _editLoad(); });
+        tabsEl.appendChild(tab);
+      });
+    }
+
+    document.getElementById('editAddCodeFileBtn')?.addEventListener('click', () => {
+      const name = prompt('추가할 파일 이름을 입력하세요\n예) utils.py, helper.h, module.js');
+      if (!name?.trim()) return;
+      _editSave();
+      const newFile = { id: Date.now(), name: name.trim(), lang: detectLangFromFilename(name.trim()) || _editLangSel?.value || 'Python', code: '' };
+      _editFiles.push(newFile); _editActiveId = newFile.id;
+      _editRenderTabs(); _editLoad();
+    });
+
+    _editTA?.addEventListener('keydown', function(e) {
       if (e.key !== 'Tab') return;
       e.preventDefault();
       const s = this.selectionStart, end = this.selectionEnd;
@@ -2327,20 +2571,24 @@ async function initPostEdit() {
       this.selectionStart = this.selectionEnd = s + 2;
     });
 
+    _editRenderTabs(); _editLoad();
+
     const form = document.getElementById('postEditForm');
     const submitBtn = form.querySelector('[type=submit]');
     submitBtn.dataset.label = submitBtn.textContent;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      _editSave();
       const title = document.getElementById('editTitle').value.trim();
       if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
       setLoading(submitBtn, true);
       try {
         await updatePost(id, {
           title,
-          content:   document.getElementById('editCodeContent').value || null,
-          code_lang: nullIfEmpty(document.getElementById('editCodeLang').value) || 'HTML',
+          content:    null,
+          code_lang:  _editFiles[0]?.lang || 'Python',
+          code_files: _editFiles.map(f => ({ name: f.name, lang: f.lang, code: f.code })),
         });
         showToast('수정됐어요!', 'green');
         setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
