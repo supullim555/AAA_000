@@ -623,6 +623,23 @@ function truncate(s, n) {
   return s.length > n ? s.slice(0, n) + '…' : s;
 }
 
+/* Quill HTML 정제: 앞뒤 빈 단락 제거 후 null 반환 */
+function cleanQuillHTML(html) {
+  if (!html) return null;
+  const emptyP = /(\s*<p>(\s|&nbsp;)*(<br\s*\/?>)?\s*<\/p>\s*)/gi;
+  let cleaned = html
+    .replace(new RegExp(`^(${emptyP.source})+`, 'gi'), '')
+    .replace(new RegExp(`(${emptyP.source})+$`,  'gi'), '')
+    .trim();
+  return cleaned || null;
+}
+
+/* 빈 문자열 → null (저장 공간 절약) */
+function nullIfEmpty(str) {
+  const s = (str ?? '').trim();
+  return s || null;
+}
+
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ko-KR');
 }
@@ -963,7 +980,7 @@ async function initAzitCreate() {
     setLoading(submitBtn, true);
 
     try {
-      await insertCategory({ name, description: desc, created_by: nickname, creator_id: user.id, type });
+      await insertCategory({ name, description: nullIfEmpty(desc), created_by: nickname, creator_id: user.id, type });
       showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {
@@ -1187,7 +1204,7 @@ async function initPostWrite() {
         extra.code_lang = document.getElementById('codeLang')?.value || 'HTML';
 
       } else if (isVideo) {
-        content = document.getElementById('videoDesc')?.value.trim() || '';
+        content = nullIfEmpty(document.getElementById('videoDesc')?.value);
         const thumb = document.getElementById('videoThumbnailUrl')?.value.trim();
         if (thumb) extra.thumbnail_url = thumb;
 
@@ -1203,7 +1220,7 @@ async function initPostWrite() {
         extra.video_url = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
 
       } else if (isGame) {
-        content = document.getElementById('gameDesc')?.value.trim() || '';
+        content = nullIfEmpty(document.getElementById('gameDesc')?.value);
         const genre = document.getElementById('gameGenre')?.value;
         const thumb = document.getElementById('thumbnailUrl')?.value.trim();
         if (genre) extra.game_genre    = genre;
@@ -1251,11 +1268,11 @@ async function initPostWrite() {
           if (indexUrl) extra.game_url = indexUrl;
         }
       } else {
-        content = quill.root.innerHTML;
+        content = cleanQuillHTML(quill.root.innerHTML);
       }
 
       await insertPost({
-        title, content, category,
+        title, content: content ?? null, category,
         author_id:       u.id,
         author_nickname: u.user_metadata?.nickname || u.email,
         views: 0,
@@ -2226,8 +2243,8 @@ async function initPostEdit() {
       try {
         await updatePost(id, {
           title,
-          content:   document.getElementById('editCodeContent').value,
-          code_lang: document.getElementById('editCodeLang').value || 'HTML',
+          content:   document.getElementById('editCodeContent').value || null,
+          code_lang: nullIfEmpty(document.getElementById('editCodeLang').value) || 'HTML',
         });
         showToast('수정됐어요!', 'green');
         setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
@@ -2259,9 +2276,9 @@ async function initPostEdit() {
       try {
         await updatePost(id, {
           title,
-          content:       document.getElementById('editVideoDesc').value.trim(),
-          video_url:     document.getElementById('editVideoUrl').value.trim() || null,
-          thumbnail_url: document.getElementById('editVideoThumbnailUrl').value.trim() || null,
+          content:       nullIfEmpty(document.getElementById('editVideoDesc').value),
+          video_url:     nullIfEmpty(document.getElementById('editVideoUrl').value),
+          thumbnail_url: nullIfEmpty(document.getElementById('editVideoThumbnailUrl').value),
         });
         showToast('수정됐어요!', 'green');
         setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
@@ -2305,7 +2322,7 @@ async function initPostEdit() {
       if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
       setLoading(submitBtn, true);
       try {
-        await updatePost(id, { title, content: quill.root.innerHTML });
+        await updatePost(id, { title, content: cleanQuillHTML(quill.root.innerHTML) });
         showToast('수정됐어요!', 'green');
         setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
       } catch (err) {
@@ -2329,10 +2346,10 @@ async function initPostEdit() {
     try {
       const data = {
         title,
-        content:       document.getElementById('editGameDesc').value.trim(),
-        game_genre:    document.getElementById('editGameGenre').value    || null,
-        thumbnail_url: document.getElementById('editThumbnailUrl').value.trim() || null,
-        game_url:      document.getElementById('editGameUrl').value.trim() || null,
+        content:       nullIfEmpty(document.getElementById('editGameDesc').value),
+        game_genre:    nullIfEmpty(document.getElementById('editGameGenre').value),
+        thumbnail_url: nullIfEmpty(document.getElementById('editThumbnailUrl').value),
+        game_url:      nullIfEmpty(document.getElementById('editGameUrl').value),
       };
       await updatePost(id, data);
       showToast('수정됐어요!', 'green');
