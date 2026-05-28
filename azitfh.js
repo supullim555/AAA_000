@@ -148,7 +148,7 @@ function renderPostCards(container, posts) {
     const desc     = isCode
       ? escapeHTML(truncate(p.content || '', CONFIG.TRUNCATE_LEN))
       : (isGame || isVideo) ? escapeHTML(p.content || '')
-      : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
+      : escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN));
 
     return `
       <a class="news-card" href="post-detail.html?id=${p.id}">

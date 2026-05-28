@@ -14,7 +14,9 @@ function _makeCache(fetcher, ttl) {
   return {
     get:  async () => {
       if (_data && Date.now() - _ts < ttl) return _data;
-      if (!_p) _p = fetcher().then(d => { _data = d; _ts = Date.now(); _p = null; return d; });
+      if (!_p) _p = fetcher()
+        .then(d => { _data = d; _ts = Date.now(); _p = null; return d; })
+        .catch(e => { _p = null; throw e; }); // 실패 시 재시도 허용
       return _p;
     },
     bust: () => { _data = null; _ts = 0; _p = null; },
@@ -685,7 +687,7 @@ async function renderPosts() {
             ${desc ? `<button class="expand-btn" type="button" data-expanded="false">펼쳐보기</button>` : ''}
            </div>`;
       } else {
-        descHtml = `<p class="news-desc">${escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN))}</p>`;
+        descHtml = `<p class="news-desc">${escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN))}</p>`;
       }
       return `
         <a class="news-card" href="post-detail.html?id=${p.id}">
@@ -1778,7 +1780,7 @@ async function initPostDetail() {
         outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
 
-      document.getElementById('codeFullscreenBtn2')?.addEventListener('click', () => {
+      document.getElementById('codeRunFullscreenBtn')?.addEventListener('click', () => {
         const frame = document.getElementById('codeOutputFrame');
         frame?.requestFullscreen?.() || frame?.webkitRequestFullscreen?.();
       });
