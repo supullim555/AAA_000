@@ -500,11 +500,13 @@ header nav a.nav-signup:hover {
 
 .cat-card-btn {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 7px 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 14px 7px;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--border);
+  border-top: 2.5px solid var(--cat-color, var(--border));
   background: var(--bg);
   color: var(--text);
   cursor: pointer;
@@ -540,19 +542,6 @@ header nav a.nav-signup:hover {
   flex: 1;
 }
 
-.cat-card-visit {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-light);
-  text-decoration: none;
-  opacity: 0.55;
-  padding: 0 2px;
-  flex-shrink: 0;
-  transition: opacity 0.15s, color 0.15s;
-}
-.cat-card-btn:hover .cat-card-visit        { opacity: 1; color: var(--primary); }
-.cat-card-btn.active .cat-card-visit       { opacity: 0.8; color: rgba(255,255,255,0.9); }
 
 .cat-hot-badge {
   font-size: 10px;
@@ -2561,4 +2550,118 @@ header nav a.nav-signup:hover {
 [data-theme="dark"] .code-lang-badge-sm {
   background: rgba(96,165,250,.18);
   color: #60a5fa;
+}
+
+/* ════════════════════════════════════════
+   아지트 타입 카드 (azit-create 페이지)
+════════════════════════════════════════ */
+.azit-type-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.azit-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  background: var(--bg);
+  text-align: center;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.azit-type-card:hover {
+  border-color: var(--type-color, var(--primary));
+  background: var(--bg-2);
+}
+.azit-type-card.selected {
+  border-color: var(--type-color, var(--primary));
+  background: var(--bg-2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--type-color, var(--primary)) 20%, transparent);
+}
+.azit-type-card-icon { font-size: 30px; line-height: 1; }
+.azit-type-card-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.azit-type-card-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
+
+/* ════════════════════════════════════════
+   홈 아지트 카드 — 아이콘 + 컬러 액센트
+════════════════════════════════════════ */
+.cat-card-icon {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.cat-card-visit {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  margin-top: 4px;
+  color: var(--text-light);
+  text-decoration: none;
+  transition: opacity .15s, color .15s;
+  display: block;
+}
+.cat-card-btn:hover .cat-card-visit { opacity: 1; color: var(--primary); }
+.cat-card-btn.active .cat-card-visit { opacity: .8; color: rgba(255,255,255,.9); }
+
+/* ════════════════════════════════════════
+   대시보드 아지트 목록 — 아이콘 점
+════════════════════════════════════════ */
+.cat-item-icon-dot {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+  padding: 0 4px 0 0;
+}
+.cat-item { border-left: 3px solid var(--cat-color, transparent); }
+
+/* ════════════════════════════════════════
+   azitfh 상세 — 정렬 바 + 타입 뱃지
+════════════════════════════════════════ */
+.azitfh-sort-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.azitfh-sort-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all .12s;
+}
+.azitfh-sort-btn:hover { border-color: var(--primary); color: var(--primary); }
+.azitfh-sort-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.azitfh-type-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  letter-spacing: 0.3px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.azitfh-type-guide {
+  background: var(--bg-2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  border: 1px solid var(--border);
 }

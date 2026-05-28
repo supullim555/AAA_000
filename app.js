@@ -501,6 +501,15 @@ async function renderCategoryCards() {
 
     const btn = document.createElement('button');
     btn.className = 'cat-card-btn' + (_selectedCat === c.name ? ' active' : '');
+    if (c.cover_color) btn.style.setProperty('--cat-color', c.cover_color);
+
+    // 아이콘
+    if (c.icon) {
+      const iconEl = document.createElement('span');
+      iconEl.className = 'cat-card-icon';
+      iconEl.textContent = c.icon;
+      btn.appendChild(iconEl);
+    }
 
     const nameRow = document.createElement('div');
     nameRow.className = 'cat-card-name-row';
@@ -521,6 +530,15 @@ async function renderCategoryCards() {
       nameRow.appendChild(typeEl);
     }
     btn.appendChild(nameRow);
+
+    // 아지트 상세 페이지 링크
+    const visitLink = document.createElement('a');
+    visitLink.className = 'cat-card-visit';
+    visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
+    visitLink.textContent = '→';
+    visitLink.title = `${c.name} 아지트 방문`;
+    visitLink.addEventListener('click', e => e.stopPropagation());
+    btn.appendChild(visitLink);
 
     btn.addEventListener('click', async () => {
       _selectedCat = c.name;
@@ -795,9 +813,12 @@ async function renderCategories(userId) {
 
   ul.innerHTML = cats.map(c => {
     const typeLabel = TYPE_LABELS[c.type] || c.type || '';
+    const color     = c.cover_color || '#4aab8e';
+    const icon      = c.icon || '🏠';
     return `
-    <li class="cat-item" data-id="${c.id}">
+    <li class="cat-item" data-id="${c.id}" style="--cat-color:${escapeHTML(color)}">
       <div class="cat-drag-handle" title="드래그하여 순서 변경">⠿</div>
+      <span class="cat-item-icon-dot" title="${escapeHTML(typeLabel)}">${escapeHTML(icon)}</span>
       <div style="flex:1;min-width:0;overflow:hidden">
         <div class="cat-name-row">
           <span class="cat-name">${escapeHTML(c.name)}</span>
@@ -807,6 +828,8 @@ async function renderCategories(userId) {
         <div class="cat-item-meta">${new Date(c.created_at).toLocaleDateString('ko-KR')}</div>
       </div>
       <div class="cat-actions">
+        <a href="azitfh.html?cat=${encodeURIComponent(c.name)}"
+           class="cat-action-btn" title="아지트 방문" style="font-size:14px;text-decoration:none">→</a>
         <a href="azit-rename.html?id=${c.id}&name=${encodeURIComponent(c.name)}"
            class="cat-action-btn cat-action-ren" title="아지트 수정">✏️</a>
         <button class="cat-action-btn cat-action-del"
@@ -956,26 +979,44 @@ async function initAzitCreate() {
   const form = document.getElementById('azitCreateForm');
   if (!form) return;
 
-  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본', description: '' }]);
-  form.azitType.innerHTML = types.map(t =>
-    `<option value="${escapeHTML(t.key)}" data-desc="${escapeHTML(t.description || '')}">${escapeHTML(t.label)}</option>`
-  ).join('');
+  const types = await fetchAzitTypesCached().catch(() => [
+    { key: 'general', label: '기본', description: '기본 형태의 커뮤니티 공간입니다.', default_icon: '🏠', default_color: '#4aab8e' },
+  ]);
 
-  const typeDescEl = document.getElementById('azitTypeDesc');
-  function updateTypeDesc() {
-    const opt = form.azitType.selectedOptions[0];
-    if (typeDescEl) typeDescEl.textContent = opt?.dataset.desc || '';
+  // ── 비주얼 타입 카드 렌더링 ──
+  const grid      = document.getElementById('azitTypeCards');
+  const hiddenSel = document.getElementById('azitType');
+
+  if (grid && hiddenSel) {
+    grid.innerHTML = types.map(t => `
+      <button type="button" class="azit-type-card" data-key="${escapeHTML(t.key)}"
+              style="--type-color:${escapeHTML(t.default_color || '#4aab8e')}">
+        <span class="azit-type-card-icon">${escapeHTML(t.default_icon || '🏠')}</span>
+        <span class="azit-type-card-name">${escapeHTML(t.label)}</span>
+        <span class="azit-type-card-desc">${escapeHTML(t.description || '')}</span>
+      </button>
+    `).join('');
+
+    function selectType(key) {
+      grid.querySelectorAll('.azit-type-card').forEach(c => c.classList.toggle('selected', c.dataset.key === key));
+      if (hiddenSel) hiddenSel.value = key;
+    }
+
+    grid.querySelectorAll('.azit-type-card').forEach(card => {
+      card.addEventListener('click', () => selectType(card.dataset.key));
+    });
+
+    selectType(types[0]?.key || 'general');
   }
-  form.azitType.addEventListener('change', updateTypeDesc);
-  updateTypeDesc();
 
   const submitBtn = form.querySelector('[type=submit]');
+  submitBtn.dataset.label = submitBtn.textContent;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = form.azitName.value.trim();
     const desc = form.azitDesc.value.trim();
-    const type = form.azitType.value;
+    const type = hiddenSel?.value || 'general';
 
     if (!name) { showToast('아지트 이름을 입력해 주세요.', 'red'); return; }
 
