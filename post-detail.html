@@ -59,9 +59,16 @@
           </div>
           <pre class="code-display"><code id="codeDisplay"></code></pre>
           <div id="codeOutputWrap" class="hidden">
-            <div class="code-output-label">— 실행 결과 —</div>
+            <div class="code-output-label">— 실행 결과 (브라우저) —</div>
             <iframe id="codeOutputFrame" class="code-iframe"
                     sandbox="allow-scripts" scrolling="yes"></iframe>
+          </div>
+          <!-- 서버 실행 결과 (Python / C / C++) -->
+          <div id="codeServerOutputWrap" class="hidden">
+            <div class="code-output-label">— 실행 결과 (서버) —</div>
+            <pre id="codeServerStdout" class="code-output-pre"></pre>
+            <pre id="codeServerStderr" class="code-output-pre code-output-stderr hidden"></pre>
+            <div id="codeServerStatus" class="code-server-status hidden"></div>
           </div>
         </div>
       </div>

@@ -1166,8 +1166,24 @@ async function initPostWrite() {
     videoFileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
   });
 
-  /* ── 코드 에디터 Tab 들여쓰기 ── */
-  document.getElementById('codeContent')?.addEventListener('keydown', function(e) {
+  /* ── 코드 에디터 Tab 들여쓰기 + 언어별 플레이스홀더 ── */
+  const _CODE_HINTS = {
+    'HTML':       '<h1>Hello!</h1>\n<p>HTML을 작성하세요.</p>',
+    'JavaScript': 'console.log("Hello, World!");\n// JavaScript를 작성하세요.',
+    'CSS':        'body {\n  background: #f0f0f0;\n}\n/* CSS를 작성하세요. */',
+    '혼합':       '<!DOCTYPE html>\n<html>\n<body>\n  <h1>Hello!</h1>\n</body>\n</html>',
+    'Python':     'print("Hello, World!")\n# Python을 작성하세요.',
+    'C':          '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
+    'C++':        '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}',
+  };
+  const _codeTA = document.getElementById('codeContent');
+  const _codeLangSel = document.getElementById('codeLang');
+  if (_codeTA && _codeLangSel) {
+    const _updateHint = () => { _codeTA.placeholder = _CODE_HINTS[_codeLangSel.value] || '코드를 입력하세요...'; };
+    _codeLangSel.addEventListener('change', _updateHint);
+    _updateHint();
+  }
+  _codeTA?.addEventListener('keydown', function(e) {
     if (e.key !== 'Tab') return;
     e.preventDefault();
     const s = this.selectionStart, end = this.selectionEnd;
@@ -1290,6 +1306,44 @@ async function initPostWrite() {
       setLoading(submitBtn, false);
     }
   });
+}
+
+/* ── Judge0 CE 서버 실행 (Python / C / C++) ── */
+const _JUDGE0_URL  = 'https://ce.judge0.com/submissions?base64_encoded=true&wait=true';
+const _JUDGE0_IDS  = { Python: 71, C: 50, 'C++': 54 };
+const _SERVER_LANGS = new Set(['Python', 'C', 'C++']);
+
+async function runWithJudge0(code, lang) {
+  const langId = _JUDGE0_IDS[lang];
+  if (!langId) throw new Error(`지원하지 않는 언어: ${lang}`);
+
+  // UTF-8 안전 base64 인코딩
+  const bytes = new TextEncoder().encode(code);
+  let bin = ''; bytes.forEach(b => (bin += String.fromCharCode(b)));
+  const b64 = btoa(bin);
+
+  const res = await fetch(_JUDGE0_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_code: b64, language_id: langId }),
+  });
+  if (!res.ok) throw new Error(`Judge0 오류 (HTTP ${res.status})`);
+  const d = await res.json();
+
+  const dec = b64str => {
+    if (!b64str) return '';
+    const bin2 = atob(b64str);
+    const bytes2 = new Uint8Array(bin2.length);
+    for (let i = 0; i < bin2.length; i++) bytes2[i] = bin2.charCodeAt(i);
+    return new TextDecoder().decode(bytes2);
+  };
+
+  return {
+    statusId:  d.status?.id,
+    statusMsg: d.status?.description || '알 수 없음',
+    stdout:    dec(d.stdout),
+    stderr:    dec(d.compile_output) || dec(d.stderr),
+  };
 }
 
 /* ── 코드 실행 srcdoc 빌더 ── */
@@ -1771,13 +1825,53 @@ async function initPostDetail() {
       if (codeLangBadge) codeLangBadge.textContent = post.code_lang;
       codeRunSection.classList.remove('hidden');
 
-      document.getElementById('codeRunBtn')?.addEventListener('click', () => {
-        const outputWrap  = document.getElementById('codeOutputWrap');
-        const outputFrame = document.getElementById('codeOutputFrame');
-        if (!outputWrap || !outputFrame) return;
-        outputWrap.classList.remove('hidden');
-        outputFrame.srcdoc = buildCodeSrcdoc(post.content || '', post.code_lang);
-        outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const runBtn = document.getElementById('codeRunBtn');
+      runBtn?.addEventListener('click', async () => {
+        if (_SERVER_LANGS.has(post.code_lang)) {
+          // ── 서버 실행: Python / C / C++ → Judge0 ──
+          const serverWrap = document.getElementById('codeServerOutputWrap');
+          const stdoutEl   = document.getElementById('codeServerStdout');
+          const stderrEl   = document.getElementById('codeServerStderr');
+          const statusEl   = document.getElementById('codeServerStatus');
+          if (!serverWrap || !stdoutEl) return;
+
+          const origLabel = runBtn.textContent;
+          runBtn.disabled = true;
+          runBtn.textContent = '실행 중...';
+          stderrEl.classList.add('hidden');
+          statusEl.classList.add('hidden');
+          serverWrap.classList.remove('hidden');
+          stdoutEl.textContent = '잠시 기다려 주세요...';
+
+          try {
+            const r = await runWithJudge0(post.content || '', post.code_lang);
+            stdoutEl.textContent = r.stdout || '(출력 없음)';
+            if (r.stderr) {
+              stderrEl.textContent = r.stderr;
+              stderrEl.classList.remove('hidden');
+            }
+            if (r.statusId !== 3) {
+              statusEl.textContent = `종료 상태: ${r.statusMsg}`;
+              statusEl.classList.remove('hidden');
+            }
+          } catch (err) {
+            stdoutEl.textContent = '';
+            stderrEl.textContent = '실행 실패: ' + (err.message || '네트워크 오류');
+            stderrEl.classList.remove('hidden');
+          } finally {
+            runBtn.disabled = false;
+            runBtn.textContent = origLabel;
+            serverWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        } else {
+          // ── 브라우저 실행: HTML / CSS / JavaScript / 혼합 ──
+          const outputWrap  = document.getElementById('codeOutputWrap');
+          const outputFrame = document.getElementById('codeOutputFrame');
+          if (!outputWrap || !outputFrame) return;
+          outputWrap.classList.remove('hidden');
+          outputFrame.srcdoc = buildCodeSrcdoc(post.content || '', post.code_lang);
+          outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
       });
 
       document.getElementById('codeRunFullscreenBtn')?.addEventListener('click', () => {
