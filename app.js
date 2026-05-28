@@ -1020,7 +1020,8 @@ async function initAzitCreate() {
     e.preventDefault();
     const name = form.azitName.value.trim();
     const desc = form.azitDesc.value.trim();
-    const type = hiddenSel?.value || 'general';
+    const type        = hiddenSel?.value || 'general';
+    const selectedType = types.find(t => t.key === type);
 
     if (!name) { showToast('아지트 이름을 입력해 주세요.', 'red'); return; }
 
@@ -1029,7 +1030,15 @@ async function initAzitCreate() {
     setLoading(submitBtn, true);
 
     try {
-      await insertCategory({ name, description: nullIfEmpty(desc), created_by: nickname, creator_id: user.id, type });
+      await insertCategory({
+        name,
+        description: nullIfEmpty(desc),
+        created_by:  nickname,
+        creator_id:  user.id,
+        type,
+        icon:        selectedType?.default_icon  || '🏠',
+        cover_color: selectedType?.default_color || '#4aab8e',
+      });
       showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {
