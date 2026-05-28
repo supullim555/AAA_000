@@ -7,22 +7,30 @@ const CONFIG = {
   POSTS_CACHE_TTL: 30000, // 게시물 캐시 유효기간 (ms)
 };
 
-/* ── 게시물 캐시 — 동일 세션 내 중복 DB 호출 방지 ── */
-let _postsCache = null;
-let _postsCacheTime = 0;
-
-async function fetchPostsCached() {
-  const now = Date.now();
-  if (_postsCache && (now - _postsCacheTime) < CONFIG.POSTS_CACHE_TTL) return _postsCache;
-  _postsCache = await getPosts();
-  _postsCacheTime = now;
-  return _postsCache;
+/* ── 캐시 레이어 — 동일 세션 내 중복 DB 호출 방지 ── */
+// 동시 요청이 몰려도 Promise 하나만 실행 (thundering herd 방지)
+function _makeCache(fetcher, ttl) {
+  let _data = null, _ts = 0, _p = null;
+  return {
+    get:  async () => {
+      if (_data && Date.now() - _ts < ttl) return _data;
+      if (!_p) _p = fetcher().then(d => { _data = d; _ts = Date.now(); _p = null; return d; });
+      return _p;
+    },
+    bust: () => { _data = null; _ts = 0; _p = null; },
+  };
 }
 
-function invalidatePostsCache() {
-  _postsCache = null;
-  _postsCacheTime = 0;
-}
+const _postsStore = _makeCache(() => getPosts(), 30_000);
+const _catsStore  = _makeCache(() => getCategories(), 60_000);
+const _typesStore = _makeCache(() => getAzitTypes(), 300_000);
+
+async function fetchPostsCached()      { return _postsStore.get(); }
+async function fetchCategoriesCached() { return _catsStore.get(); }
+async function fetchAzitTypesCached()  { return _typesStore.get(); }
+
+function invalidatePostsCache()      { _postsStore.bust(); }
+function invalidateCategoriesCache() { _catsStore.bust(); }
 
 /* ── Dark Mode ── */
 function initDarkMode() {
@@ -183,7 +191,7 @@ async function insertAzitType({ label, description = '', default_icon = '🏠', 
 async function renderTypeFilterBtns(containerId, onSelect) {
   const wrap = document.getElementById(containerId);
   if (!wrap) return;
-  const types = await getAzitTypes().catch(() => [{ key: 'general', label: '기본' }]);
+  const types = await fetchAzitTypesCached().catch(() => [{ key: 'general', label: '기본' }]);
   wrap.querySelectorAll('.azit-type-btn:not([data-type=""])').forEach(b => b.remove());
   types.forEach(t => {
     const btn = document.createElement('button');
@@ -385,11 +393,13 @@ async function insertCategory({ name, description = '', created_by = '익명', c
     .from('azits')
     .insert({ name, description, created_by, creator_id, type, icon, cover_color, sort_order: sortOrder });
   if (error) throw error;
+  invalidateCategoriesCache();
 }
 
 async function deleteCategory(id) {
   const { error } = await supabaseClient.from('azits').delete().eq('id', id);
   if (error) throw error;
+  invalidateCategoriesCache();
 }
 
 async function renameAzit(id, newName) {
@@ -399,6 +409,7 @@ async function renameAzit(id, newName) {
   });
   if (error) throw error;
   invalidatePostsCache();
+  invalidateCategoriesCache();
 }
 
 async function getAzitByName(name) {
@@ -414,22 +425,16 @@ async function updatePost(id, data) {
   invalidatePostsCache();
 }
 
-/* 카테고리별 게시물 수 / 고유 유저 수 (posts 배열 받아 계산) */
-function getCatCounts(posts) {
-  const counts = {};
-  posts.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
-  return counts;
-}
-
-function getCatUserCounts(posts) {
-  const sets = {};
-  posts.forEach(p => {
-    if (!sets[p.category]) sets[p.category] = new Set();
-    sets[p.category].add(p.author_id);
-  });
-  const result = {};
-  Object.entries(sets).forEach(([cat, s]) => { result[cat] = s.size; });
-  return result;
+/* 카테고리별 게시물 수 + 고유 유저 수 — 단일 패스 */
+function getCatStats(posts) {
+  const counts = {}, sets = {};
+  for (const p of posts) {
+    counts[p.category] = (counts[p.category] || 0) + 1;
+    (sets[p.category] ??= new Set()).add(p.author_id);
+  }
+  const userCounts = {};
+  for (const [cat, s] of Object.entries(sets)) userCounts[cat] = s.size;
+  return { postCounts: counts, userCounts };
 }
 
 /* ── 카테고리 칩 렌더링 (대시보드용) ── */
@@ -438,10 +443,11 @@ async function renderCategoryCards() {
   const wrap = document.getElementById('catChips');
   if (!wrap) return;
 
-  const cats     = await getCategories();
-  const allPosts = await fetchPostsCached().catch(() => []);
-  const postCounts = getCatCounts(allPosts);
-  const userCounts = getCatUserCounts(allPosts);
+  const [cats, allPosts] = await Promise.all([
+    fetchCategoriesCached(),
+    fetchPostsCached().catch(() => []),
+  ]);
+  const { postCounts, userCounts } = getCatStats(allPosts);
   const search     = (document.getElementById('catSearch')?.value || '').toLowerCase().trim();
 
   const sorted = cats
@@ -861,12 +867,13 @@ async function saveAzitOrder(ul) {
 }
 
 async function initCategoryManager(userId) {
-  await renderCategories(userId);
-
-  await renderTypeFilterBtns('dashTypeFilter', (type) => {
-    _dashType = type;
-    renderCategories(userId);
-  });
+  await Promise.all([
+    renderCategories(userId),
+    renderTypeFilterBtns('dashTypeFilter', (type) => {
+      _dashType = type;
+      renderCategories(userId);
+    }),
+  ]);
 }
 
 /* ════════════════════════════════════════
@@ -1060,7 +1067,7 @@ async function initPostWrite() {
 
   /* ── 아지트 드롭다운 + 타입 맵 ── */
   const catSelect = form.category;
-  const cats      = await getCategories();
+  const cats      = await fetchCategoriesCached();
   const azitMap   = Object.fromEntries(cats.map(c => [c.name, c]));
   const preselect = new URLSearchParams(location.search).get('cat') || '';
 
@@ -1469,11 +1476,13 @@ async function initVotes(postId, session) {
   if (!upBtn) return;
 
   const refresh = async () => {
-    const { up, down } = await getVoteCounts(postId);
+    const [{ up, down }, mine] = await Promise.all([
+      getVoteCounts(postId),
+      session ? getMyVote(postId, session.user.id) : Promise.resolve(null),
+    ]);
     upCount.textContent = up;
     dnCount.textContent = down;
     if (session) {
-      const mine = await getMyVote(postId, session.user.id);
       upBtn.classList.toggle('active-up', mine === 'up');
       downBtn.classList.toggle('active-down', mine === 'down');
       upBtn.disabled = false;
@@ -1647,8 +1656,7 @@ async function initPostDetail() {
   const wrap = document.getElementById('postContent');
   if (!id) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
-  await incrementViews(id);
-  const post = await getPost(id);
+  const [, post] = await Promise.all([incrementViews(id), getPost(id)]);
   if (!post) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
   document.title = `${post.title} — Open Azitfh`;
@@ -1787,12 +1795,14 @@ async function initIndex() {
   const session = await getSession();
   updateNav(session);
 
-  // 각 섹션이 독립적으로 실패하도록 분리
-  await initCategorySection().catch(err => console.error('카테고리 로드 실패:', err));
-  await renderPosts().catch(err => console.error('인기 게시물 로드 실패:', err));
-  await renderPostsList().catch(err => console.error('게시물 목록 로드 실패:', err));
-  const admin = await isAdmin().catch(() => false);
-  await initNotices(admin).catch(err => console.error('공지 로드 실패:', err));
+  // 각 섹션 병렬 로드 — 독립적이므로 동시에 실행
+  await Promise.all([
+    initCategorySection().catch(err => console.error('카테고리 로드 실패:', err)),
+    renderPosts().catch(err => console.error('인기 게시물 로드 실패:', err)),
+    renderPostsList().catch(err => console.error('게시물 목록 로드 실패:', err)),
+    isAdmin().catch(() => false)
+      .then(admin => initNotices(admin).catch(err => console.error('공지 로드 실패:', err))),
+  ]);
 
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');

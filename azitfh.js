@@ -86,16 +86,6 @@ function renderHero(azitfh, session) {
   }
 }
 
-function darkenHex(hex, amount = 40) {
-  try {
-    const n = parseInt(hex.replace('#', ''), 16);
-    const r = Math.max(0, (n >> 16)        - amount);
-    const g = Math.max(0, ((n >> 8) & 0xff) - amount);
-    const b = Math.max(0, (n & 0xff)        - amount);
-    return `#${[r,g,b].map(v => v.toString(16).padStart(2,'0')).join('')}`;
-  } catch { return hex; }
-}
-
 /* ════════════════════════════════════════
    탭 관리
 ════════════════════════════════════════ */
