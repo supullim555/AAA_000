@@ -651,23 +651,30 @@ async function renderPosts() {
     grid.innerHTML = posts.map(p => {
       const isGame  = !!p.game_url;
       const isVideo = !!p.video_url;
+      const isCode  = !!p.code_lang;
       const isRich  = isGame || isVideo;
-      const thumb   = p.thumbnail_url || extractFirstImage(p.content);
+      const thumb   = p.thumbnail_url || (!isCode && extractFirstImage(p.content));
       const thumbHtml = thumb
         ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
         : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : '');
-      const desc = isRich ? escapeHTML(p.content || '') : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
-      const descHtml = isRich
-        ? `<div class="game-card-desc-wrap">
+      const langBadge = isCode ? `<span class="code-lang-badge-sm">${escapeHTML(p.code_lang)}</span>` : '';
+      let descHtml;
+      if (isCode) {
+        descHtml = `<pre class="code-card-preview">${escapeHTML(truncate(p.content || '', 120))}</pre>`;
+      } else if (isRich) {
+        const desc = escapeHTML(p.content || '');
+        descHtml = `<div class="game-card-desc-wrap">
             <p class="game-card-desc">${desc}</p>
             ${desc ? `<button class="expand-btn" type="button" data-expanded="false">펼쳐보기</button>` : ''}
-           </div>`
-        : `<p class="news-desc">${desc}</p>`;
+           </div>`;
+      } else {
+        descHtml = `<p class="news-desc">${escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN))}</p>`;
+      }
       return `
         <a class="news-card" href="post-detail.html?id=${p.id}">
           ${thumbHtml}
           <div class="news-card-top">
-            <span class="news-badge">${escapeHTML(p.category)}</span>
+            <span class="news-badge">${escapeHTML(p.category)}</span>${langBadge}
             <span class="news-date">${formatDate(p.created_at)}</span>
           </div>
           <h3 class="news-title">${escapeHTML(p.title)}</h3>
@@ -720,7 +727,9 @@ async function renderPostsList() {
     }
 
     wrap.innerHTML = posts.map(p => {
-      const typeIcon = p.game_url ? '<span class="post-row-type-icon">🎮</span>' : p.video_url ? '<span class="post-row-type-icon">🎬</span>' : '';
+      const typeIcon = p.game_url ? '<span class="post-row-type-icon">🎮</span>'
+                    : p.video_url ? '<span class="post-row-type-icon">🎬</span>'
+                    : p.code_lang ? '<span class="post-row-type-icon">💻</span>' : '';
       return `
       <a class="post-row" href="post-detail.html?id=${p.id}">
         <span class="post-row-cat">${escapeHTML(p.category)}</span>
@@ -1089,14 +1098,17 @@ async function initPostWrite() {
   const quillSection = document.getElementById('quillSection');
   const gameSection  = document.getElementById('gameSection');
   const videoSection = document.getElementById('videoSection');
+  const codeSection  = document.getElementById('codeSection');
 
   function applyFormType() {
     const type    = azitMap[catSelect.value]?.type;
     const isGame  = type === '웹게임';
     const isVideo = type === '영상';
-    quillSection?.classList.toggle('hidden', isGame || isVideo);
+    const isCode  = type === '코드';
+    quillSection?.classList.toggle('hidden', isGame || isVideo || isCode);
     gameSection?.classList.toggle('hidden',  !isGame);
     videoSection?.classList.toggle('hidden', !isVideo);
+    codeSection?.classList.toggle('hidden',  !isCode);
   }
 
   catSelect.addEventListener('change', applyFormType);
@@ -1135,6 +1147,15 @@ async function initPostWrite() {
     videoFileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
   });
 
+  /* ── 코드 에디터 Tab 들여쓰기 ── */
+  document.getElementById('codeContent')?.addEventListener('keydown', function(e) {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const s = this.selectionStart, end = this.selectionEnd;
+    this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
+    this.selectionStart = this.selectionEnd = s + 2;
+  });
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -1146,9 +1167,10 @@ async function initPostWrite() {
     const type     = azitMap[category]?.type;
     const isGame   = type === '웹게임';
     const isVideo  = type === '영상';
+    const isCode   = type === '코드';
 
     if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
-    if (!isGame && !isVideo && !quill.getText().trim()) {
+    if (!isGame && !isVideo && !isCode && !quill.getText().trim()) {
       showToast('내용을 입력해 주세요.', 'red'); return;
     }
 
@@ -1159,7 +1181,12 @@ async function initPostWrite() {
       let content;
       const extra = {};
 
-      if (isVideo) {
+      if (isCode) {
+        content = document.getElementById('codeContent')?.value || '';
+        if (!content.trim()) { showToast('코드를 입력해 주세요.', 'red'); setLoading(submitBtn, false); return; }
+        extra.code_lang = document.getElementById('codeLang')?.value || 'HTML';
+
+      } else if (isVideo) {
         content = document.getElementById('videoDesc')?.value.trim() || '';
         const thumb = document.getElementById('videoThumbnailUrl')?.value.trim();
         if (thumb) extra.thumbnail_url = thumb;
@@ -1234,7 +1261,7 @@ async function initPostWrite() {
         views: 0,
         ...extra,
       });
-      const successMsg = isVideo ? '영상이 등록됐어요! 🎬' : isGame ? '게임이 등록됐어요! 🎮' : '게시물이 등록됐어요! 🎉';
+      const successMsg = isVideo ? '영상이 등록됐어요! 🎬' : isGame ? '게임이 등록됐어요! 🎮' : isCode ? '코드가 등록됐어요! 💻' : '게시물이 등록됐어요! 🎉';
       showToast(successMsg, 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     } catch (err) {
@@ -1244,6 +1271,41 @@ async function initPostWrite() {
       setLoading(submitBtn, false);
     }
   });
+}
+
+/* ── 코드 실행 srcdoc 빌더 ── */
+function buildCodeSrcdoc(code, lang) {
+  if (lang === 'JavaScript') {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body{font-family:sans-serif;font-size:14px;padding:16px;margin:0}
+pre{background:#f4f4f4;padding:10px;border-radius:4px;overflow-x:auto;white-space:pre-wrap}</style>
+</head><body><div id="output"></div><script>
+const _ol=console.log.bind(console),_oe=console.error.bind(console),_ow=console.warn.bind(console);
+function _out(txt,col){const p=document.createElement('pre');p.textContent=txt;if(col)p.style.color=col;document.getElementById('output').appendChild(p);}
+console.log=(...a)=>{_ol(...a);_out(a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' '));};
+console.error=(...a)=>{_oe(...a);_out(a.map(String).join(' '),'#e05252');};
+console.warn=(...a)=>{_ow(...a);_out(a.map(String).join(' '),'#e08a00');};
+try{${code}}catch(e){_out('오류: '+e.message,'#e05252');}
+<\/script></body></html>`;
+  }
+  if (lang === 'CSS') {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body{font-family:sans-serif;padding:20px;margin:0}
+${code}
+</style></head><body>
+<h1>제목 (h1)</h1><h2>부제목 (h2)</h2>
+<p>단락 텍스트 <a href="#">링크</a> · <strong>굵게</strong> · <em>기울임</em></p>
+<button>버튼</button>
+<input type="text" placeholder="입력 필드">
+<ul><li>목록 1</li><li>목록 2</li></ul>
+<div class="box">div.box</div>
+<div class="card">div.card</div>
+</body></html>`;
+  }
+  // HTML / 혼합: 완전한 HTML이면 그대로, 아니면 body에 삽입
+  const isFullDoc = /^\s*<!DOCTYPE/i.test(code) || /^\s*<html/i.test(code);
+  return isFullDoc ? code
+    : `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${code}</body></html>`;
 }
 
 /*
@@ -1679,7 +1741,32 @@ async function initPostDetail() {
   }
 
   // 웹게임·영상 타입: 설명을 제목 바로 밑에 2줄 클램프 + 펼쳐보기로 표시
-  if (post.game_url || post.video_url) {
+  if (post.code_lang) {
+    // 코드 타입: 코드 실행 섹션 표시
+    bodyEl.style.display = 'none';
+    const codeRunSection = document.getElementById('codeRunSection');
+    const codeDisplay    = document.getElementById('codeDisplay');
+    const codeLangBadge  = document.getElementById('codeLangBadge');
+    if (codeRunSection && codeDisplay) {
+      codeDisplay.textContent   = post.content || '';
+      if (codeLangBadge) codeLangBadge.textContent = post.code_lang;
+      codeRunSection.classList.remove('hidden');
+
+      document.getElementById('codeRunBtn')?.addEventListener('click', () => {
+        const outputWrap  = document.getElementById('codeOutputWrap');
+        const outputFrame = document.getElementById('codeOutputFrame');
+        if (!outputWrap || !outputFrame) return;
+        outputWrap.classList.remove('hidden');
+        outputFrame.srcdoc = buildCodeSrcdoc(post.content || '', post.code_lang);
+        outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      document.getElementById('codeFullscreenBtn2')?.addEventListener('click', () => {
+        const frame = document.getElementById('codeOutputFrame');
+        frame?.requestFullscreen?.() || frame?.webkitRequestFullscreen?.();
+      });
+    }
+  } else if (post.game_url || post.video_url) {
     bodyEl.style.display = 'none';
     if (post.content) {
       const descWrap = document.createElement('div');
@@ -2106,10 +2193,52 @@ async function initPostEdit() {
   const azit    = await getAzitByName(post.category);
   const isGame  = azit?.type === '웹게임';
   const isVideo = azit?.type === '영상';
+  const isCode  = azit?.type === '코드';
 
   document.getElementById('editCategory').textContent = post.category;
   document.getElementById('editTitle').value = post.title;
   document.getElementById('editCancelBtn').href = `post-detail.html?id=${id}`;
+
+  if (isCode) {
+    document.getElementById('editQuillSection').classList.add('hidden');
+    document.getElementById('editCodeSection').classList.remove('hidden');
+    document.getElementById('editCodeLang').value    = post.code_lang || 'HTML';
+    document.getElementById('editCodeContent').value = post.content   || '';
+
+    // Tab 들여쓰기
+    document.getElementById('editCodeContent')?.addEventListener('keydown', function(e) {
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      const s = this.selectionStart, end = this.selectionEnd;
+      this.value = this.value.substring(0, s) + '  ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = s + 2;
+    });
+
+    const form = document.getElementById('postEditForm');
+    const submitBtn = form.querySelector('[type=submit]');
+    submitBtn.dataset.label = submitBtn.textContent;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('editTitle').value.trim();
+      if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
+      setLoading(submitBtn, true);
+      try {
+        await updatePost(id, {
+          title,
+          content:   document.getElementById('editCodeContent').value,
+          code_lang: document.getElementById('editCodeLang').value || 'HTML',
+        });
+        showToast('수정됐어요!', 'green');
+        setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
+      } catch (err) {
+        showToast('수정 실패: ' + (err.message || ''), 'red');
+      } finally {
+        setLoading(submitBtn, false);
+      }
+    });
+    return;
+  }
 
   if (isVideo) {
     document.getElementById('editQuillSection').classList.add('hidden');

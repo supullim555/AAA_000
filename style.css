@@ -2336,3 +2336,117 @@ header nav a.nav-signup:hover {
   .notice-form { flex-direction: column; }
   .notice-form button { width: 100%; padding: 9px; }
 }
+
+/* ════════════════════════════════════════
+   코드 타입 — 에디터 / 실행기
+════════════════════════════════════════ */
+
+/* 글쓰기·수정 코드 에디터 */
+.code-editor {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  min-height: 300px;
+  resize: vertical;
+  background: var(--bg-2);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* 게시물 상세 코드 실행 래퍼 */
+.code-run-wrap {
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.code-run-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-2);
+  border-bottom: 1.5px solid var(--border);
+}
+
+/* 언어 뱃지 (상세 헤더) */
+.code-lang-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* 코드 표시 블록 */
+.code-display {
+  margin: 0;
+  padding: 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: auto;
+  max-height: 340px;
+  overflow-y: auto;
+  white-space: pre;
+  border-bottom: 1.5px solid var(--border);
+}
+
+/* 실행 결과 구분선 */
+.code-output-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-light);
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding: 6px 16px;
+  background: var(--bg-2);
+  border-bottom: 1.5px solid var(--border);
+}
+
+/* 실행 결과 iframe */
+.code-iframe {
+  width: 100%;
+  min-height: 300px;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+/* 카드 코드 미리보기 */
+.code-card-preview {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  margin: 0 0 8px;
+  max-height: 58px;
+  overflow: hidden;
+  white-space: pre;
+  color: var(--text-light);
+}
+
+/* 카드 언어 뱃지 (작은 버전) */
+.code-lang-badge-sm {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: rgba(37,99,235,.15);
+  color: #2563eb;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+[data-theme="dark"] .code-lang-badge-sm {
+  background: rgba(96,165,250,.18);
+  color: #60a5fa;
+}

@@ -137,15 +137,17 @@ function renderPostCards(container, posts) {
   const cards = posts.map(p => {
     const isGame  = !!p.game_url;
     const isVideo = !!p.video_url;
-    const thumb   = p.thumbnail_url || extractFirstImage(p.content);
+    const isCode  = !!p.code_lang;
+    const thumb   = p.thumbnail_url || (!isCode && extractFirstImage(p.content));
 
     const thumbHtml = thumb
       ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
       : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : '');
 
-    const typeIcon = isGame ? '🎮 ' : isVideo ? '🎬 ' : '';
-    const desc     = (isGame || isVideo)
-      ? escapeHTML(p.content || '')
+    const typeIcon = isGame ? '🎮 ' : isVideo ? '🎬 ' : isCode ? '💻 ' : '';
+    const desc     = isCode
+      ? escapeHTML(truncate(p.content || '', CONFIG.TRUNCATE_LEN))
+      : (isGame || isVideo) ? escapeHTML(p.content || '')
       : escapeHTML(truncate(stripHtml(p.content), CONFIG.TRUNCATE_LEN));
 
     return `

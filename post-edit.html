@@ -104,6 +104,26 @@
           </div>
         </div>
 
+        <!-- 코드 타입 전용 양식 -->
+        <div id="editCodeSection" class="hidden">
+          <div class="game-write-form">
+            <div class="field">
+              <label>언어</label>
+              <select id="editCodeLang">
+                <option value="HTML">HTML</option>
+                <option value="JavaScript">JavaScript</option>
+                <option value="CSS">CSS</option>
+                <option value="혼합">혼합 (HTML + CSS + JS)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>코드</label>
+              <textarea id="editCodeContent" class="code-editor"
+                        spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+
         <!-- 게임 타입 전용 양식 -->
         <div id="editGameSection" class="hidden">
           <div class="game-write-form">
