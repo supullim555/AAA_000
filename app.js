@@ -199,7 +199,7 @@ async function renderTypeFilterBtns(containerId, onSelect) {
     const btn = document.createElement('button');
     btn.className = 'azit-type-btn';
     btn.dataset.type = t.key;
-    btn.textContent = t.label;
+    btn.textContent = t.default_icon ? `${t.default_icon} ${t.label}` : t.label;
     wrap.appendChild(btn);
   });
   wrap.querySelectorAll('.azit-type-btn').forEach(btn => {
@@ -503,42 +503,46 @@ async function renderCategoryCards() {
     btn.className = 'cat-card-btn' + (_selectedCat === c.name ? ' active' : '');
     if (c.cover_color) btn.style.setProperty('--cat-color', c.cover_color);
 
-    // 아이콘
-    if (c.icon) {
-      const iconEl = document.createElement('span');
-      iconEl.className = 'cat-card-icon';
-      iconEl.textContent = c.icon;
-      btn.appendChild(iconEl);
-    }
-
+    // ── 이름 행: [아이콘] [이름] [HOT] [→] ──
     const nameRow = document.createElement('div');
     nameRow.className = 'cat-card-name-row';
+
+    if (c.icon) {
+      const iconEl = document.createElement('span');
+      iconEl.className = 'cat-card-type-icon';
+      iconEl.textContent = c.icon;
+      nameRow.appendChild(iconEl);
+    }
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'cat-card-name';
     nameSpan.textContent = c.name;
     nameRow.appendChild(nameSpan);
+
     if (isHot) {
       const badge = document.createElement('span');
       badge.className = 'cat-hot-badge';
       badge.textContent = 'HOT';
       nameRow.appendChild(badge);
     }
-    if (c.type) {
-      const typeEl = document.createElement('span');
-      typeEl.className = 'cat-card-type';
-      typeEl.textContent = TYPE_LABELS[c.type] || c.type;
-      nameRow.appendChild(typeEl);
-    }
-    btn.appendChild(nameRow);
 
-    // 아지트 상세 페이지 링크
     const visitLink = document.createElement('a');
     visitLink.className = 'cat-card-visit';
     visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
     visitLink.textContent = '→';
-    visitLink.title = `${c.name} 아지트 방문`;
+    visitLink.title = `${c.name} 방문`;
     visitLink.addEventListener('click', e => e.stopPropagation());
-    btn.appendChild(visitLink);
+    nameRow.appendChild(visitLink);
+
+    btn.appendChild(nameRow);
+
+    // ── 타입 배지 (타입 보기 토글 시 표시) ──
+    if (c.type) {
+      const typeEl = document.createElement('span');
+      typeEl.className = 'cat-card-type';
+      typeEl.textContent = TYPE_LABELS[c.type] || c.type;
+      btn.appendChild(typeEl);
+    }
 
     btn.addEventListener('click', async () => {
       _selectedCat = c.name;

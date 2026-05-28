@@ -502,27 +502,29 @@ header nav a.nav-signup:hover {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 8px 14px 7px;
+  gap: 3px;
+  padding: 8px 12px 7px;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--border);
-  border-top: 2.5px solid var(--cat-color, var(--border));
+  border-left: 3px solid var(--cat-color, var(--border));
   background: var(--bg);
   color: var(--text);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-  min-width: 60px;
-  max-width: 220px;
+  min-width: 80px;
+  max-width: 200px;
 }
 .cat-card-btn:hover {
-  border-color: var(--primary);
+  border-color: var(--cat-color, var(--primary));
+  border-left-color: var(--cat-color, var(--primary));
   box-shadow: var(--shadow-hover);
 }
 .cat-card-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--cat-color, var(--primary));
+  border-color: var(--cat-color, var(--primary));
+  border-left-color: var(--cat-color, var(--primary));
   color: #fff;
 }
 
@@ -530,7 +532,7 @@ header nav a.nav-signup:hover {
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 5px;
+  gap: 4px;
 }
 
 .cat-card-name {
@@ -540,6 +542,14 @@ header nav a.nav-signup:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  min-width: 0;
+}
+
+/* 카드 아이콘 (이름 왼쪽에 인라인으로 표시) */
+.cat-card-type-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 
@@ -633,9 +643,9 @@ header nav a.nav-signup:hover {
 [data-theme="dark"] .cat-box          { background: #111622; border-color: var(--border); }
 [data-theme="dark"] .cat-search       { background: #1a1e2e; color: var(--text); border-color: var(--border); }
 [data-theme="dark"] .cat-search:focus { border-color: var(--primary); }
-[data-theme="dark"] .cat-card-btn     { background: #1a1e2e; border-color: var(--border); color: var(--text-light); }
-[data-theme="dark"] .cat-card-btn:hover  { border-color: var(--primary); }
-[data-theme="dark"] .cat-card-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+[data-theme="dark"] .cat-card-btn        { background: #1a1e2e; border-color: var(--border); color: var(--text-light); border-left-color: var(--cat-color, var(--border)); }
+[data-theme="dark"] .cat-card-btn:hover  { border-color: var(--cat-color, var(--primary)); border-left-color: var(--cat-color, var(--primary)); }
+[data-theme="dark"] .cat-card-btn.active { background: var(--cat-color, var(--primary)); border-color: var(--cat-color, var(--primary)); color: #fff; }
 
 [data-theme="dark"] .cat-create-form          { background: #0d1117; border-color: var(--border); }
 [data-theme="dark"] .cat-create-form input   { background: #1a1e2e; color: var(--text); border-color: var(--border); }
@@ -2587,26 +2597,21 @@ header nav a.nav-signup:hover {
 .azit-type-card-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
 
 /* ════════════════════════════════════════
-   홈 아지트 카드 — 아이콘 + 컬러 액센트
+   홈 아지트 카드 — 방문 링크
 ════════════════════════════════════════ */
-.cat-card-icon {
-  display: block;
-  font-size: 22px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
 .cat-card-visit {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   opacity: 0;
-  margin-top: 4px;
   color: var(--text-light);
   text-decoration: none;
   transition: opacity .15s, color .15s;
-  display: block;
+  flex-shrink: 0;
+  padding: 0 2px;
+  margin-left: auto;
 }
-.cat-card-btn:hover .cat-card-visit { opacity: 1; color: var(--primary); }
-.cat-card-btn.active .cat-card-visit { opacity: .8; color: rgba(255,255,255,.9); }
+.cat-card-btn:hover .cat-card-visit        { opacity: 1; color: var(--primary); }
+.cat-card-btn.active .cat-card-visit       { opacity: .7; color: rgba(255,255,255,.85); }
 
 /* ════════════════════════════════════════
    대시보드 아지트 목록 — 아이콘 점
