@@ -1525,19 +1525,21 @@ function buildMultiFileSrcdoc(files) {
     const jsBlk   = jsF.map(f   => `<script>\n${f.code}\n<\/script>`).join('\n');
     html = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${cssBlk}\n</head>`) : cssBlk + html;
     html = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${jsBlk}\n</body>`) : html + jsBlk;
-    return html;
+    return _injectCodeResize(html);
   }
   if (jsF.length > 0 && cssF.length === 0) {
     const combined = files.map(f => `/* === ${f.name} === */\n${f.code}`).join('\n\n');
-    return buildCodeSrcdoc(combined, 'JavaScript');
+    return buildCodeSrcdoc(combined, 'JavaScript'); // already injects resize
   }
   if (cssF.length > 0 && jsF.length === 0) {
-    return buildCodeSrcdoc(cssF.map(f => f.code).join('\n'), 'CSS');
+    return buildCodeSrcdoc(cssF.map(f => f.code).join('\n'), 'CSS'); // already injects resize
   }
   // 혼합
   const cssBlk = cssF.map(f => `<style>\n${f.code}\n</style>`).join('\n');
   const jsBlk  = jsF.map(f  => `<script>\n${f.code}\n<\/script>`).join('\n');
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8">${cssBlk}</head><body>${jsBlk}</body></html>`;
+  return _injectCodeResize(
+    `<!DOCTYPE html><html><head><meta charset="UTF-8">${cssBlk}</head><body>${jsBlk}</body></html>`
+  );
 }
 
 /* ── Judge0 CE 서버 실행 (Python / C / C++) ── */
@@ -1677,9 +1679,15 @@ async function runMultiFilesWithJudge0(files, mainLang) {
 }
 
 /* ── 코드 실행 srcdoc 빌더 ── */
+function _injectCodeResize(html) {
+  return /<\/body>/i.test(html)
+    ? html.replace(/<\/body>/i, _CODE_RESIZE_SCRIPT + '</body>')
+    : html + _CODE_RESIZE_SCRIPT;
+}
+
 function buildCodeSrcdoc(code, lang) {
   if (lang === 'JavaScript') {
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    return _injectCodeResize(`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>body{font-family:sans-serif;font-size:14px;padding:16px;margin:0}
 pre{background:#f4f4f4;padding:10px;border-radius:4px;overflow-x:auto;white-space:pre-wrap}</style>
 </head><body><div id="output"></div><script>
@@ -1689,10 +1697,10 @@ console.log=(...a)=>{_ol(...a);_out(a.map(x=>typeof x==='object'?JSON.stringify(
 console.error=(...a)=>{_oe(...a);_out(a.map(String).join(' '),'#e05252');};
 console.warn=(...a)=>{_ow(...a);_out(a.map(String).join(' '),'#e08a00');};
 try{${code}}catch(e){_out('오류: '+e.message,'#e05252');}
-<\/script></body></html>`;
+<\/script></body></html>`);
   }
   if (lang === 'CSS') {
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    return _injectCodeResize(`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>body{font-family:sans-serif;padding:20px;margin:0}
 ${code}
 </style></head><body>
@@ -1703,12 +1711,13 @@ ${code}
 <ul><li>목록 1</li><li>목록 2</li></ul>
 <div class="box">div.box</div>
 <div class="card">div.card</div>
-</body></html>`;
+</body></html>`);
   }
   // HTML / 혼합: 완전한 HTML이면 그대로, 아니면 body에 삽입
   const isFullDoc = /^\s*<!DOCTYPE/i.test(code) || /^\s*<html/i.test(code);
-  return isFullDoc ? code
+  const base = isFullDoc ? code
     : `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${code}</body></html>`;
+  return _injectCodeResize(base);
 }
 
 /*
@@ -1735,7 +1744,7 @@ ${code}
  *   fetch 성공 시 → srcdoc + connect-src 'none' CSP 주입 (외부 통신 차단)
  *   fetch 실패(CORS) 시 → src= 직접 (sandbox는 그대로 적용)
  */
-// 게임 화면 크기를 부모에게 알리는 스크립트 — srcdoc 주입용
+// 게임 canvas 크기를 부모에게 알리는 스크립트
 const _GAME_RESIZE_SCRIPT = `<script>(function(){
   var _sent=0;
   function _gs(){
@@ -1750,6 +1759,25 @@ const _GAME_RESIZE_SCRIPT = `<script>(function(){
     mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['width','height','style']});
     [500,1500,3000,6000].forEach(function(t){setTimeout(_gs,t);});
   });
+})();<\/script>`;
+
+// 코드·멀티파일 iframe 콘텐츠 높이를 부모에게 알리는 스크립트
+const _CODE_RESIZE_SCRIPT = `<script>(function(){
+  function _report(){
+    var h=Math.max(
+      document.documentElement?document.documentElement.scrollHeight:0,
+      document.documentElement?document.documentElement.offsetHeight:0,
+      document.body?document.body.scrollHeight:0,
+      document.body?document.body.offsetHeight:0
+    );
+    if(h>40) parent.postMessage({type:'iframeResize',h:h},'*');
+  }
+  window.addEventListener('load',function(){
+    _report();
+    if(window.ResizeObserver) new ResizeObserver(_report).observe(document.documentElement);
+    [200,600,1200,2500].forEach(function(t){setTimeout(_report,t);});
+  });
+  window.addEventListener('resize',_report);
 })();<\/script>`;
 
 function _injectResizeScript(html) {
@@ -2227,9 +2255,24 @@ async function initPostDetail() {
           const outputFrame = document.getElementById('codeOutputFrame');
           if (!outputWrap || !outputFrame) return;
           outputWrap.classList.remove('hidden');
+
+          // 실행 전 iframe 높이 초기화
+          outputFrame.style.height = '';
+
           outputFrame.srcdoc = files.length > 1
             ? buildMultiFileSrcdoc(files)
             : buildCodeSrcdoc(files[0].code, files[0].lang);
+
+          // 콘텐츠 높이 자동 조정 (iframeResize postMessage)
+          const _onCodeResize = e => {
+            if (!e.data || e.data.type !== 'iframeResize') return;
+            const h = e.data.h;
+            if (h < 40 || h > 6000) return;
+            const maxH = Math.round(window.innerHeight * 0.82);
+            outputFrame.style.height = Math.min(h + 24, maxH) + 'px';
+          };
+          window.addEventListener('message', _onCodeResize);
+
           outputFrame.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       });
@@ -2308,7 +2351,9 @@ async function initPostDetail() {
         const maxW   = wrapEl.clientWidth || 800;
         const scale  = Math.min(1, maxW / w);
         const dispH  = Math.round(h * scale);
-        gameFrame.style.height = Math.min(dispH, Math.round(window.innerHeight * 0.85)) + 'px';
+        const finalH = Math.min(dispH, Math.round(window.innerHeight * 0.85));
+        // 명시적 높이 지정 시 aspect-ratio CSS가 자동으로 무시됨
+        gameFrame.style.height = finalH + 'px';
       }
 
       window.addEventListener('message', function onGameResize(e) {

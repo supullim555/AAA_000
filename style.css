@@ -1134,12 +1134,18 @@ header nav a.nav-signup:hover {
   border-radius: var(--r);
   overflow: hidden;
   background: #000;
+  /* 16:9 기본 비율 — 영상 로드 전 공간 확보 */
+  aspect-ratio: 16 / 9;
+  max-height: 75vh;
+  width: 100%;
 }
 .video-player {
   width: 100%;
-  max-height: 70vh;
+  height: 100%;
+  max-height: 75vh;
   display: block;
   background: #000;
+  object-fit: contain; /* 원본 비율 유지, 검은 여백 허용 */
 }
 
 /* 영상 카드 썸네일 플레이스홀더 */
@@ -1176,8 +1182,10 @@ header nav a.nav-signup:hover {
 
 .game-iframe {
   width: 100%;
-  height: 480px;
-  min-height: 300px;
+  /* postMessage로 크기를 받기 전 16:9 기본 비율 */
+  aspect-ratio: 16 / 9;
+  min-height: 240px;
+  max-height: 85vh;
   border: none;
   display: block;
   background: #111;
@@ -1188,7 +1196,7 @@ header nav a.nav-signup:hover {
 [data-theme="dark"] .game-play-header { background: #0d1117; }
 
 @media (max-width: 600px) {
-  .game-iframe { height: 300px; min-height: 220px; }
+  .game-iframe { min-height: 180px; }
 }
 
 /* ── 게임 상세 메타 (썸네일·장르) ── */
@@ -2409,13 +2417,16 @@ header nav a.nav-signup:hover {
   border-bottom: 1.5px solid var(--border);
 }
 
-/* 실행 결과 iframe */
+/* 실행 결과 iframe — 콘텐츠 높이에 자동 맞춤 */
 .code-iframe {
   width: 100%;
-  min-height: 300px;
+  min-height: 120px;       /* 최소 높이 */
+  max-height: 82vh;        /* 화면의 82% 초과 방지 */
   border: none;
   display: block;
   background: #fff;
+  transition: height 0.2s ease;  /* 리사이즈 시 부드럽게 */
+  overflow: hidden;
 }
 
 /* ── 멀티파일 코드 에디터 탭 ── */
