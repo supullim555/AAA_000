@@ -105,6 +105,7 @@ async function loadPosts(azitfh, catName) {
 
   document.getElementById('heroPostCount').textContent   = posts.length;
   document.getElementById('heroMemberCount').textContent = new Set(posts.map(p => p.author_id)).size;
+  updateAzitMeta(azitfh, posts.length);
 
   if (posts.length === 0) {
     container.innerHTML = '<p class="azitfh-empty">아직 게시물이 없어요.<br>첫 번째 글을 올려보세요!</p>';

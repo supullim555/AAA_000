@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Open Azitfh",
+  "name_for_model": "open_azitfh",
+  "description_for_human": "한국어 커뮤니티 플랫폼. 아지트(공간)에서 게임·영상·코드·글을 공유하세요.",
+  "description_for_model": "Open Azitfh is a Korean community platform. Use this plugin to read posts (articles, games, videos, runnable code), list azit spaces, and read comments. All read operations are public. Writes require user credentials. Posts can contain: general rich-text HTML, HTML5 game URLs, video URLs, or executable code (Python/C/C++/JavaScript/HTML/CSS). The platform uses Supabase as backend.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://aaa-000.vercel.app/.well-known/openapi.json",
+    "is_user_authenticated": false
+  },
+  "logo_url": "https://aaa-000.vercel.app/favicon.ico",
+  "contact_email": "imjeseong@naver.com",
+  "legal_info_url": "https://aaa-000.vercel.app"
+}

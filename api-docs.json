@@ -1,0 +1,161 @@
+{
+  "name": "Open Azitfh",
+  "description": "Korean community platform. Users create azits (spaces) to share games, videos, executable code, and articles.",
+  "version": "1.0.0",
+  "site_url": "https://aaa-000.vercel.app",
+  "api_base": "https://ywyzcyvlfafmwoxjxmck.supabase.co",
+  "language": "ko",
+  "auth": {
+    "read": {
+      "required": false,
+      "note": "All public content is readable without authentication"
+    },
+    "write": {
+      "required": true,
+      "type": "Bearer JWT",
+      "obtain": {
+        "method": "POST",
+        "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/auth/v1/token?grant_type=password",
+        "headers": {
+          "Content-Type": "application/json",
+          "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k"
+        },
+        "body": { "email": "USER_EMAIL", "password": "USER_PASSWORD" },
+        "response": { "access_token": "JWT_STRING", "user": { "id": "UUID", "user_metadata": { "nickname": "string" } } }
+      }
+    },
+    "required_headers": {
+      "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k",
+      "Authorization": "Bearer <JWT_OR_ANON_KEY>"
+    }
+  },
+  "endpoints": {
+    "posts_list": {
+      "description": "Get public posts ordered by creation time",
+      "method": "GET",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts",
+      "query_params": {
+        "select": "*",
+        "hidden": "eq.false",
+        "order": "created_at.desc",
+        "limit": 20,
+        "category": "eq.{AZIT_NAME} (optional filter)"
+      },
+      "example_curl": "curl 'https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?select=*&hidden=eq.false&order=created_at.desc&limit=10' -H 'apikey: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k'"
+    },
+    "post_detail": {
+      "description": "Get a single post by ID",
+      "method": "GET",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?id=eq.{UUID}&select=*",
+      "response": "Array with one element"
+    },
+    "azits_list": {
+      "description": "Get all azit spaces",
+      "method": "GET",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/azits",
+      "query_params": {
+        "select": "*",
+        "order": "sort_order.asc.nullslast,created_at.asc"
+      },
+      "example_curl": "curl 'https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/azits?select=*' -H 'apikey: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k'"
+    },
+    "comments_list": {
+      "description": "Get comments for a post",
+      "method": "GET",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/comments?post_id=eq.{POST_UUID}&order=created_at.asc&select=*"
+    },
+    "post_create": {
+      "description": "Create a new post (requires auth)",
+      "method": "POST",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts",
+      "headers": {
+        "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k",
+        "Authorization": "Bearer <USER_JWT>",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      "body_general_post": {
+        "title": "string (required)",
+        "content": "HTML string",
+        "category": "azit name (required)",
+        "author_id": "user UUID (required)",
+        "author_nickname": "string (required)",
+        "views": 0
+      },
+      "body_code_post": {
+        "title": "string",
+        "content": "code string (single file) OR null (multifile)",
+        "code_lang": "Python | C | C++ | JavaScript | HTML | CSS | 혼합",
+        "code_files": "[{name, lang, code}] (for multifile, otherwise omit)",
+        "category": "azit name",
+        "author_id": "user UUID",
+        "author_nickname": "string",
+        "views": 0
+      }
+    },
+    "comment_create": {
+      "description": "Create a comment (requires auth)",
+      "method": "POST",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/comments",
+      "body": {
+        "post_id": "post UUID",
+        "author_id": "user UUID",
+        "author_nickname": "string",
+        "content": "string"
+      }
+    }
+  },
+  "data_models": {
+    "post": {
+      "id": "uuid",
+      "title": "string",
+      "content": "string|null (HTML for general, text for code/game description, raw code for code posts)",
+      "category": "string (azit name)",
+      "author_id": "uuid",
+      "author_nickname": "string",
+      "views": "integer",
+      "hidden": "boolean (true = removed by reports)",
+      "created_at": "ISO8601 timestamp",
+      "game_url": "string|null (set → HTML5 game post)",
+      "game_genre": "string|null",
+      "thumbnail_url": "string|null",
+      "video_url": "string|null (set → video post)",
+      "code_lang": "string|null (set → code post; Python/C/C++/JavaScript/HTML/CSS/혼합)",
+      "code_files": "jsonb|null ([{name,lang,code}] for multifile code posts)"
+    },
+    "azit": {
+      "id": "uuid",
+      "name": "string (unique)",
+      "description": "string|null",
+      "type": "general|웹게임|영상|코드",
+      "icon": "emoji string",
+      "cover_color": "hex color string",
+      "created_by": "string (nickname)",
+      "creator_id": "uuid|null",
+      "sort_order": "integer|null"
+    },
+    "comment": {
+      "id": "uuid",
+      "post_id": "uuid",
+      "author_id": "uuid",
+      "author_nickname": "string",
+      "content": "string",
+      "created_at": "ISO8601"
+    }
+  },
+  "azit_types": [
+    { "key": "general", "label": "기본", "icon": "🏠", "color": "#4aab8e", "description": "General rich-text posts" },
+    { "key": "웹게임", "label": "웹게임", "icon": "🎮", "color": "#5c4fc2", "description": "HTML5 game posts with in-page iframe player" },
+    { "key": "영상", "label": "영상", "icon": "🎬", "color": "#c0392b", "description": "Video upload posts with native video player" },
+    { "key": "코드", "label": "코드", "icon": "💻", "color": "#2563eb", "description": "Multi-file code editor with browser/server execution (Judge0 CE)" }
+  ],
+  "code_execution": {
+    "browser_languages": ["HTML", "JavaScript", "CSS", "혼합"],
+    "server_languages": {
+      "Python": { "judge0_language_id": 71, "version": "3.10.0" },
+      "C":      { "judge0_language_id": 50, "version": "GCC 9.2.0" },
+      "C++":    { "judge0_language_id": 54, "version": "GCC 9.2.0" }
+    },
+    "execution_api": "https://ce.judge0.com (free, no auth needed)"
+  }
+}

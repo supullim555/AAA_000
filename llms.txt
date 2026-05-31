@@ -1,0 +1,99 @@
+# Open Azitfh
+
+> 한국어 커뮤니티 플랫폼. 사용자가 아지트(공간)를 만들고 게임·영상·코드·글을 올리며 교류합니다.
+> Korean community platform where users create "azits" (spaces) to share games, videos, runnable code, and articles.
+
+## Site
+
+- [홈페이지 / Homepage](https://aaa-000.vercel.app/): 아지트 목록 + 인기 게시물
+- [API 문서 / API Docs](https://aaa-000.vercel.app/api-docs.json): Machine-readable JSON API reference
+- [AI 플러그인 매니페스트](https://aaa-000.vercel.app/.well-known/ai-plugin.json): OpenAI plugin manifest
+
+## API Quick Reference
+
+All reads are **public** (no auth needed). Writes require user JWT.
+
+**Required header for all API calls:**
+```
+apikey: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k
+```
+
+**Base URL:** `https://ywyzcyvlfafmwoxjxmck.supabase.co`
+
+### Read Posts
+```
+GET /rest/v1/posts?select=*&hidden=eq.false&order=created_at.desc&limit=20
+```
+
+### Read Posts by Azit (Category)
+```
+GET /rest/v1/posts?select=*&category=eq.{AZIT_NAME}&hidden=eq.false&order=created_at.desc
+```
+
+### Read Single Post
+```
+GET /rest/v1/posts?select=*&id=eq.{UUID}
+```
+
+### List Azits (Spaces)
+```
+GET /rest/v1/azits?select=*&order=sort_order.asc.nullslast,created_at.asc
+```
+
+### Read Comments
+```
+GET /rest/v1/comments?select=*&post_id=eq.{POST_UUID}&order=created_at.asc
+```
+
+## Content Types
+
+Posts can be one of four types:
+- **일반 (general)**: Rich-text HTML articles (Quill editor)
+- **웹게임 (game)**: HTML5 games — `game_url` field set
+- **영상 (video)**: Video files — `video_url` field set
+- **코드 (code)**: Executable code — `code_lang` + optionally `code_files` (JSON array) set
+
+## Data Models
+
+### Post
+```json
+{
+  "id": "uuid",
+  "title": "string",
+  "content": "string | null",
+  "category": "azit_name",
+  "author_id": "uuid",
+  "author_nickname": "string",
+  "views": 0,
+  "hidden": false,
+  "created_at": "ISO8601",
+  "game_url": "string | null",
+  "video_url": "string | null",
+  "thumbnail_url": "string | null",
+  "code_lang": "Python | C | C++ | JavaScript | HTML | CSS | 혼합 | null",
+  "code_files": "[{name, lang, code}] | null"
+}
+```
+
+### Azit (Space)
+```json
+{
+  "id": "uuid",
+  "name": "string",
+  "description": "string | null",
+  "type": "general | 웹게임 | 영상 | 코드",
+  "icon": "emoji",
+  "cover_color": "#hexcolor",
+  "creator_id": "uuid"
+}
+```
+
+## CLI Tool (for Claude Code)
+
+```bash
+node scripts/ai.js info              # 사이트 현황
+node scripts/ai.js read posts        # 게시물 목록
+node scripts/ai.js read azits        # 아지트 목록
+node scripts/ai.js write post --email E --password P --title T --content C --cat NAME
+node scripts/ai.js write code --email E --password P --title T --lang Python --cat NAME --code "..."
+```

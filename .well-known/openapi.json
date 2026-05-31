@@ -1,0 +1,136 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Open Azitfh Public API",
+    "description": "Korean community platform — read posts, azits, comments. No auth needed for reads.",
+    "version": "1.0.0",
+    "contact": { "url": "https://aaa-000.vercel.app" }
+  },
+  "servers": [
+    { "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co", "description": "Supabase backend" }
+  ],
+  "security": [{ "ApiKey": [] }],
+  "components": {
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apikey",
+        "description": "Public key: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k"
+      }
+    },
+    "schemas": {
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "content": { "type": "string", "nullable": true, "description": "HTML for general posts, code text for code posts, description for game/video" },
+          "category": { "type": "string", "description": "Azit name" },
+          "author_nickname": { "type": "string" },
+          "views": { "type": "integer" },
+          "hidden": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "game_url": { "type": "string", "nullable": true },
+          "video_url": { "type": "string", "nullable": true },
+          "thumbnail_url": { "type": "string", "nullable": true },
+          "code_lang": { "type": "string", "nullable": true, "description": "Python/C/C++/JavaScript/HTML/CSS/혼합" },
+          "code_files": { "type": "array", "nullable": true, "items": { "type": "object", "properties": { "name": {"type":"string"}, "lang": {"type":"string"}, "code": {"type":"string"} } } }
+        }
+      },
+      "Azit": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "nullable": true },
+          "type": { "type": "string", "enum": ["general", "웹게임", "영상", "코드"] },
+          "icon": { "type": "string", "description": "Emoji icon" },
+          "cover_color": { "type": "string", "description": "Hex color" },
+          "created_by": { "type": "string" }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "post_id": { "type": "string", "format": "uuid" },
+          "author_nickname": { "type": "string" },
+          "content": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/rest/v1/posts": {
+      "get": {
+        "operationId": "listPosts",
+        "summary": "List public posts",
+        "description": "Returns posts. Always add hidden=eq.false to exclude removed posts. Use category=eq.{name} to filter by azit.",
+        "parameters": [
+          { "name": "select",   "in": "query", "schema": {"type":"string"}, "example": "*" },
+          { "name": "hidden",   "in": "query", "schema": {"type":"string"}, "example": "eq.false", "description": "Always use eq.false for public content" },
+          { "name": "category", "in": "query", "schema": {"type":"string"}, "example": "eq.코딩아지트", "description": "Filter by azit name with eq. prefix" },
+          { "name": "order",    "in": "query", "schema": {"type":"string"}, "example": "created_at.desc" },
+          { "name": "limit",    "in": "query", "schema": {"type":"integer"}, "example": 20 },
+          { "name": "id",       "in": "query", "schema": {"type":"string"}, "example": "eq.UUID", "description": "Get single post by UUID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of posts",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Post" } } } }
+          }
+        }
+      }
+    },
+    "/rest/v1/azits": {
+      "get": {
+        "operationId": "listAzits",
+        "summary": "List all azit spaces",
+        "description": "Returns all community spaces (azits). Each azit has a type: general, 웹게임, 영상, or 코드.",
+        "parameters": [
+          { "name": "select", "in": "query", "schema": {"type":"string"}, "example": "*" },
+          { "name": "order",  "in": "query", "schema": {"type":"string"}, "example": "sort_order.asc.nullslast,created_at.asc" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of azits",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Azit" } } } }
+          }
+        }
+      }
+    },
+    "/rest/v1/comments": {
+      "get": {
+        "operationId": "listComments",
+        "summary": "List comments for a post",
+        "description": "Returns comments ordered by creation time. Filter by post_id=eq.{UUID}.",
+        "parameters": [
+          { "name": "select",  "in": "query", "schema": {"type":"string"}, "example": "*" },
+          { "name": "post_id", "in": "query", "schema": {"type":"string"}, "example": "eq.UUID", "description": "Required: filter by post UUID" },
+          { "name": "order",   "in": "query", "schema": {"type":"string"}, "example": "created_at.asc" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of comments",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Comment" } } } }
+          }
+        }
+      }
+    },
+    "/rest/v1/azit_types": {
+      "get": {
+        "operationId": "listAzitTypes",
+        "summary": "List all azit types",
+        "description": "Returns the available azit types with their icons and colors.",
+        "parameters": [
+          { "name": "select", "in": "query", "schema": {"type":"string"}, "example": "key,label,description,default_icon,default_color" }
+        ],
+        "responses": {
+          "200": { "description": "Array of azit types" }
+        }
+      }
+    }
+  }
+}

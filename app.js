@@ -88,6 +88,53 @@ function setLoading(btn, loading) {
   btn.textContent = loading ? '처리 중...' : btn.dataset.label;
 }
 
+/* ── AI/SEO 메타 태그 동적 업데이트 ── */
+function setMeta(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.setAttribute(el.tagName === 'SCRIPT' ? 'textContent' : 'content', value);
+}
+
+function updatePostMeta(post) {
+  const desc = truncate(stripHtml(post.content || ''), 160);
+  document.title = `${post.title} — Open Azitfh`;
+  setMeta('ogTitle',        post.title + ' — Open Azitfh');
+  setMeta('ogDescription',  desc);
+  setMeta('metaDescription', desc);
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type':    'Article',
+    'headline': post.title,
+    'description': desc,
+    'author': { '@type': 'Person', 'name': post.author_nickname },
+    'datePublished': post.created_at,
+    'url': window.location.href,
+    'isPartOf': { '@type': 'WebSite', 'name': 'Open Azitfh', 'url': 'https://aaa-000.vercel.app' },
+  };
+  if (post.thumbnail_url) schema.image = post.thumbnail_url;
+  const schemaEl = document.getElementById('postSchema');
+  if (schemaEl) schemaEl.textContent = JSON.stringify(schema);
+}
+
+function updateAzitMeta(azit, postCount) {
+  const desc = azit.description
+    ? `${azit.description} — ${postCount}개 게시물`
+    : `${azit.name} 아지트 — ${postCount}개 게시물 · Open Azitfh`;
+  document.title = `${azit.icon} ${azit.name} — Open Azitfh`;
+  setMeta('ogTitle',         `${azit.icon} ${azit.name} — Open Azitfh`);
+  setMeta('ogDescription',   desc);
+  setMeta('metaDescription', desc);
+  const schema = {
+    '@context':   'https://schema.org',
+    '@type':      'CollectionPage',
+    'name':       azit.name,
+    'description': desc,
+    'url': window.location.href,
+    'isPartOf': { '@type': 'WebSite', 'name': 'Open Azitfh', 'url': 'https://aaa-000.vercel.app' },
+  };
+  const schemaEl = document.getElementById('azitSchema');
+  if (schemaEl) schemaEl.textContent = JSON.stringify(schema);
+}
+
 /* HTML 태그 제거 — 미리보기 텍스트 추출용 */
 function stripHtml(html) {
   const tmp = document.createElement('div');
@@ -2077,7 +2124,7 @@ async function initPostDetail() {
   const [, post] = await Promise.all([incrementViews(id), getPost(id)]);
   if (!post) { wrap.innerHTML = '<p class="news-empty">게시물을 찾을 수 없어요.</p>'; return; }
 
-  document.title = `${post.title} — Open Azitfh`;
+  updatePostMeta(post);
   document.getElementById('postCategory').textContent = post.category;
   document.getElementById('postTitle').textContent    = post.title;
   document.getElementById('postAuthor').textContent   = post.author_nickname;
