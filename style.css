@@ -2780,28 +2780,26 @@ header nav a.nav-signup:hover {
    ─ 상단: 클릭 = 게시물 필터 (원래 동작)
    ─ 하단: hover 시 입장 버튼 등장
 ════════════════════════════════════════ */
+/* 오른쪽 입장 버튼: 단색 배경 + 세로 구분선 */
 .cat-card-visit {
   position: absolute;
   top: 0; bottom: 0; right: 0;
-  width: 45%;                   /* 카드 오른쪽 절반만 */
+  width: 38%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: .4px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    var(--cat-color, var(--primary)) 40%
-  );
+  letter-spacing: .3px;
+  background: var(--cat-color, var(--primary));  /* 단색 — 번짐 없음 */
+  border-left: 1.5px solid rgba(255,255,255,.2); /* 명확한 세로 구분선 */
   color: #fff;
   text-decoration: none;
   opacity: 0;
-  transform: translateX(6px);
-  transition: opacity .2s, transform .2s cubic-bezier(.25,.8,.25,1);
-  border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  pointer-events: none;         /* 왼쪽 클릭(필터)에 방해 안 함 */
+  transform: translateX(4px);
+  transition: opacity .18s, transform .18s ease-out;
+  border-radius: 0 calc(var(--r-sm) - 1.5px) calc(var(--r-sm) - 1.5px) 0;
+  pointer-events: none;
 }
 .cat-card-btn:hover .cat-card-visit {
   opacity: 1;
