@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>검색 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <div class="header-search-wrap" id="headerSearchWrap">
+      <span class="header-search-icon">🔍</span>
+      <input type="search" id="headerSearch" class="header-search"
+             placeholder="게시물, 아지트 검색..." autocomplete="off" maxlength="60">
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
+    <nav>
+      <a href="index.html">홈</a>
+      <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navLogin"  href="login.html">로그인</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="search-page-wrap">
+    <h2 class="search-page-title">검색 결과</h2>
+
+    <!-- 탭 필터 -->
+    <div class="search-tabs" id="searchTabs">
+      <button class="search-tab active" data-tab="all">전체</button>
+      <button class="search-tab" data-tab="azits">아지트</button>
+      <button class="search-tab" data-tab="posts">게시물</button>
+    </div>
+
+    <!-- 결과 -->
+    <div id="searchResults" class="search-results">
+      <p class="news-empty">검색어를 입력하세요.</p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initSearchPage();</script>
+</body>
+</html>

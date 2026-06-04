@@ -542,8 +542,12 @@ async function renderCategoryCards() {
   allBtn.innerHTML = `<div class="cat-card-name-row"><span class="cat-card-name">전체</span></div>`;
   allBtn.addEventListener('click', async () => {
     _selectedCat = '';
+    _listSearch = '';
+    const searchEl = document.getElementById('postsSearch');
+    if (searchEl) searchEl.value = '';
     updateWriteBtn();
-    await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
+    hideAzitInfoPanel();
+    await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList(true)]);
   });
   wrap.appendChild(allBtn);
 
@@ -598,15 +602,6 @@ async function renderCategoryCards() {
 
     btn.appendChild(nameRow);
 
-    // 입장 버튼 — 카드 하단 오버레이 (nameRow 밖)
-    const visitLink = document.createElement('a');
-    visitLink.className = 'cat-card-visit';
-    visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
-    visitLink.innerHTML = '입장 &rarr;';
-    visitLink.title = `${c.name} 아지트 입장`;
-    visitLink.addEventListener('click', e => e.stopPropagation());
-    btn.appendChild(visitLink);
-
     // ── 타입 배지 (타입 보기 토글 시 표시) ──
     if (c.type) {
       const typeEl = document.createElement('span');
@@ -621,6 +616,7 @@ async function renderCategoryCards() {
       const searchEl = document.getElementById('postsSearch');
       if (searchEl) searchEl.value = '';
       updateWriteBtn();
+      showAzitInfoPanel(c);
       await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList(true)]);
     });
     wrap.appendChild(btn);
@@ -661,6 +657,109 @@ function _applyRowLimit(wrap) {
     wrap.parentElement?.appendChild(lessBtn);
   });
   wrap.parentElement?.appendChild(moreBtn);
+}
+
+/* ── 선택된 아지트 정보 패널 ── */
+function showAzitInfoPanel(azit) {
+  const panel  = document.getElementById('selectedAzitSection');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+
+  const icon   = document.getElementById('selAzitIcon');
+  const name   = document.getElementById('selAzitName');
+  const desc   = document.getElementById('selAzitDesc');
+  const enter  = document.getElementById('selAzitEnterBtn');
+  const edit   = document.getElementById('selAzitEditBtn');
+
+  if (icon)  { icon.style.color = azit.cover_color || '#4aab8e'; icon.textContent = azit.icon || '🏠'; }
+  if (name)  name.textContent   = azit.name;
+  if (desc)  desc.textContent   = azit.description || '';
+  if (enter) enter.href         = `azitfh.html?cat=${encodeURIComponent(azit.name)}`;
+  if (edit)  { edit.href = `azit-edit.html?id=${azit.id}`; }
+
+  // 컬러 액센트
+  panel.style.setProperty('--sel-color', azit.cover_color || '#4aab8e');
+}
+
+function hideAzitInfoPanel() {
+  const panel = document.getElementById('selectedAzitSection');
+  panel?.classList.add('hidden');
+}
+
+/* ── 전역 헤더 검색 ── */
+async function searchAll(q) {
+  const [postsRes, azitsRes] = await Promise.all([
+    supabaseClient.from('posts')
+      .select('id,title,category,code_lang,game_url,video_url')
+      .eq('hidden', false).ilike('title', `%${q}%`).limit(5),
+    supabaseClient.from('azits')
+      .select('id,name,type,icon,cover_color').ilike('name', `%${q}%`).limit(4),
+  ]);
+  return { posts: postsRes.data || [], azits: azitsRes.data || [] };
+}
+
+function initHeaderSearch() {
+  const input    = document.getElementById('headerSearch');
+  const dropdown = document.getElementById('searchDropdown');
+  if (!input || !dropdown) return;
+
+  let timer;
+
+  function renderDropdown(results, q) {
+    const { posts, azits } = results;
+    if (!posts.length && !azits.length) {
+      dropdown.innerHTML = `<p class="sd-empty">검색 결과가 없어요.</p>`;
+      dropdown.classList.remove('hidden');
+      return;
+    }
+    let html = '';
+    if (azits.length) {
+      html += `<div class="sd-group-label">🏠 아지트</div>`;
+      html += azits.map(a => `
+        <a class="sd-item" href="azitfh.html?cat=${encodeURIComponent(a.name)}">
+          <span class="sd-icon" style="color:${escapeHTML(a.cover_color||'#4aab8e')}">${escapeHTML(a.icon||'🏠')}</span>
+          <span class="sd-text">${escapeHTML(a.name)}</span>
+          <span class="sd-type">${escapeHTML(a.type||'')}</span>
+        </a>`).join('');
+    }
+    if (posts.length) {
+      html += `<div class="sd-group-label">📝 게시물</div>`;
+      html += posts.map(p => {
+        const ti = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '📝';
+        return `
+        <a class="sd-item" href="post-detail.html?id=${p.id}">
+          <span class="sd-icon">${ti}</span>
+          <span class="sd-text">${escapeHTML(p.title)}</span>
+          <span class="sd-type">${escapeHTML(p.category)}</span>
+        </a>`;
+      }).join('');
+    }
+    html += `<a class="sd-more" href="search.html?q=${encodeURIComponent(q)}">전체 결과 보기 →</a>`;
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) { dropdown.classList.add('hidden'); return; }
+    timer = setTimeout(async () => {
+      const results = await searchAll(q).catch(() => ({ posts: [], azits: [] }));
+      renderDropdown(results, q);
+    }, 300);
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const q = input.value.trim();
+      if (q) location.href = `search.html?q=${encodeURIComponent(q)}`;
+    }
+    if (e.key === 'Escape') dropdown.classList.add('hidden');
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#headerSearchWrap')) dropdown.classList.add('hidden');
+  });
 }
 
 /* ── 글쓰기 버튼 URL 동기화 ── */
@@ -2975,6 +3074,8 @@ async function initIndex() {
     }, 350);
   });
 
+  initHeaderSearch();
+
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');
 
@@ -3596,6 +3697,97 @@ async function initBookmarksPage() {
     }).join('');
 
   list.innerHTML = rows || '<p class="news-empty">표시할 게시물이 없습니다.</p>';
+}
+
+/* ════════════════════════════════════════
+   Page: Search
+════════════════════════════════════════ */
+async function initSearchPage() {
+  const session = await getSession();
+  updateNav(session);
+
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
+  });
+
+  initHeaderSearch();
+
+  const q     = new URLSearchParams(location.search).get('q') || '';
+  const input = document.getElementById('headerSearch');
+  if (input && q) input.value = q;
+
+  document.title = q ? `"${q}" 검색 결과 — Open Azitfh` : '검색 — Open Azitfh';
+
+  const resultsEl = document.getElementById('searchResults');
+  const tabs      = document.querySelectorAll('.search-tab');
+  let activeTab   = 'all';
+
+  async function runSearch() {
+    if (!q) return;
+    resultsEl.innerHTML = '<p class="news-empty">검색 중…</p>';
+
+    const [postsRes, azitsRes] = await Promise.all([
+      supabaseClient.from('posts')
+        .select('id,title,category,author_nickname,views,created_at,code_lang,game_url,video_url')
+        .eq('hidden', false).ilike('title', `%${q}%`).order('views', { ascending: false }).limit(30),
+      supabaseClient.from('azits')
+        .select('id,name,type,icon,cover_color,description').ilike('name', `%${q}%`).limit(20),
+    ]);
+
+    const posts = postsRes.data || [];
+    const azits = azitsRes.data || [];
+
+    if (!posts.length && !azits.length) {
+      resultsEl.innerHTML = `<p class="news-empty">"${escapeHTML(q)}"에 대한 결과가 없어요.</p>`;
+      return;
+    }
+
+    let html = '';
+
+    if ((activeTab === 'all' || activeTab === 'azits') && azits.length) {
+      html += `<div class="sr-group"><h3 class="sr-group-title">🏠 아지트 <span class="sr-count">${azits.length}</span></h3>`;
+      html += azits.map(a => `
+        <a class="sr-azit-item" href="azitfh.html?cat=${encodeURIComponent(a.name)}"
+           style="--sel-color:${escapeHTML(a.cover_color||'#4aab8e')}">
+          <span class="sr-azit-icon">${escapeHTML(a.icon||'🏠')}</span>
+          <div class="sr-azit-info">
+            <span class="sr-azit-name">${escapeHTML(a.name)}</span>
+            <span class="sr-azit-desc">${escapeHTML(a.description||'')}</span>
+          </div>
+          <span class="sr-azit-type">${escapeHTML(a.type||'')}</span>
+        </a>`).join('');
+      html += '</div>';
+    }
+
+    if ((activeTab === 'all' || activeTab === 'posts') && posts.length) {
+      html += `<div class="sr-group"><h3 class="sr-group-title">📝 게시물 <span class="sr-count">${posts.length}</span></h3>`;
+      html += posts.map(p => {
+        const ti = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
+        return `
+        <a class="post-row" href="post-detail.html?id=${p.id}">
+          <span class="post-row-cat">${escapeHTML(p.category)}</span>
+          <span class="post-row-title">${ti}${escapeHTML(p.title)}</span>
+          <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
+          <span class="post-row-date">${formatDate(p.created_at)}</span>
+          <span class="post-row-views">👁 ${p.views||0}</span>
+        </a>`;
+      }).join('');
+      html += '</div>';
+    }
+
+    resultsEl.innerHTML = html;
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab = tab.dataset.tab;
+      runSearch();
+    });
+  });
+
+  runSearch();
 }
 
 /* ════════════════════════════════════════

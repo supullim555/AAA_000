@@ -524,8 +524,8 @@ header nav a.nav-signup:hover {
 .cat-card-btn {
   position: relative;
   display: inline-flex;
-  flex-direction: column;     /* 입장 버튼 공간 확보를 위해 세로 방향 */
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 0;
   padding: 0;
   border-radius: var(--r-sm);
@@ -3259,3 +3259,134 @@ header nav a.nav-signup:hover {
 }
 .toggle-switch input:checked + .toggle-track { background: var(--primary); }
 .toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); }
+
+/* ════════════════════════════════════════
+   헤더 검색창
+════════════════════════════════════════ */
+.header-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 340px;
+  margin: 0 20px;
+}
+.header-search-icon {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  pointer-events: none;
+}
+.header-search {
+  width: 100%;
+  padding: 7px 12px 7px 32px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+.header-search:focus { border-color: var(--primary); background: var(--bg); }
+.header-search::placeholder { color: var(--text-light); }
+
+/* 드롭다운 */
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: 0 8px 28px rgba(0,0,0,.25);
+  z-index: 200;
+  overflow: hidden;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.sd-group-label { font-size: 10px; font-weight: 800; letter-spacing: .6px; color: var(--text-light); padding: 8px 14px 4px; }
+.sd-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  text-decoration: none; color: var(--text);
+  transition: background .1s;
+}
+.sd-item:hover { background: var(--bg-2); }
+.sd-icon { font-size: 16px; flex-shrink: 0; }
+.sd-text { flex: 1; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-type { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
+.sd-empty { font-size: 13px; color: var(--text-light); padding: 14px; text-align: center; }
+.sd-more {
+  display: block; text-align: center;
+  padding: 10px; font-size: 12px; font-weight: 700;
+  color: var(--primary); text-decoration: none;
+  border-top: 1px solid var(--border);
+}
+.sd-more:hover { background: var(--bg-2); }
+
+/* ════════════════════════════════════════
+   선택된 아지트 정보 패널
+════════════════════════════════════════ */
+.selected-azit-section {
+  background: var(--bg-2);
+  border-top: 3px solid var(--sel-color, var(--primary));
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  transition: border-color .2s;
+}
+.sel-azit-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.sel-azit-icon { font-size: 28px; flex-shrink: 0; }
+.sel-azit-info { flex: 1; min-width: 0; }
+.sel-azit-name { font-size: 15px; font-weight: 700; display: block; }
+.sel-azit-desc { font-size: 12px; color: var(--text-light); display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-azit-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ════════════════════════════════════════
+   검색 결과 페이지
+════════════════════════════════════════ */
+.search-page-wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+.search-page-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+
+.search-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+.search-tab {
+  padding: 6px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text-light);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: border-color .12s, color .12s;
+}
+.search-tab.active { border-color: var(--primary); color: var(--primary); background: var(--bg-2); }
+.search-tab:hover:not(.active) { border-color: var(--text-light); }
+
+.sr-group { margin-bottom: 28px; }
+.sr-group-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.sr-count { font-size: 11px; font-weight: 700; background: var(--primary); color: #fff; border-radius: 10px; padding: 1px 7px; }
+
+.sr-azit-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-left: 3px solid var(--sel-color, var(--border));
+  border-radius: var(--r-sm);
+  text-decoration: none; color: var(--text);
+  background: var(--bg);
+  margin-bottom: 6px;
+  transition: background .12s;
+}
+.sr-azit-item:hover { background: var(--bg-2); }
+.sr-azit-icon { font-size: 22px; }
+.sr-azit-info { flex: 1; min-width: 0; }
+.sr-azit-name { font-size: 14px; font-weight: 700; display: block; }
+.sr-azit-desc { font-size: 12px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-azit-type { font-size: 11px; color: var(--text-light); flex-shrink: 0; }

@@ -42,6 +42,15 @@
 <body>
   <header>
     <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+
+    <!-- 전역 검색창 -->
+    <div class="header-search-wrap" id="headerSearchWrap">
+      <span class="header-search-icon">🔍</span>
+      <input type="search" id="headerSearch" class="header-search"
+             placeholder="게시물, 아지트 검색..." autocomplete="off" maxlength="60">
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
+
     <nav>
       <a href="index.html" class="active">홈</a>
       <a id="navDash"   href="dashboard.html">내 공간</a>
@@ -81,6 +90,21 @@
           <button class="azit-type-btn active" data-type="">전체</button>
         </div>
         <div class="cat-cards" id="catChips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 선택된 아지트 정보 패널 (아지트 선택 시 표시) -->
+  <section id="selectedAzitSection" class="selected-azit-section hidden">
+    <div class="sel-azit-wrap">
+      <span class="sel-azit-icon" id="selAzitIcon">🏠</span>
+      <div class="sel-azit-info">
+        <span class="sel-azit-name" id="selAzitName"></span>
+        <span class="sel-azit-desc" id="selAzitDesc"></span>
+      </div>
+      <div class="sel-azit-actions">
+        <a id="selAzitEditBtn" href="#" class="btn-secondary" style="font-size:12px;padding:6px 12px">✏️ 편집</a>
+        <a id="selAzitEnterBtn" href="#" class="btn btn-primary" style="font-size:13px;padding:8px 20px">아지트 입장 →</a>
       </div>
     </div>
   </section>
