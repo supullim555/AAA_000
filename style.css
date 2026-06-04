@@ -524,8 +524,8 @@ header nav a.nav-signup:hover {
 .cat-card-btn {
   position: relative;
   display: inline-flex;
-  flex-direction: row;        /* 단일 행 */
-  align-items: center;
+  flex-direction: column;     /* 입장 버튼 공간 확보를 위해 세로 방향 */
+  align-items: flex-start;
   gap: 0;
   padding: 0;
   border-radius: var(--r-sm);
@@ -536,8 +536,9 @@ header nav a.nav-signup:hover {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  overflow: hidden;           /* 입장 버튼 슬라이드용 */
+  overflow: hidden;
   white-space: nowrap;
+  min-height: 64px;           /* 입장 버튼(하단 절반)이 보일 최소 높이 */
   transition: border-color .15s, background .15s, box-shadow .18s, transform .18s;
 }
 .cat-card-btn:hover {
@@ -2776,30 +2777,41 @@ header nav a.nav-signup:hover {
 .azit-type-card-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
 
 /* ════════════════════════════════════════
-   홈 아지트 카드 — 입장 버튼 (오버레이)
+   홈 아지트 카드 — 입장 버튼 (하단 절반 오버레이)
+   ─ 상단: 클릭 = 게시물 필터 (원래 동작)
+   ─ 하단: hover 시 입장 버튼 등장
 ════════════════════════════════════════ */
 .cat-card-visit {
   position: absolute;
-  inset: 0;                   /* 카드 전체 덮음 */
+  bottom: 0; left: 0; right: 0;
+  height: 52%;                  /* 카드 하단 절반만 */
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: .4px;
-  background: var(--cat-color, var(--primary));
+  background: linear-gradient(
+    to top,
+    var(--cat-color, var(--primary)) 55%,
+    transparent 100%
+  );
   color: #fff;
   text-decoration: none;
   opacity: 0;
-  transform: translateY(100%);
-  transition: opacity .18s, transform .2s cubic-bezier(.25,.8,.25,1);
+  transform: translateY(8px);
+  transition: opacity .2s, transform .2s cubic-bezier(.25,.8,.25,1);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  pointer-events: none;         /* 상단 클릭에 방해 안 함 */
 }
 .cat-card-btn:hover .cat-card-visit {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;         /* hover 시 클릭 가능 */
 }
 .cat-card-btn.active .cat-card-visit {
-  opacity: 0;                 /* 선택된 카드엔 숨김 (이미 선택 상태) */
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ════════════════════════════════════════

@@ -161,7 +161,7 @@ async function loadPosts(azitfh, catName) {
   renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card', dcfg);
 }
 
-function renderPostCards(container, posts, layout = 'card') {
+function renderPostCards(container, posts, layout = 'card', config = {}) {
   if (layout === 'list') {
     container.innerHTML = posts.map(p => {
       const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
