@@ -111,7 +111,18 @@ FFS/
 | author_id | uuid NOT NULL → auth.users.id |
 | author_nickname | text NOT NULL |
 | content | text NOT NULL |
+| parent_id | uuid NULL → comments.id (대댓글) |
 | created_at | timestamptz |
+
+### bookmarks
+
+- user_id, post_id (UNIQUE), created_at
+- RLS: 본인만 관리
+
+### notifications
+
+- user_id, type('comment'|'reply'|'vote'), post_id, comment_id, actor_nickname, read, created_at
+- trg_notify_comment: 댓글 INSERT 시 게시물 작성자/원댓글 작성자에게 자동 알림 생성
 
 ### votes
 - post_id, user_id, vote_type ('up' or 'down'), created_at
@@ -271,6 +282,7 @@ const _typesStore  = _makeCache(() => getAzitTypes(), 300_000); // 5분
 ```
 
 ### 각 페이지 진입점
+
 | 페이지 | init 함수 | 로드하는 JS |
 |--------|----------|------------|
 | index.html | `initIndex()` | app.js |
@@ -278,8 +290,11 @@ const _typesStore  = _makeCache(() => getAzitTypes(), 300_000); // 5분
 | azit-create.html | `initAzitCreate()` | app.js |
 | azitfh.html | `initAzitfh()` | app.js + azitfh.js |
 | post-write.html | `initPostWrite()` | app.js + quill.js |
-| post-detail.html | `initPostDetail()` | app.js + dompurify.js |
+| post-detail.html | `initPostDetail()` | app.js + dompurify.js + prism.js |
 | post-edit.html | `initPostEdit()` | app.js + quill.js |
+| profile.html | `initProfile()` | app.js |
+| bookmarks.html | `initBookmarksPage()` | app.js |
+| notifications.html | `initNotificationsPage()` | app.js |
 | admin.html | `initAdminPanel()` | app.js + admin.js |
 
 ### 코드 실행

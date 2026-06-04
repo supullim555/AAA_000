@@ -42,6 +42,8 @@ async function fetchAzitfh(catName) {
 
 async function fetchAzitfhPosts(catName, sortBy = 'newest') {
   let q = supabaseClient.from('posts').select('*').eq('category', catName).eq('hidden', false);
+  // 핀 게시물 항상 최상단
+  q = q.order('pinned', { ascending: false });
   if (sortBy === 'popular') q = q.order('views', { ascending: false });
   else                       q = q.order('created_at', { ascending: false });
   const { data, error } = await q;
@@ -150,11 +152,12 @@ function renderPostCards(container, posts) {
       : (isGame || isVideo) ? escapeHTML(p.content || '')
       : escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN));
 
+    const pinBadge = p.pinned ? '<span class="azitfh-pin-badge">📌 핀</span>' : '';
     return `
-      <a class="news-card" href="post-detail.html?id=${p.id}">
+      <a class="news-card${p.pinned ? ' news-card-pinned' : ''}" href="post-detail.html?id=${p.id}">
         ${thumbHtml}
         <div class="news-card-top">
-          <span class="news-date">${formatDate(p.created_at)}</span>${langBadge}
+          ${pinBadge}<span class="news-date">${formatDate(p.created_at)}</span>${langBadge}
         </div>
         <h3 class="news-title">${typeIcon}${escapeHTML(p.title)}</h3>
         <p class="news-desc">${desc}</p>

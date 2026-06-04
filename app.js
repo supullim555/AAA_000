@@ -3117,6 +3117,17 @@ async function initPostEdit() {
     });
     quill.clipboard.dangerouslyPasteHTML(post.content || '');
 
+    // 수정 페이지 초안 자동 저장
+    const _EDIT_DRAFT_KEY = `edit_draft_${id}`;
+    function _saveEditDraft() {
+      const t = document.getElementById('editTitle')?.value || '';
+      const c = quill.root.innerHTML || '';
+      if (t || c.replace(/<[^>]+>/g, '').trim()) {
+        localStorage.setItem(_EDIT_DRAFT_KEY, JSON.stringify({ title: t, content: c, ts: Date.now() }));
+      }
+    }
+    const _editDraftTimer = setInterval(_saveEditDraft, 8000);
+
     const form = document.getElementById('postEditForm');
     const submitBtn = form.querySelector('[type=submit]');
     submitBtn.dataset.label = submitBtn.textContent;
@@ -3127,6 +3138,8 @@ async function initPostEdit() {
       if (!title) { showToast('제목을 입력해 주세요.', 'red'); return; }
       setLoading(submitBtn, true);
       try {
+        clearInterval(_editDraftTimer);
+        localStorage.removeItem(_EDIT_DRAFT_KEY);
         await updatePost(id, { title, content: cleanQuillHTML(quill.root.innerHTML) });
         showToast('수정됐어요!', 'green');
         setTimeout(() => { location.href = `post-detail.html?id=${id}`; }, 800);
@@ -3267,6 +3280,72 @@ async function initBookmarksPage() {
     }).join('');
 
   list.innerHTML = rows || '<p class="news-empty">표시할 게시물이 없습니다.</p>';
+}
+
+/* ════════════════════════════════════════
+   Page: Notifications
+════════════════════════════════════════ */
+async function initNotificationsPage() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
+  });
+
+  const list = document.getElementById('notifList');
+  list.innerHTML = '<p class="news-empty">불러오는 중…</p>';
+
+  const { data: notifs, error } = await supabaseClient
+    .from('notifications')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error || !notifs?.length) {
+    list.innerHTML = '<p class="news-empty">새 알림이 없어요.</p>';
+    return;
+  }
+
+  const TYPE_LABEL = { comment: '댓글', reply: '답글', vote: '추천' };
+  const TYPE_ICON  = { comment: '💬', reply: '↩️', vote: '👍' };
+
+  list.innerHTML = notifs.map(n => `
+    <a class="notif-item${n.read ? ' notif-read' : ''}" href="post-detail.html?id=${n.post_id}" data-id="${n.id}">
+      <span class="notif-icon">${TYPE_ICON[n.type] || '🔔'}</span>
+      <div class="notif-body">
+        <span class="notif-actor">${escapeHTML(n.actor_nickname)}</span>님이
+        ${TYPE_LABEL[n.type] || '알림'}을 남겼어요
+        <span class="notif-date">${formatDate(n.created_at)}</span>
+      </div>
+      ${!n.read ? '<span class="notif-dot"></span>' : ''}
+    </a>`).join('');
+
+  // 클릭 시 읽음 처리
+  list.querySelectorAll('.notif-item').forEach(el => {
+    el.addEventListener('click', async () => {
+      const id = el.dataset.id;
+      if (!el.classList.contains('notif-read')) {
+        el.classList.add('notif-read');
+        el.querySelector('.notif-dot')?.remove();
+        await supabaseClient.from('notifications').update({ read: true }).eq('id', id);
+        loadNotifBadge(session.user.id);
+      }
+    });
+  });
+
+  // 모두 읽음 버튼
+  document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
+    await supabaseClient.from('notifications')
+      .update({ read: true }).eq('user_id', session.user.id).eq('read', false);
+    list.querySelectorAll('.notif-item:not(.notif-read)').forEach(el => {
+      el.classList.add('notif-read');
+      el.querySelector('.notif-dot')?.remove();
+    });
+    loadNotifBadge(session.user.id);
+    showToast('모두 읽음으로 표시됐어요.', 'green');
+  });
 }
 
 /* ════════════════════════════════════════

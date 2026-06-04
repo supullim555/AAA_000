@@ -2840,3 +2840,41 @@ header nav a.nav-signup:hover {
 /* 작성자 링크 */
 .author-link { color: inherit; text-decoration: none; font-weight: 600; }
 .author-link:hover { color: var(--primary); text-decoration: underline; }
+
+/* ════════════════════════════════════════
+   알림 페이지
+════════════════════════════════════════ */
+.notif-page-wrap   { max-width: 680px; margin: 0 auto; padding: 32px 20px 60px; }
+.notif-page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.notif-page-title  { font-size: 20px; font-weight: 700; }
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  background: var(--bg);
+  position: relative;
+  transition: background .12s;
+}
+.notif-item:hover  { background: var(--bg-2); }
+.notif-item.notif-read { opacity: .6; }
+.notif-icon  { font-size: 20px; flex-shrink: 0; }
+.notif-body  { flex: 1; font-size: 14px; line-height: 1.5; }
+.notif-actor { font-weight: 700; }
+.notif-date  { display: block; font-size: 12px; color: var(--text-light); margin-top: 3px; }
+.notif-dot {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+}
+
+/* 핀 게시물 카드 강조 */
+.news-card-pinned { border: 1.5px solid rgba(255,200,0,.4); background: rgba(255,200,0,.03); }
+.azitfh-pin-badge {
+  font-size: 11px; font-weight: 700;
+  color: #e08a00;
+  margin-right: 4px;
+}
