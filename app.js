@@ -2066,7 +2066,7 @@ async function initBookmarkBtn(postId, session) {
     if (saved !== null) {
       btn.classList.toggle('active-up', saved);
       if (label) label.textContent = saved ? '저장됨' : '저장';
-      showToast(saved ? '북마크에 저장됐어요.', 'green' : '북마크에서 제거됐어요.', 'green');
+      showToast(saved ? '북마크에 저장됐어요.' : '북마크에서 제거됐어요.', 'green');
     }
     btn.disabled = false;
   });
@@ -2091,7 +2091,7 @@ async function initPinBtn(post, session) {
       await supabaseClient.from('posts').update({ pinned: !post.pinned }).eq('id', post.id);
       post.pinned = !post.pinned;
       btn.textContent = post.pinned ? '📌 핀 해제' : '📌 핀';
-      showToast(post.pinned ? '핀 게시물로 설정됐어요.', 'green' : '핀이 해제됐어요.', 'green');
+      showToast(post.pinned ? '핀 게시물로 설정됐어요.' : '핀이 해제됐어요.', 'green');
       invalidatePostsCache();
     } catch { showToast('오류 발생', 'red'); }
   });
