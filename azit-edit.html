@@ -150,6 +150,99 @@
             <span class="layout-option-desc">이미지 중심 큰 썸네일</span>
           </label>
         </div>
+
+        <!-- 고급 설정 토글 -->
+        <button type="button" id="advancedToggle" class="advanced-toggle">
+          ⚙️ 고급 설정 <span id="advancedArrow" class="adv-arrow">▼</span>
+        </button>
+
+        <div id="advancedPanel" class="advanced-panel hidden">
+
+          <!-- 열 수 -->
+          <div class="adv-section">
+            <span class="adv-label">열 수</span>
+            <div class="col-picker" id="colPicker">
+              <button type="button" class="col-btn" data-cols="1">
+                <div class="col-preview"><div></div></div>
+                <span>1열</span>
+              </button>
+              <button type="button" class="col-btn" data-cols="2">
+                <div class="col-preview c2"><div></div><div></div></div>
+                <span>2열</span>
+              </button>
+              <button type="button" class="col-btn" data-cols="3">
+                <div class="col-preview c3"><div></div><div></div><div></div></div>
+                <span>3열</span>
+              </button>
+              <button type="button" class="col-btn" data-cols="4">
+                <div class="col-preview c4"><div></div><div></div><div></div><div></div></div>
+                <span>4열</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 카드 크기 -->
+          <div class="adv-section">
+            <span class="adv-label">카드 크기</span>
+            <div class="size-picker" id="sizePicker">
+              <button type="button" class="size-btn" data-size="compact">컴팩트</button>
+              <button type="button" class="size-btn active" data-size="normal">보통</button>
+              <button type="button" class="size-btn" data-size="large">크게</button>
+            </div>
+          </div>
+
+          <!-- 표시 정보 토글 -->
+          <div class="adv-section">
+            <span class="adv-label">표시 정보</span>
+            <div class="toggle-grid">
+              <label class="toggle-item">
+                <span class="toggle-label">썸네일</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" data-cfg="showThumbnail" checked>
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+              <label class="toggle-item">
+                <span class="toggle-label">설명</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" data-cfg="showDesc" checked>
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+              <label class="toggle-item">
+                <span class="toggle-label">작성자</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" data-cfg="showAuthor" checked>
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+              <label class="toggle-item">
+                <span class="toggle-label">날짜</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" data-cfg="showDate" checked>
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+              <label class="toggle-item">
+                <span class="toggle-label">조회수</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" data-cfg="showViews" checked>
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 기본 정렬 -->
+          <div class="adv-section">
+            <label class="adv-label" for="defaultSortSel">기본 정렬</label>
+            <select id="defaultSortSel" class="adv-select">
+              <option value="newest">최신순</option>
+              <option value="popular">인기순</option>
+            </select>
+          </div>
+
+        </div><!-- /advancedPanel -->
       </section>
 
       <div class="post-write-actions">

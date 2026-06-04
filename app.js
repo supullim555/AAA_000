@@ -1216,6 +1216,65 @@ async function initAzitEdit() {
   });
   document.querySelector(`input[name="postLayout"][value="${layout}"]`)?.closest('.layout-option')?.classList.add('selected');
 
+  // ── 고급 설정 ──
+  const dcfg = typeof azit.display_config === 'object' && azit.display_config
+    ? azit.display_config
+    : {};
+
+  // 토글 패널
+  const advToggle = document.getElementById('advancedToggle');
+  const advPanel  = document.getElementById('advancedPanel');
+  const advArrow  = document.getElementById('advancedArrow');
+  advToggle?.addEventListener('click', () => {
+    const open = !advPanel.classList.contains('hidden');
+    advPanel.classList.toggle('hidden', open);
+    if (advArrow) advArrow.textContent = open ? '▼' : '▲';
+    advToggle.classList.toggle('active', !open);
+  });
+
+  // 열 수 피커
+  const currentCols = dcfg.columns || 3;
+  document.querySelectorAll('.col-btn').forEach(btn => {
+    const n = parseInt(btn.dataset.cols);
+    btn.classList.toggle('active', n === currentCols);
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // 카드 크기 피커
+  const currentSize = dcfg.cardSize || 'normal';
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === currentSize);
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // 표시 정보 토글
+  document.querySelectorAll('[data-cfg]').forEach(cb => {
+    const key = cb.dataset.cfg;
+    cb.checked = dcfg[key] !== false; // 기본 true
+  });
+
+  // 기본 정렬
+  const sortSel = document.getElementById('defaultSortSel');
+  if (sortSel && dcfg.defaultSort) sortSel.value = dcfg.defaultSort;
+
+  // display_config 수집 함수
+  function collectDisplayConfig() {
+    const cfg = {};
+    const activeCol = document.querySelector('.col-btn.active');
+    cfg.columns  = activeCol ? parseInt(activeCol.dataset.cols) : 3;
+    const activeSz = document.querySelector('.size-btn.active');
+    cfg.cardSize = activeSz ? activeSz.dataset.size : 'normal';
+    document.querySelectorAll('[data-cfg]').forEach(cb => { cfg[cb.dataset.cfg] = cb.checked; });
+    cfg.defaultSort = document.getElementById('defaultSortSel')?.value || 'newest';
+    return cfg;
+  }
+
   // ── 저장 ──
   const form    = document.getElementById('azitEditForm');
   const saveBtn = form.querySelector('[type=submit]');
@@ -1261,7 +1320,8 @@ async function initAzitEdit() {
         cover_color: document.getElementById('editColor').value,
         banner_url:  bannerUrl || null,
         icon_url:    iconUrl   || null,
-        post_layout: postLayout,
+        post_layout:     postLayout,
+        display_config:  collectDisplayConfig(),
       };
 
       // 이름 변경 시 RPC (게시물 category도 변경)

@@ -157,7 +157,8 @@ async function loadPosts(azitfh, catName) {
     });
   });
 
-  renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card');
+  const dcfg = (typeof azitfh.display_config === 'object' && azitfh.display_config) ? azitfh.display_config : {};
+  renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card', dcfg);
 }
 
 function renderPostCards(container, posts, layout = 'card') {
@@ -191,36 +192,54 @@ function renderPostCards(container, posts, layout = 'card') {
     }).join('');
     return;
   }
-  // default: card
-  container.className = '';
+  // default: card — display_config 적용
+  const cols       = config.columns     || 3;
+  const cardSize   = config.cardSize    || 'normal';
+  const showThumb  = config.showThumbnail !== false;
+  const showDesc   = config.showDesc    !== false;
+  const showAuthor = config.showAuthor  !== false;
+  const showDate   = config.showDate    !== false;
+  const showViews  = config.showViews   !== false;
+
+  container.className     = `azitfh-card-size-${cardSize}`;
+  container.style.setProperty('--azit-cols', cols);
+
   const cards = posts.map(p => {
     const isGame  = !!p.game_url;
     const isVideo = !!p.video_url;
     const isCode  = !!p.code_lang;
-    const thumb   = p.thumbnail_url || (!isCode && extractFirstImage(p.content));
+    const thumb   = showThumb && (p.thumbnail_url || (!isCode && extractFirstImage(p.content)));
     const langBadge = isCode ? `<span class="code-lang-badge-sm">${escapeHTML(p.code_lang)}</span>` : '';
 
-    const thumbHtml = thumb
-      ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
-      : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : '');
+    const thumbHtml = showThumb
+      ? (thumb
+          ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
+          : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : ''))
+      : '';
 
     const typeIcon = isGame ? '🎮 ' : isVideo ? '🎬 ' : isCode ? '💻 ' : '';
     const firstCode = (p.code_files && p.code_files.length > 0) ? (p.code_files[0]?.code || '') : (p.content || '');
-    const desc = isCode
+    const descText = isCode
       ? escapeHTML(truncate(firstCode, CONFIG.TRUNCATE_LEN))
       : (isGame || isVideo) ? escapeHTML(p.content || '')
       : escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN));
 
     const pinBadge = p.pinned ? '<span class="azitfh-pin-badge">📌 핀</span>' : '';
+
+    const metaParts = [
+      showAuthor ? `by ${escapeHTML(p.author_nickname)}` : '',
+      showViews  ? `조회 ${p.views || 0}` : '',
+    ].filter(Boolean).join(' · ');
+
     return `
       <a class="news-card${p.pinned ? ' news-card-pinned' : ''}" href="post-detail.html?id=${p.id}">
         ${thumbHtml}
         <div class="news-card-top">
-          ${pinBadge}<span class="news-date">${formatDate(p.created_at)}</span>${langBadge}
+          ${pinBadge}<span class="news-date">${showDate ? formatDate(p.created_at) : ''}</span>${langBadge}
         </div>
         <h3 class="news-title">${typeIcon}${escapeHTML(p.title)}</h3>
-        <p class="news-desc">${desc}</p>
-        <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
+        ${showDesc ? `<p class="news-desc">${descText}</p>` : ''}
+        ${metaParts ? `<div class="post-meta">${metaParts}</div>` : ''}
       </a>`;
   }).join('');
 
