@@ -193,18 +193,41 @@ function updateNav(session) {
   const navSignup = document.getElementById('navSignup');
   const navDash   = document.getElementById('navDash');
   const navLogout = document.getElementById('navLogout');
+  const navNotif  = document.getElementById('navNotif');
 
   if (session) {
     navLogin?.classList.add('hidden');
     navSignup?.classList.add('hidden');
     navDash?.classList.remove('hidden');
     navLogout?.classList.remove('hidden');
+    navNotif?.classList.remove('hidden');
+    // 알림 뱃지 비동기 로드
+    loadNotifBadge(session.user.id);
   } else {
     navLogin?.classList.remove('hidden');
     navSignup?.classList.remove('hidden');
     navDash?.classList.add('hidden');
     navLogout?.classList.add('hidden');
+    navNotif?.classList.add('hidden');
   }
+}
+
+async function loadNotifBadge(userId) {
+  try {
+    const { count } = await supabaseClient
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false);
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count > 9 ? '9+' : String(count);
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch { /* 조용히 무시 */ }
 }
 
 /* ── Supabase 에러 메시지 한국어 변환 ── */
@@ -593,8 +616,11 @@ async function renderCategoryCards() {
 
     btn.addEventListener('click', async () => {
       _selectedCat = c.name;
+      _listSearch = '';
+      const searchEl = document.getElementById('postsSearch');
+      if (searchEl) searchEl.value = '';
       updateWriteBtn();
-      await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList()]);
+      await Promise.all([renderCategoryCards(), renderPosts(), renderPostsList(true)]);
     });
     wrap.appendChild(btn);
   });
@@ -798,40 +824,65 @@ async function renderPosts() {
   }
 }
 
-/* ── 게시물 목록 렌더링 (최신순, 전체) ── */
-async function renderPostsList() {
+/* ── 게시물 목록 — 페이지네이션 + 검색 ── */
+const LIST_PAGE_SIZE = 20;
+let _listPage = 0;
+let _listSearch = '';
+
+async function renderPostsList(resetPage = false) {
   const wrap    = document.getElementById('postsList');
   const titleEl = document.getElementById('postsListTitle');
   if (!wrap) return;
 
+  if (resetPage) _listPage = 0;
   if (titleEl) titleEl.textContent = '게시물';
 
   try {
-    let posts = await fetchPostsCached();
-    if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
-    posts = posts.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    let q = supabaseClient
+      .from('posts')
+      .select('id,title,category,author_nickname,views,created_at,game_url,video_url,code_lang,pinned', { count: 'exact' })
+      .eq('hidden', false)
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(_listPage * LIST_PAGE_SIZE, (_listPage + 1) * LIST_PAGE_SIZE - 1);
 
-    if (posts.length === 0) {
-      wrap.innerHTML = '<p class="news-empty">게시물이 없습니다.</p>';
-      return;
-    }
+    if (_selectedCat) q = q.eq('category', _selectedCat);
+    if (_listSearch)  q = q.ilike('title', `%${_listSearch}%`);
 
-    wrap.innerHTML = posts.map(p => {
+    const { data: posts, count, error } = await q;
+    if (error) throw error;
+
+    const totalPages = Math.ceil((count || 0) / LIST_PAGE_SIZE);
+
+    const rows = (posts || []).map(p => {
       const typeIcon = p.game_url ? '<span class="post-row-type-icon">🎮</span>'
                     : p.video_url ? '<span class="post-row-type-icon">🎬</span>'
                     : p.code_lang ? '<span class="post-row-type-icon">💻</span>' : '';
+      const pinIcon  = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
       return `
-      <a class="post-row" href="post-detail.html?id=${p.id}">
+      <a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
         <span class="post-row-cat">${escapeHTML(p.category)}</span>
-        <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
+        <span class="post-row-title">${pinIcon}${typeIcon}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
         <span class="post-row-views">👁 ${p.views || 0}</span>
       </a>`;
     }).join('');
+
+    const pagination = totalPages > 1 ? `
+      <div class="pagination">
+        <button class="page-btn" ${_listPage === 0 ? 'disabled' : ''} onclick="_listPage--;renderPostsList()">← 이전</button>
+        <span class="page-info">${_listPage + 1} / ${totalPages}</span>
+        <button class="page-btn" ${_listPage >= totalPages - 1 ? 'disabled' : ''} onclick="_listPage++;renderPostsList()">다음 →</button>
+      </div>` : '';
+
+    wrap.innerHTML = posts?.length === 0
+      ? `<p class="news-empty">${_listSearch ? `"${escapeHTML(_listSearch)}" 검색 결과가 없어요.` : '게시물이 없습니다.'}</p>${pagination}`
+      : rows + pagination;
+
   } catch (err) {
     console.error('renderPostsList 오류:', err);
-    wrap.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.<br><small style="font-size:11px;opacity:.7">${escapeHTML(err.message || '')}</small></p>`;
+    wrap.innerHTML = `<p class="news-empty">게시물을 불러오지 못했어요.</p>`;
   }
 }
 
@@ -1369,6 +1420,39 @@ async function initPostWrite() {
   // 초기 파일 생성
   _initCodeFiles(_codeLangSel?.value || 'Python');
 
+  /* ── 초안 자동 저장 / 복원 ── */
+  const _DRAFT_KEY = 'post_draft_' + (new URLSearchParams(location.search).get('cat') || 'default');
+  const _draftNotice = document.createElement('p');
+  _draftNotice.className = 'hint draft-notice hidden';
+  form.querySelector('.post-write-actions')?.before(_draftNotice);
+
+  function _saveDraft() {
+    const title = form.title?.value || '';
+    const quillContent = quill?.root.innerHTML || '';
+    if (!title && !quillContent.replace(/<[^>]+>/g, '').trim()) return;
+    localStorage.setItem(_DRAFT_KEY, JSON.stringify({ title, content: quillContent, ts: Date.now() }));
+  }
+
+  function _loadDraft() {
+    try {
+      const raw  = localStorage.getItem(_DRAFT_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (Date.now() - data.ts > 7 * 86400000) { localStorage.removeItem(_DRAFT_KEY); return; }
+      if (data.title) { const ti = document.getElementById('title'); if (ti) ti.value = data.title; }
+      if (data.content && quill) quill.clipboard.dangerouslyPasteHTML(data.content);
+      _draftNotice.innerHTML = `초안이 있어요 <button type="button" class="draft-clear-btn">지우기</button>`;
+      _draftNotice.classList.remove('hidden');
+      _draftNotice.querySelector('.draft-clear-btn')?.addEventListener('click', () => {
+        localStorage.removeItem(_DRAFT_KEY);
+        _draftNotice.classList.add('hidden');
+      });
+    } catch { localStorage.removeItem(_DRAFT_KEY); }
+  }
+
+  _loadDraft();
+  const _draftTimer = setInterval(_saveDraft, 8000);
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -1477,6 +1561,8 @@ async function initPostWrite() {
         views: 0,
         ...extra,
       });
+      clearInterval(_draftTimer);
+      localStorage.removeItem(_DRAFT_KEY);
       const successMsg = isVideo ? '영상이 등록됐어요! 🎬' : isGame ? '게임이 등록됐어요! 🎮' : isCode ? '코드가 등록됐어요! 💻' : '게시물이 등록됐어요! 🎉';
       showToast(successMsg, 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
@@ -1927,6 +2013,91 @@ async function triggerFileAttach(quill) {
 }
 
 /* ════════════════════════════════════════
+   공유 버튼
+════════════════════════════════════════ */
+function initShareBtn(post) {
+  document.getElementById('shareBtn')?.addEventListener('click', async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('링크가 복사됐어요!', 'green');
+    } catch {
+      prompt('이 링크를 복사하세요:', url);
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   북마크
+════════════════════════════════════════ */
+async function isBookmarked(postId, userId) {
+  const { data } = await supabaseClient
+    .from('bookmarks').select('id').eq('post_id', postId).eq('user_id', userId).maybeSingle();
+  return !!data;
+}
+
+async function toggleBookmark(postId, userId) {
+  const already = await isBookmarked(postId, userId);
+  if (already) {
+    await supabaseClient.from('bookmarks').delete().eq('post_id', postId).eq('user_id', userId);
+    return false;
+  }
+  await supabaseClient.from('bookmarks').insert({ post_id: postId, user_id: userId });
+  return true;
+}
+
+async function initBookmarkBtn(postId, session) {
+  const btn   = document.getElementById('bookmarkBtn');
+  const label = document.getElementById('bookmarkLabel');
+  if (!btn) return;
+
+  if (!session) { btn.addEventListener('click', () => showToast('로그인 후 이용할 수 있어요.', 'red')); return; }
+
+  const refresh = async () => {
+    const saved = await isBookmarked(postId, session.user.id);
+    btn.classList.toggle('active-up', saved);
+    if (label) label.textContent = saved ? '저장됨' : '저장';
+  };
+  await refresh();
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const saved = await toggleBookmark(postId, session.user.id).catch(() => null);
+    if (saved !== null) {
+      btn.classList.toggle('active-up', saved);
+      if (label) label.textContent = saved ? '저장됨' : '저장';
+      showToast(saved ? '북마크에 저장됐어요.', 'green' : '북마크에서 제거됐어요.', 'green');
+    }
+    btn.disabled = false;
+  });
+}
+
+/* ════════════════════════════════════════
+   핀 게시물
+════════════════════════════════════════ */
+async function initPinBtn(post, session) {
+  const btn = document.getElementById('pinBtn');
+  if (!btn || !session) return;
+
+  const isOwner = session.user.id === post.author_id;
+  const admin   = await isAdmin();
+  if (!isOwner && !admin) return;
+
+  btn.classList.remove('hidden');
+  btn.textContent = post.pinned ? '📌 핀 해제' : '📌 핀';
+
+  btn.addEventListener('click', async () => {
+    try {
+      await supabaseClient.from('posts').update({ pinned: !post.pinned }).eq('id', post.id);
+      post.pinned = !post.pinned;
+      btn.textContent = post.pinned ? '📌 핀 해제' : '📌 핀';
+      showToast(post.pinned ? '핀 게시물로 설정됐어요.', 'green' : '핀이 해제됐어요.', 'green');
+      invalidatePostsCache();
+    } catch { showToast('오류 발생', 'red'); }
+  });
+}
+
+/* ════════════════════════════════════════
    추천/비추천 (Votes)
 ════════════════════════════════════════ */
 async function getVoteCounts(postId) {
@@ -2050,9 +2221,10 @@ async function getComments(postId) {
   return data || [];
 }
 
-async function insertComment({ post_id, author_id, author_nickname, content }) {
-  const { error } = await supabaseClient
-    .from('comments').insert({ post_id, author_id, author_nickname, content });
+async function insertComment({ post_id, author_id, author_nickname, content, parent_id = null }) {
+  const row = { post_id, author_id, author_nickname, content };
+  if (parent_id) row.parent_id = parent_id;
+  const { error } = await supabaseClient.from('comments').insert(row);
   if (error) throw error;
 }
 
@@ -2074,24 +2246,65 @@ async function renderComments(postId, session) {
     return;
   }
 
-  list.innerHTML = comments.map(c => `
-    <div class="comment-item" id="cmt-${c.id}">
+  // 트리 구조: 부모 댓글 → 자식 댓글
+  const roots    = comments.filter(c => !c.parent_id);
+  const children = {};
+  comments.filter(c => c.parent_id).forEach(c => {
+    (children[c.parent_id] ??= []).push(c);
+  });
+
+  function renderCmt(c, isReply = false) {
+    const replies = (children[c.id] || []).map(r => renderCmt(r, true)).join('');
+    return `
+    <div class="comment-item${isReply ? ' comment-reply' : ''}" id="cmt-${c.id}">
       <div class="comment-meta">
-        <span class="comment-author">${escapeHTML(c.author_nickname)}</span>
+        <a class="comment-author" href="profile.html?id=${c.author_id}">${escapeHTML(c.author_nickname)}</a>
         <span class="comment-date">${formatDate(c.created_at)}</span>
+        ${session ? `<button class="comment-reply-btn" data-id="${c.id}" data-nick="${escapeHTML(c.author_nickname)}">답글</button>` : ''}
         ${session?.user?.id === c.author_id
           ? `<button class="comment-del-btn" data-id="${c.id}">×</button>` : ''}
       </div>
       <p class="comment-content">${escapeHTML(c.content).replace(/\n/g, '<br>')}</p>
-    </div>
-  `).join('');
+      ${replies ? `<div class="comment-replies">${replies}</div>` : ''}
+    </div>`;
+  }
 
+  list.innerHTML = roots.map(c => renderCmt(c)).join('');
+
+  // 삭제 버튼
   list.querySelectorAll('.comment-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      try {
-        await deleteComment(btn.dataset.id);
-        await renderComments(postId, session);
-      } catch { showToast('댓글 삭제 실패', 'red'); }
+      try { await deleteComment(btn.dataset.id); await renderComments(postId, session); }
+      catch { showToast('댓글 삭제 실패', 'red'); }
+    });
+  });
+
+  // 답글 버튼
+  list.querySelectorAll('.comment-reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const replyArea = document.getElementById('commentInput');
+      const form      = document.getElementById('commentForm');
+      if (!replyArea || !form) return;
+      form.dataset.parentId   = btn.dataset.id;
+      form.dataset.parentNick = btn.dataset.nick;
+      replyArea.placeholder = `@${btn.dataset.nick}님에게 답글 작성...`;
+      replyArea.focus();
+      // 취소 버튼 표시
+      let cancelBtn = form.querySelector('.reply-cancel');
+      if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'reply-cancel btn-secondary';
+        cancelBtn.textContent = '답글 취소';
+        cancelBtn.style.cssText = 'font-size:12px;padding:4px 10px';
+        form.querySelector('.comment-form-actions')?.prepend(cancelBtn);
+      }
+      cancelBtn.onclick = () => {
+        delete form.dataset.parentId;
+        replyArea.placeholder = '댓글을 입력하세요';
+        cancelBtn.remove();
+      };
+      btn.closest('.comment-item')?.querySelector('.comment-replies')?.scrollIntoView({ behavior: 'smooth' });
     });
   });
 }
@@ -2118,14 +2331,19 @@ async function initComments(postId, session) {
     const submitBtn = form.querySelector('[type=submit]');
     submitBtn.disabled = true;
     try {
+      const parentId = form.dataset.parentId || null;
       await insertComment({
         post_id: postId,
         author_id: session.user.id,
         author_nickname: session.user.user_metadata?.nickname || session.user.email,
         content,
+        parent_id: parentId,
       });
       input.value = '';
+      input.placeholder = '댓글을 입력하세요';
       if (charCount) charCount.textContent = '0/500';
+      delete form.dataset.parentId;
+      form.querySelector('.reply-cancel')?.remove();
       await renderComments(postId, session);
     } catch { showToast('댓글 등록에 실패했어요.', 'red'); }
     finally  { submitBtn.disabled = false; }
@@ -2155,7 +2373,11 @@ async function initPostDetail() {
   updatePostMeta(post);
   document.getElementById('postCategory').textContent = post.category;
   document.getElementById('postTitle').textContent    = post.title;
-  document.getElementById('postAuthor').textContent   = post.author_nickname;
+  const authorEl = document.getElementById('postAuthor');
+  if (authorEl) {
+    authorEl.textContent = post.author_nickname;
+    authorEl.href = `profile.html?id=${post.author_id}`;
+  }
   document.getElementById('postDate').textContent     = formatDate(post.created_at);
   document.getElementById('postViews').textContent    = post.views || 0;
   const bodyEl = document.getElementById('postBody');
@@ -2381,8 +2603,26 @@ async function initPostDetail() {
     });
   }
 
-  // 추천/비추천
-  await initVotes(id, session);
+  // 추천/비추천 + 공유·북마크·핀 병렬 초기화
+  await Promise.all([
+    initVotes(id, session),
+    initBookmarkBtn(id, session),
+    initPinBtn(post, session),
+  ]);
+  initShareBtn(post);
+
+  // 코드 신택스 하이라이팅
+  if (post.code_lang) {
+    setTimeout(() => {
+      const el = document.getElementById('codeDisplay');
+      if (!el || !window.Prism) return;
+      const langMap = { Python: 'python', C: 'c', 'C++': 'cpp', JavaScript: 'javascript', HTML: 'html', CSS: 'css' };
+      const lang = langMap[post.code_lang] || 'none';
+      el.className = `language-${lang}`;
+      el.closest('pre')?.classList.add(`language-${lang}`);
+      Prism.highlightElement(el);
+    }, 400);
+  }
 
   // 신고 모달 (로그인 & 타인 게시물)
   if (session && session.user.id !== post.author_id) {
@@ -2408,6 +2648,16 @@ async function initIndex() {
     isAdmin().catch(() => false)
       .then(admin => initNotices(admin).catch(err => console.error('공지 로드 실패:', err))),
   ]);
+
+  // 검색 입력
+  let _searchTimer;
+  document.getElementById('postsSearch')?.addEventListener('input', e => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => {
+      _listSearch = e.target.value.trim();
+      renderPostsList(true);
+    }, 350);
+  });
 
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');
@@ -2915,6 +3165,108 @@ async function initPostEdit() {
       setLoading(submitBtn, false);
     }
   });
+}
+
+/* ════════════════════════════════════════
+   Page: Profile
+════════════════════════════════════════ */
+async function initProfile() {
+  const session = await getSession();
+  updateNav(session);
+
+  const params   = new URLSearchParams(location.search);
+  const targetId = params.get('id');
+
+  // 본인 프로필이면 내 ID 사용
+  const userId = targetId || session?.user?.id;
+  if (!userId) { window.location.href = 'login.html'; return; }
+
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
+  });
+
+  // 게시물로 사용자 정보 추출 (auth.users는 공개 접근 불가)
+  const { data: posts, error } = await supabaseClient
+    .from('posts')
+    .select('id,title,category,views,created_at,author_nickname,game_url,video_url,code_lang,pinned')
+    .eq('author_id', userId)
+    .eq('hidden', false)
+    .order('created_at', { ascending: false });
+
+  const nickname   = posts?.[0]?.author_nickname || (session?.user?.id === userId ? (session.user.user_metadata?.nickname || session.user.email) : '알 수 없음');
+  const isMe       = session?.user?.id === userId;
+  const joinDate   = isMe ? new Date(session.user.created_at).toLocaleDateString('ko-KR') : '';
+
+  document.title   = `${nickname}님의 프로필 — Open Azitfh`;
+  document.getElementById('profileAvatar').textContent = nickname.slice(0, 1).toUpperCase();
+  document.getElementById('profileName').textContent   = nickname;
+  document.getElementById('profileMeta').textContent   = isMe
+    ? `가입일 ${joinDate} · ${session.user.email}`
+    : `멤버`;
+
+  // 통계
+  const totalViews = (posts || []).reduce((s, p) => s + (p.views || 0), 0);
+  document.getElementById('profileStats').innerHTML = `
+    <div class="profile-stat"><span class="profile-stat-num">${(posts || []).length}</span><span>게시물</span></div>
+    <div class="profile-stat"><span class="profile-stat-num">${totalViews}</span><span>총 조회</span></div>
+  `;
+
+  const list = document.getElementById('profilePostsList');
+  if (!posts?.length) { list.innerHTML = '<p class="news-empty">작성한 게시물이 없습니다.</p>'; return; }
+
+  list.innerHTML = posts.map(p => {
+    const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
+    return `
+    <a class="post-row" href="post-detail.html?id=${p.id}">
+      <span class="post-row-cat">${escapeHTML(p.category)}</span>
+      <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
+      <span class="post-row-date">${formatDate(p.created_at)}</span>
+      <span class="post-row-views">👁 ${p.views || 0}</span>
+    </a>`;
+  }).join('');
+}
+
+/* ════════════════════════════════════════
+   Page: Bookmarks
+════════════════════════════════════════ */
+async function initBookmarksPage() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
+  });
+
+  const list = document.getElementById('bookmarksList');
+  list.innerHTML = '<p class="news-empty">불러오는 중…</p>';
+
+  const { data, error } = await supabaseClient
+    .from('bookmarks')
+    .select('post_id, created_at, posts(id,title,category,views,created_at,author_nickname,game_url,video_url,code_lang,hidden)')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error || !data?.length) {
+    list.innerHTML = '<p class="news-empty">저장한 게시물이 없어요.<br>게시물의 🔖 저장 버튼을 눌러보세요.</p>';
+    return;
+  }
+
+  const rows = data
+    .filter(b => b.posts && !b.posts.hidden)
+    .map(b => {
+      const p = b.posts;
+      const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
+      return `
+      <a class="post-row" href="post-detail.html?id=${p.id}">
+        <span class="post-row-cat">${escapeHTML(p.category)}</span>
+        <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
+        <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
+        <span class="post-row-date">${formatDate(p.created_at)}</span>
+        <span class="post-row-views">👁 ${p.views || 0}</span>
+      </a>`;
+    }).join('');
+
+  list.innerHTML = rows || '<p class="news-empty">표시할 게시물이 없습니다.</p>';
 }
 
 /* ════════════════════════════════════════

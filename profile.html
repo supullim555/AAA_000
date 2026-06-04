@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로필 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navLogin"  href="login.html">로그인</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="profile-wrap">
+    <div class="profile-card" id="profileCard">
+      <div class="profile-avatar" id="profileAvatar">?</div>
+      <div class="profile-info">
+        <h2 class="profile-name" id="profileName"></h2>
+        <p class="profile-meta" id="profileMeta"></p>
+      </div>
+    </div>
+
+    <div class="profile-stats" id="profileStats"></div>
+
+    <div class="profile-posts">
+      <h3 class="profile-section-title">작성한 게시물</h3>
+      <div id="profilePostsList"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initProfile();</script>
+</body>
+</html>
