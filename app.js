@@ -194,6 +194,7 @@ function updateNav(session) {
   const navDash   = document.getElementById('navDash');
   const navLogout = document.getElementById('navLogout');
   const navNotif  = document.getElementById('navNotif');
+  const navMsg    = document.getElementById('navMsg');
 
   if (session) {
     navLogin?.classList.add('hidden');
@@ -201,16 +202,20 @@ function updateNav(session) {
     navDash?.classList.remove('hidden');
     navLogout?.classList.remove('hidden');
     navNotif?.classList.remove('hidden');
-    // 알림 뱃지 비동기 로드
+    navMsg?.classList.remove('hidden');
     loadNotifBadge(session.user.id);
+    loadMsgBadge(session);
   } else {
     navLogin?.classList.remove('hidden');
     navSignup?.classList.remove('hidden');
     navDash?.classList.add('hidden');
     navLogout?.classList.add('hidden');
     navNotif?.classList.add('hidden');
+    navMsg?.classList.add('hidden');
   }
 }
+
+/* loadMsgBadge는 initProfile/initMessages에서도 호출 — 전방 선언 위치 */
 
 async function loadNotifBadge(userId) {
   try {
@@ -3605,59 +3610,494 @@ async function initPostEdit() {
 /* ════════════════════════════════════════
    Page: Profile
 ════════════════════════════════════════ */
+async function getProfile(userId) {
+  const { data } = await supabaseClient
+    .from('profiles').select('*').eq('user_id', userId).maybeSingle();
+  return data;
+}
+
+async function upsertProfile(userId, patch) {
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert({ user_id: userId, ...patch, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+function renderAvatar(el, nickname, avatarUrl, color = '#4aab8e') {
+  if (avatarUrl) {
+    el.innerHTML = `<img src="${escapeHTML(avatarUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  } else {
+    el.textContent = (nickname || '?').slice(0, 1).toUpperCase();
+    el.style.background = color;
+  }
+}
+
 async function initProfile() {
   const session = await getSession();
   updateNav(session);
-
-  const params   = new URLSearchParams(location.search);
-  const targetId = params.get('id');
-
-  // 본인 프로필이면 내 ID 사용
-  const userId = targetId || session?.user?.id;
-  if (!userId) { window.location.href = 'login.html'; return; }
+  loadMsgBadge(session);
 
   document.getElementById('navLogout')?.addEventListener('click', async e => {
     e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
   });
 
-  // 게시물로 사용자 정보 추출 (auth.users는 공개 접근 불가)
-  const { data: posts, error } = await supabaseClient
-    .from('posts')
-    .select('id,title,category,views,created_at,author_nickname,game_url,video_url,code_lang,pinned')
-    .eq('author_id', userId)
-    .eq('hidden', false)
-    .order('created_at', { ascending: false });
+  const params   = new URLSearchParams(location.search);
+  const targetId = params.get('id');
+  const userId   = targetId || session?.user?.id;
+  if (!userId) { window.location.href = 'login.html'; return; }
 
-  const nickname   = posts?.[0]?.author_nickname || (session?.user?.id === userId ? (session.user.user_metadata?.nickname || session.user.email) : '알 수 없음');
-  const isMe       = session?.user?.id === userId;
-  const joinDate   = isMe ? new Date(session.user.created_at).toLocaleDateString('ko-KR') : '';
+  const isMe = session?.user?.id === userId;
 
-  document.title   = `${nickname}님의 프로필 — Open Azitfh`;
-  document.getElementById('profileAvatar').textContent = nickname.slice(0, 1).toUpperCase();
-  document.getElementById('profileName').textContent   = nickname;
-  document.getElementById('profileMeta').textContent   = isMe
-    ? `가입일 ${joinDate} · ${session.user.email}`
-    : `멤버`;
+  // 병렬 로드
+  const [profile, postsRes] = await Promise.all([
+    getProfile(userId),
+    supabaseClient.from('posts')
+      .select('id,title,category,views,created_at,author_nickname,game_url,video_url,code_lang,pinned')
+      .eq('author_id', userId).eq('hidden', false)
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const posts    = postsRes.data || [];
+  const nickname = profile?.nickname || posts[0]?.author_nickname
+    || (isMe ? (session.user.user_metadata?.nickname || session.user.email.split('@')[0]) : '알 수 없음');
+  const bio      = profile?.bio || '';
+  const avatarUrl = profile?.avatar_url || '';
+  const bannerColor = profile?.banner_color || '#4aab8e';
+
+  document.title = `${nickname}님의 프로필 — Open Azitfh`;
+
+  // 배너
+  const banner = document.getElementById('pfBanner');
+  if (banner) banner.style.background = `linear-gradient(135deg, ${bannerColor} 0%, ${darkenHex(bannerColor, 50)} 100%)`;
+
+  // 아바타
+  const avatarEl = document.getElementById('pfAvatar');
+  if (avatarEl) renderAvatar(avatarEl, nickname, avatarUrl, bannerColor);
+
+  // 이름 / 소개 / 메타
+  document.getElementById('pfName').textContent = nickname;
+  const bioEl = document.getElementById('pfBio');
+  if (bioEl) { bioEl.textContent = bio; bioEl.classList.toggle('hidden', !bio); }
+  const metaEl = document.getElementById('pfMeta');
+  if (metaEl) metaEl.textContent = isMe ? session.user.email : '멤버';
+
+  // 버튼
+  const actionsEl = document.getElementById('pfActions');
+  if (actionsEl) {
+    if (isMe) {
+      actionsEl.innerHTML = `<button class="btn-outline" id="editProfileBtn">✏️ 프로필 편집</button>`;
+      document.getElementById('editProfileBtn')?.addEventListener('click', () => openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts));
+    } else if (session) {
+      actionsEl.innerHTML = `<a class="btn-primary" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>`;
+    }
+  }
 
   // 통계
-  const totalViews = (posts || []).reduce((s, p) => s + (p.views || 0), 0);
-  document.getElementById('profileStats').innerHTML = `
-    <div class="profile-stat"><span class="profile-stat-num">${(posts || []).length}</span><span>게시물</span></div>
-    <div class="profile-stat"><span class="profile-stat-num">${totalViews}</span><span>총 조회</span></div>
+  const totalViews = posts.reduce((s, p) => s + (p.views || 0), 0);
+  document.getElementById('pfStats').innerHTML = `
+    <div class="pf-stat"><span class="pf-stat-num">${posts.length}</span><span>게시물</span></div>
+    <div class="pf-stat"><span class="pf-stat-num">${totalViews}</span><span>총 조회</span></div>
   `;
 
-  const list = document.getElementById('profilePostsList');
-  if (!posts?.length) { list.innerHTML = '<p class="news-empty">작성한 게시물이 없습니다.</p>'; return; }
+  // 탭 전환
+  document.querySelectorAll('.pf-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pf-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.pf-pane').forEach(p => p.classList.add('hidden'));
+      tab.classList.add('active');
+      document.getElementById(`pf-pane-${tab.dataset.tab}`)?.classList.remove('hidden');
+    });
+  });
 
-  list.innerHTML = posts.map(p => {
-    return `
-    <a class="post-row" href="post-detail.html?id=${p.id}">
-      <span class="post-row-cat">${escapeHTML(p.category)}</span>
-      <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
-      <span class="post-row-date">${formatDate(p.created_at)}</span>
-      <span class="post-row-views">👁 ${p.views || 0}</span>
-    </a>`;
-  }).join('');
+  // 게시물 탭
+  const list = document.getElementById('pfPostsList');
+  if (list) {
+    list.innerHTML = posts.length === 0
+      ? '<p class="news-empty">작성한 게시물이 없습니다.</p>'
+      : posts.map(p => `
+        <a class="post-row" href="post-detail.html?id=${p.id}">
+          <span class="post-row-cat">${escapeHTML(p.category)}</span>
+          <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
+          <span class="post-row-date">${formatDate(p.created_at)}</span>
+          <span class="post-row-views">👁 ${p.views || 0}</span>
+        </a>`).join('');
+  }
+
+  // 정보 탭
+  const aboutEl = document.getElementById('pfAbout');
+  if (aboutEl) {
+    const joinDate = isMe
+      ? new Date(session.user.created_at).toLocaleDateString('ko-KR')
+      : (profile?.created_at ? new Date(profile.created_at).toLocaleDateString('ko-KR') : '');
+    aboutEl.innerHTML = `
+      <div class="pf-about-list">
+        ${bio ? `<div class="pf-about-row"><span>소개</span><span>${escapeHTML(bio)}</span></div>` : ''}
+        ${joinDate ? `<div class="pf-about-row"><span>가입일</span><span>${joinDate}</span></div>` : ''}
+        <div class="pf-about-row"><span>게시물</span><span>${posts.length}개</span></div>
+        <div class="pf-about-row"><span>총 조회</span><span>${totalViews}회</span></div>
+      </div>`;
+  }
+}
+
+function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts) {
+  const modal = document.getElementById('editProfileModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  document.getElementById('editNickname').value    = nickname;
+  document.getElementById('editBio').value         = bio;
+  document.getElementById('editBannerColor').value = bannerColor;
+  document.getElementById('editBannerHex').textContent = bannerColor;
+
+  const preview = document.getElementById('editAvatarPreview');
+  if (preview) renderAvatar(preview, nickname, avatarUrl, bannerColor);
+
+  let _avatarFile   = null;
+  let _currentAvUrl = avatarUrl;
+  let _removeAvatar = false;
+
+  const colorInput = document.getElementById('editBannerColor');
+  colorInput?.addEventListener('input', () => {
+    document.getElementById('editBannerHex').textContent = colorInput.value;
+  });
+
+  const avatarInput = document.getElementById('avatarFileInput');
+  document.getElementById('avatarUploadBtn')?.addEventListener('click', () => avatarInput?.click());
+  avatarInput?.addEventListener('change', () => {
+    const file = avatarInput.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast('이미지는 2MB 이하여야 해요.', 'red'); return; }
+    _avatarFile   = file;
+    _removeAvatar = false;
+    _currentAvUrl = URL.createObjectURL(file);
+    document.getElementById('avatarFileInfo').textContent = file.name;
+    if (preview) renderAvatar(preview, nickname, _currentAvUrl, colorInput.value);
+  });
+  document.getElementById('avatarClearBtn')?.addEventListener('click', () => {
+    _avatarFile   = null;
+    _removeAvatar = true;
+    _currentAvUrl = '';
+    avatarInput.value = '';
+    document.getElementById('avatarFileInfo').textContent = '(제거됨)';
+    if (preview) renderAvatar(preview, document.getElementById('editNickname').value || nickname, '', colorInput.value);
+  });
+
+  const closeModal = () => modal.classList.add('hidden');
+  document.getElementById('closeEditModal')?.addEventListener('click', closeModal);
+  document.getElementById('cancelEditProfile')?.addEventListener('click', closeModal);
+
+  const form    = document.getElementById('editProfileForm');
+  const saveBtn = form?.querySelector('[type=submit]');
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newNick  = document.getElementById('editNickname').value.trim();
+    const newBio   = document.getElementById('editBio').value.trim();
+    const newColor = colorInput.value;
+    if (!newNick) { showToast('닉네임을 입력해 주세요.', 'red'); return; }
+
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중…'; }
+    try {
+      let finalAvatarUrl = _currentAvUrl.startsWith('blob:') ? avatarUrl : _currentAvUrl;
+      if (_removeAvatar) finalAvatarUrl = '';
+
+      // 아바타 업로드
+      if (_avatarFile) {
+        const ext  = _avatarFile.name.split('.').pop().toLowerCase();
+        const path = `avatars/${session.user.id}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _avatarFile, { contentType: _avatarFile.type, upsert: true });
+        if (upErr) throw new Error('아바타 업로드 실패: ' + upErr.message);
+        finalAvatarUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+
+      await upsertProfile(session.user.id, {
+        nickname:     newNick,
+        bio:          newBio || null,
+        avatar_url:   finalAvatarUrl || null,
+        banner_color: newColor,
+      });
+
+      // 닉네임이 바뀌면 Supabase auth metadata도 업데이트
+      if (newNick !== nickname) {
+        await supabaseClient.auth.updateUser({ data: { nickname: newNick } });
+      }
+
+      showToast('프로필이 업데이트됐어요!', 'green');
+      closeModal();
+      setTimeout(() => location.reload(), 600);
+    } catch (err) {
+      showToast('저장 실패: ' + (err.message || ''), 'red');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = saveBtn.dataset.label || '저장'; }
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   메시지 뱃지 (공통)
+════════════════════════════════════════ */
+async function loadMsgBadge(session) {
+  if (!session) return;
+  try {
+    const { count } = await supabaseClient
+      .from('messages').select('id', { count: 'exact', head: true })
+      .eq('receiver_id', session.user.id).eq('read', false);
+    const badge = document.getElementById('msgBadge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count > 9 ? '9+' : String(count);
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch { /* 무시 */ }
+}
+
+/* ════════════════════════════════════════
+   Page: Messages
+════════════════════════════════════════ */
+async function initMessages() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  updateNav(session);
+  loadMsgBadge(session);
+
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
+  });
+
+  const me = session.user.id;
+  let _activePeer = null;
+  let _pollTimer  = null;
+
+  // URL 파라미터: ?to=userId 로 바로 대화 열기
+  const toParam = new URLSearchParams(location.search).get('to');
+
+  // ── 대화 목록 로드 ──────────────────────────────────────
+  async function loadConversations() {
+    const { data, error } = await supabaseClient.rpc('get_conversations', { p_user_id: me });
+    const list = document.getElementById('msgConvList');
+    if (!list) return;
+
+    if (error || !data?.length) {
+      list.innerHTML = '<p class="msg-empty">아직 대화가 없어요.<br>새 메시지를 보내보세요!</p>';
+      return;
+    }
+
+    list.innerHTML = data.map(c => {
+      const unread   = c.unread_count > 0;
+      const initials = (c.peer_nickname || '?').slice(0, 1).toUpperCase();
+      const isActive = _activePeer === c.peer_id;
+      return `
+      <div class="msg-conv-item${isActive ? ' active' : ''}${unread ? ' unread' : ''}"
+           data-peer="${c.peer_id}" data-nick="${escapeHTML(c.peer_nickname || '')}">
+        <div class="msg-conv-avatar" style="background:${escapeHTML(c.peer_color || '#4aab8e')}">${c.peer_avatar ? `<img src="${escapeHTML(c.peer_avatar)}" alt="">` : initials}</div>
+        <div class="msg-conv-info">
+          <div class="msg-conv-name">${escapeHTML(c.peer_nickname || '알 수 없음')}${unread ? `<span class="msg-unread-dot">${c.unread_count}</span>` : ''}</div>
+          <div class="msg-conv-last">${escapeHTML((c.last_message || '').slice(0, 40))}</div>
+        </div>
+        <div class="msg-conv-time">${c.last_at ? formatDate(c.last_at).slice(0, 10).replace(/\.$/, '') : ''}</div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('.msg-conv-item').forEach(item => {
+      item.addEventListener('click', () => openThread(item.dataset.peer, item.dataset.nick));
+    });
+  }
+
+  // ── 스레드 열기 ─────────────────────────────────────────
+  async function openThread(peerId, peerNick) {
+    _activePeer = peerId;
+    clearInterval(_pollTimer);
+
+    // 헤더
+    document.getElementById('msgWelcome')?.classList.add('hidden');
+    document.getElementById('msgThreadHeader')?.classList.remove('hidden');
+    document.getElementById('msgThreadBody')?.classList.remove('hidden');
+    document.getElementById('msgInputWrap')?.classList.remove('hidden');
+    document.getElementById('threadName').textContent = peerNick || '알 수 없음';
+    document.getElementById('threadProfileLink').href = `profile.html?id=${peerId}`;
+
+    // 아바타
+    const peerProfile = await getProfile(peerId);
+    const avatarEl = document.getElementById('threadAvatar');
+    if (avatarEl) renderAvatar(avatarEl, peerNick, peerProfile?.avatar_url, peerProfile?.banner_color);
+
+    // 모바일: 사이드바 숨기기
+    document.getElementById('msgSidebar')?.classList.add('msg-sidebar-hidden');
+    document.getElementById('msgMain')?.classList.add('msg-main-active');
+
+    // 읽음 처리 (비동기)
+    supabaseClient.from('messages')
+      .update({ read: true })
+      .eq('sender_id', peerId).eq('receiver_id', me).eq('read', false)
+      .then(() => { loadMsgBadge(session); loadConversations(); });
+
+    await renderMessages(peerId);
+    _pollTimer = setInterval(() => renderMessages(peerId, true), 3000);
+
+    // 목록도 갱신
+    loadConversations();
+    document.getElementById('msgInput')?.focus();
+  }
+
+  // ── 메시지 렌더링 ────────────────────────────────────────
+  async function renderMessages(peerId, silent = false) {
+    const { data: msgs } = await supabaseClient
+      .from('messages')
+      .select('id,sender_id,content,read,created_at')
+      .or(`and(sender_id.eq.${me},receiver_id.eq.${peerId}),and(sender_id.eq.${peerId},receiver_id.eq.${me})`)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    const container = document.getElementById('msgMessages');
+    if (!container) return;
+
+    const prevScrollTop    = container.scrollTop;
+    const prevScrollHeight = container.scrollHeight;
+    const wasAtBottom      = prevScrollHeight - prevScrollTop - container.clientHeight < 60;
+
+    container.innerHTML = (msgs || []).map(m => {
+      const isMine = m.sender_id === me;
+      return `
+      <div class="msg-bubble-wrap${isMine ? ' mine' : ''}">
+        <div class="msg-bubble${isMine ? ' msg-bubble-mine' : ''}">${escapeHTML(m.content)}</div>
+        <div class="msg-bubble-meta">${new Date(m.created_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })}${isMine ? (m.read ? ' ✓✓' : ' ✓') : ''}</div>
+      </div>`;
+    }).join('');
+
+    if (!silent || wasAtBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // 읽음 처리
+    const unread = (msgs || []).filter(m => m.sender_id === peerId && !m.read);
+    if (unread.length) {
+      supabaseClient.from('messages').update({ read: true })
+        .eq('sender_id', peerId).eq('receiver_id', me).eq('read', false).then(() => loadMsgBadge(session));
+    }
+  }
+
+  // ── 메시지 전송 ─────────────────────────────────────────
+  async function sendMessage(peerId) {
+    const input = document.getElementById('msgInput');
+    const content = input?.value.trim();
+    if (!content || !peerId) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    const { error } = await supabaseClient.from('messages').insert({
+      sender_id:   me,
+      receiver_id: peerId,
+      content,
+    });
+    if (error) { showToast('전송 실패', 'red'); input.value = content; return; }
+
+    await renderMessages(peerId);
+    loadConversations();
+  }
+
+  // ── 입력창 자동 높이 + Enter 전송 ───────────────────────
+  const input   = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('msgSendBtn');
+
+  input?.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(_activePeer); }
+  });
+  sendBtn?.addEventListener('click', () => sendMessage(_activePeer));
+
+  // ── 뒤로가기 (모바일) ────────────────────────────────────
+  document.getElementById('msgBackBtn')?.addEventListener('click', () => {
+    clearInterval(_pollTimer);
+    _activePeer = null;
+    document.getElementById('msgSidebar')?.classList.remove('msg-sidebar-hidden');
+    document.getElementById('msgMain')?.classList.remove('msg-main-active');
+    document.getElementById('msgWelcome')?.classList.remove('hidden');
+    document.getElementById('msgThreadHeader')?.classList.add('hidden');
+    document.getElementById('msgThreadBody')?.classList.add('hidden');
+    document.getElementById('msgInputWrap')?.classList.add('hidden');
+  });
+
+  // ── 새 메시지 모달 ──────────────────────────────────────
+  document.getElementById('newMsgBtn')?.addEventListener('click', () => {
+    document.getElementById('newMsgModal')?.classList.remove('hidden');
+    document.getElementById('newMsgNickname')?.focus();
+  });
+  const closeNewMsg = () => {
+    document.getElementById('newMsgModal')?.classList.add('hidden');
+    document.getElementById('newMsgNickname').value  = '';
+    document.getElementById('newMsgContent').value   = '';
+    document.getElementById('newMsgUserList').innerHTML = '';
+    document.getElementById('newMsgUserList').classList.add('hidden');
+    _selectedNewUser = null;
+  };
+  document.getElementById('closeNewMsgModal')?.addEventListener('click', closeNewMsg);
+  document.getElementById('cancelNewMsg')?.addEventListener('click', closeNewMsg);
+
+  let _selectedNewUser = null;
+  let _searchTimer;
+
+  // 닉네임 검색
+  document.getElementById('newMsgNickname')?.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    const q = document.getElementById('newMsgNickname').value.trim();
+    if (!q) { document.getElementById('newMsgUserList').classList.add('hidden'); return; }
+    _searchTimer = setTimeout(async () => {
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('user_id,nickname,avatar_url,banner_color')
+        .ilike('nickname', `%${q}%`)
+        .neq('user_id', me)
+        .limit(8);
+      const ul = document.getElementById('newMsgUserList');
+      if (!data?.length) { ul.innerHTML = '<div class="msg-user-item">결과 없음</div>'; ul.classList.remove('hidden'); return; }
+      ul.innerHTML = data.map(u => `
+        <div class="msg-user-item" data-uid="${u.user_id}" data-nick="${escapeHTML(u.nickname)}">
+          <div class="msg-conv-avatar msg-conv-avatar-sm" style="background:${escapeHTML(u.banner_color||'#4aab8e')}">${u.avatar_url ? `<img src="${escapeHTML(u.avatar_url)}" alt="">` : u.nickname.slice(0,1).toUpperCase()}</div>
+          ${escapeHTML(u.nickname)}
+        </div>`).join('');
+      ul.classList.remove('hidden');
+      ul.querySelectorAll('.msg-user-item[data-uid]').forEach(item => {
+        item.addEventListener('click', () => {
+          _selectedNewUser = { id: item.dataset.uid, nick: item.dataset.nick };
+          document.getElementById('newMsgNickname').value = item.dataset.nick;
+          ul.classList.add('hidden');
+          document.getElementById('newMsgContent')?.focus();
+        });
+      });
+    }, 300);
+  });
+
+  // 전송
+  document.getElementById('sendNewMsgBtn')?.addEventListener('click', async () => {
+    if (!_selectedNewUser) { showToast('받는 사람을 선택해 주세요.', 'red'); return; }
+    const content = document.getElementById('newMsgContent').value.trim();
+    if (!content) { showToast('메시지를 입력해 주세요.', 'red'); return; }
+    const btn = document.getElementById('sendNewMsgBtn');
+    btn.disabled = true; btn.textContent = '전송 중…';
+    const { error } = await supabaseClient.from('messages').insert({
+      sender_id: me, receiver_id: _selectedNewUser.id, content,
+    });
+    btn.disabled = false; btn.textContent = btn.dataset.label || '보내기';
+    if (error) { showToast('전송 실패', 'red'); return; }
+    closeNewMsg();
+    await loadConversations();
+    await openThread(_selectedNewUser.id, _selectedNewUser.nick);
+  });
+
+  // ── 초기 로드 ────────────────────────────────────────────
+  await loadConversations();
+
+  if (toParam) {
+    const peerProfile = await getProfile(toParam);
+    if (peerProfile) await openThread(toParam, peerProfile.nickname);
+  }
 }
 
 /* ════════════════════════════════════════

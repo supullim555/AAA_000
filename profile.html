@@ -10,9 +10,16 @@
 <body>
   <header>
     <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <div class="header-search-wrap" id="headerSearchWrap">
+      <span class="header-search-icon">🔍</span>
+      <input type="search" id="headerSearch" class="header-search" placeholder="게시물, 아지트 검색..." autocomplete="off" maxlength="60">
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
     <nav>
       <a href="index.html">홈</a>
       <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navMsg"    href="messages.html" class="hidden nav-icon-link" title="메시지">✉️<span id="msgBadge" class="notif-badge hidden"></span></a>
+      <a id="navNotif"  href="notifications.html" class="hidden nav-icon-link">🔔<span id="notifBadge" class="notif-badge hidden"></span></a>
       <a id="navLogin"  href="login.html">로그인</a>
       <a id="navLogout" href="#">로그아웃</a>
       <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
@@ -20,28 +27,78 @@
     </nav>
   </header>
 
-  <div class="profile-wrap">
-    <div class="profile-card" id="profileCard">
-      <div class="profile-avatar" id="profileAvatar">?</div>
-      <div class="profile-info">
-        <h2 class="profile-name" id="profileName"></h2>
-        <p class="profile-meta" id="profileMeta"></p>
+  <div class="pf-banner" id="pfBanner"></div>
+
+  <div class="pf-wrap">
+    <div class="pf-head">
+      <div class="pf-avatar-wrap">
+        <div class="pf-avatar" id="pfAvatar">?</div>
       </div>
+      <div class="pf-info">
+        <h1 class="pf-name" id="pfName"></h1>
+        <p class="pf-bio" id="pfBio"></p>
+        <p class="pf-meta" id="pfMeta"></p>
+      </div>
+      <div class="pf-actions" id="pfActions"></div>
     </div>
 
-    <div class="profile-stats" id="profileStats"></div>
+    <div class="pf-stats" id="pfStats"></div>
 
-    <div class="profile-posts">
-      <h3 class="profile-section-title">작성한 게시물</h3>
-      <div id="profilePostsList"></div>
+    <div class="pf-tabs">
+      <button class="pf-tab active" data-tab="posts">게시물</button>
+      <button class="pf-tab" data-tab="about">정보</button>
+    </div>
+    <div class="pf-pane" id="pf-pane-posts"><div id="pfPostsList"></div></div>
+    <div class="pf-pane hidden" id="pf-pane-about"><div id="pfAbout"></div></div>
+  </div>
+
+  <!-- 프로필 편집 모달 -->
+  <div class="modal-overlay hidden" id="editProfileModal">
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-header">
+        <h3>프로필 편집</h3>
+        <button class="modal-close" id="closeEditModal">×</button>
+      </div>
+      <form id="editProfileForm" class="modal-body">
+        <div class="form-row">
+          <label class="form-label">배너 색상</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="editBannerColor" value="#4aab8e" class="color-input">
+            <span id="editBannerHex" style="font-size:13px;color:var(--text-light)">#4aab8e</span>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">아바타 이미지 <span style="color:var(--text-light);font-weight:400">(선택·최대 2MB)</span></label>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="pf-avatar" id="editAvatarPreview" style="width:52px;height:52px;font-size:20px;flex-shrink:0">?</div>
+            <div>
+              <button type="button" class="btn-outline btn-sm" id="avatarUploadBtn">이미지 선택</button>
+              <button type="button" class="btn-outline btn-sm" id="avatarClearBtn" style="margin-left:6px">제거</button>
+              <input type="file" id="avatarFileInput" accept="image/*" class="hidden">
+              <p class="form-hint" id="avatarFileInfo" style="margin-top:4px"></p>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="editNickname">닉네임</label>
+          <input type="text" id="editNickname" class="form-input" maxlength="20" placeholder="닉네임 (최대 20자)">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="editBio">한줄 소개</label>
+          <textarea id="editBio" class="form-input" rows="3" maxlength="160" placeholder="자신을 소개해보세요 (최대 160자)"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline" id="cancelEditProfile">취소</button>
+          <button type="submit" class="btn-primary" data-label="저장">저장</button>
+        </div>
+      </form>
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="app.js"></script>
-  <script>initDarkMode(); initProfile();</script>
+  <script>initDarkMode(); initHeaderSearch(); initProfile();</script>
 </body>
 </html>

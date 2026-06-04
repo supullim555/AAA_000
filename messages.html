@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>메시지 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a id="navDash"   href="dashboard.html">내 공간</a>
+      <a id="navMsg"    href="messages.html" class="hidden nav-icon-link" title="메시지">✉️<span id="msgBadge" class="notif-badge hidden"></span></a>
+      <a id="navNotif"  href="notifications.html" class="hidden nav-icon-link">🔔<span id="notifBadge" class="notif-badge hidden"></span></a>
+      <a id="navLogin"  href="login.html">로그인</a>
+      <a id="navLogout" href="#">로그아웃</a>
+      <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="msg-layout">
+    <!-- 왼쪽: 대화 목록 -->
+    <aside class="msg-sidebar" id="msgSidebar">
+      <div class="msg-sidebar-header">
+        <h2 class="msg-sidebar-title">메시지</h2>
+        <button class="btn-primary btn-sm" id="newMsgBtn">+ 새 메시지</button>
+      </div>
+      <div class="msg-conv-list" id="msgConvList">
+        <p class="msg-empty">불러오는 중…</p>
+      </div>
+    </aside>
+
+    <!-- 오른쪽: 대화 내용 -->
+    <main class="msg-main" id="msgMain">
+      <div class="msg-welcome" id="msgWelcome">
+        <div class="msg-welcome-icon">✉️</div>
+        <p class="msg-welcome-text">대화를 선택하거나 새 메시지를 보내세요</p>
+      </div>
+
+      <!-- 대화 헤더 -->
+      <div class="msg-thread-header hidden" id="msgThreadHeader">
+        <button class="msg-back-btn" id="msgBackBtn">←</button>
+        <div class="msg-thread-avatar" id="threadAvatar"></div>
+        <div>
+          <strong id="threadName"></strong>
+          <a id="threadProfileLink" href="#" class="msg-profile-link">프로필 보기</a>
+        </div>
+      </div>
+
+      <!-- 메시지 스크롤 영역 -->
+      <div class="msg-thread-body hidden" id="msgThreadBody">
+        <div class="msg-messages" id="msgMessages"></div>
+      </div>
+
+      <!-- 입력창 -->
+      <div class="msg-input-wrap hidden" id="msgInputWrap">
+        <textarea class="msg-input" id="msgInput" placeholder="메시지를 입력하세요…" rows="1" maxlength="2000"></textarea>
+        <button class="msg-send-btn" id="msgSendBtn" title="전송 (Enter)">↑</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 새 메시지 모달 -->
+  <div class="modal-overlay hidden" id="newMsgModal">
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-header">
+        <h3>새 메시지</h3>
+        <button class="modal-close" id="closeNewMsgModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label class="form-label">받는 사람 (닉네임)</label>
+          <input type="text" id="newMsgNickname" class="form-input" placeholder="닉네임 입력 후 검색" autocomplete="off">
+          <div id="newMsgUserList" class="msg-user-search-list hidden"></div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">메시지</label>
+          <textarea id="newMsgContent" class="form-input" rows="4" maxlength="2000" placeholder="첫 메시지를 입력하세요"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline" id="cancelNewMsg">취소</button>
+          <button type="button" class="btn-primary" id="sendNewMsgBtn" data-label="보내기">보내기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initMessages();</script>
+</body>
+</html>
