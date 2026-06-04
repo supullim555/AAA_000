@@ -1404,20 +1404,23 @@ async function initAzitCreate() {
 
   if (grid && hiddenSel) {
     grid.innerHTML = types.map(t => `
-      <button type="button" class="azit-type-card" data-key="${escapeHTML(t.key)}"
+      <button type="button" class="azit-type-row" data-key="${escapeHTML(t.key)}"
               style="--type-color:${escapeHTML(t.default_color || '#4aab8e')}">
-        <span class="azit-type-card-icon">${escapeHTML(t.default_icon || '🏠')}</span>
-        <span class="azit-type-card-name">${escapeHTML(t.label)}</span>
-        <span class="azit-type-card-desc">${escapeHTML(t.description || '')}</span>
+        <span class="atr-icon">${escapeHTML(t.default_icon || '🏠')}</span>
+        <div class="atr-info">
+          <span class="atr-name">${escapeHTML(t.label)}</span>
+          <span class="atr-desc">${escapeHTML(t.description || '')}</span>
+        </div>
+        <span class="atr-check">✓</span>
       </button>
     `).join('');
 
     function selectType(key) {
-      grid.querySelectorAll('.azit-type-card').forEach(c => c.classList.toggle('selected', c.dataset.key === key));
+      grid.querySelectorAll('.azit-type-row').forEach(c => c.classList.toggle('selected', c.dataset.key === key));
       if (hiddenSel) hiddenSel.value = key;
     }
 
-    grid.querySelectorAll('.azit-type-card').forEach(card => {
+    grid.querySelectorAll('.azit-type-row').forEach(card => {
       card.addEventListener('click', () => selectType(card.dataset.key));
     });
 

@@ -2744,36 +2744,51 @@ header nav a.nav-signup:hover {
 /* ════════════════════════════════════════
    아지트 타입 카드 (azit-create 페이지)
 ════════════════════════════════════════ */
+/* ── 아지트 타입 선택 — 행 목록 ── */
 .azit-type-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-.azit-type-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 6px;
-  padding: 18px 12px 14px;
-  border: 2px solid var(--border);
-  border-radius: var(--r);
-  cursor: pointer;
+}
+
+.azit-type-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--r-sm);
   background: var(--bg);
-  text-align: center;
-  transition: border-color .15s, background .15s, box-shadow .15s;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color .12s, background .12s;
 }
-.azit-type-card:hover {
+.azit-type-row:hover {
+  border-left-color: var(--type-color, var(--primary));
+  background: var(--bg-2);
+}
+.azit-type-row.selected {
+  border-left-color: var(--type-color, var(--primary));
   border-color: var(--type-color, var(--primary));
   background: var(--bg-2);
 }
-.azit-type-card.selected {
-  border-color: var(--type-color, var(--primary));
-  background: var(--bg-2);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--type-color, var(--primary)) 20%, transparent);
+
+.atr-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
+.atr-info { flex: 1; min-width: 0; }
+.atr-name { font-size: 14px; font-weight: 700; color: var(--text); display: block; margin-bottom: 2px; }
+.atr-desc { font-size: 12px; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.atr-check {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--type-color, var(--primary));
+  opacity: 0;
+  transition: opacity .12s;
+  flex-shrink: 0;
 }
-.azit-type-card-icon { font-size: 30px; line-height: 1; }
-.azit-type-card-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.azit-type-card-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
+.azit-type-row.selected .atr-check { opacity: 1; }
 
 /* ════════════════════════════════════════
    홈 아지트 카드 — 입장 버튼 (하단 절반 오버레이)
