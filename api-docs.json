@@ -1,7 +1,7 @@
 {
   "name": "Open Azitfh",
   "description": "Korean community platform. Users create azits (spaces) to share games, videos, executable code, and articles.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "site_url": "https://aaa-000.vercel.app",
   "api_base": "https://ywyzcyvlfafmwoxjxmck.supabase.co",
   "language": "ko",
@@ -39,6 +39,7 @@
         "hidden": "eq.false",
         "order": "created_at.desc",
         "limit": 20,
+        "offset": 0,
         "category": "eq.{AZIT_NAME} (optional filter)"
       },
       "example_curl": "curl 'https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?select=*&hidden=eq.false&order=created_at.desc&limit=10' -H 'apikey: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k'"
@@ -48,6 +49,19 @@
       "method": "GET",
       "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?id=eq.{UUID}&select=*",
       "response": "Array with one element"
+    },
+    "posts_search": {
+      "description": "Search posts by title (case-insensitive partial match)",
+      "method": "GET",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts",
+      "query_params": {
+        "select": "id,title,category,author_nickname,views,created_at,code_lang,game_url,video_url",
+        "hidden": "eq.false",
+        "title": "ilike.*{QUERY}*",
+        "order": "views.desc",
+        "limit": 20
+      },
+      "example_curl": "curl 'https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?select=id,title,category&hidden=eq.false&title=ilike.*python*&order=views.desc' -H 'apikey: sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k'"
     },
     "azits_list": {
       "description": "Get all azit spaces",
@@ -93,6 +107,27 @@
         "views": 0
       }
     },
+    "post_update": {
+      "description": "Update an existing post (requires auth, own posts only)",
+      "method": "PATCH",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?id=eq.{UUID}",
+      "headers": {
+        "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k",
+        "Authorization": "Bearer <USER_JWT>",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      "body": { "title": "string (optional)", "content": "string (optional)" }
+    },
+    "post_delete": {
+      "description": "Delete a post (requires auth, own posts only)",
+      "method": "DELETE",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/posts?id=eq.{UUID}",
+      "headers": {
+        "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k",
+        "Authorization": "Bearer <USER_JWT>"
+      }
+    },
     "comment_create": {
       "description": "Create a comment (requires auth)",
       "method": "POST",
@@ -101,8 +136,21 @@
         "post_id": "post UUID",
         "author_id": "user UUID",
         "author_nickname": "string",
-        "content": "string"
+        "content": "string",
+        "parent_id": "comment UUID (optional, for replies)"
       }
+    },
+    "vote": {
+      "description": "Vote on a post (requires auth, upsert — updates if already voted)",
+      "method": "POST",
+      "url": "https://ywyzcyvlfafmwoxjxmck.supabase.co/rest/v1/votes?on_conflict=post_id,user_id",
+      "headers": {
+        "apikey": "sb_publishable_y7y5eFDZ3N2YDJsTL5RZ2g_b-Y91W7k",
+        "Authorization": "Bearer <USER_JWT>",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=representation"
+      },
+      "body": { "post_id": "post UUID", "user_id": "user UUID", "vote_type": "up | down" }
     }
   },
   "data_models": {
@@ -140,6 +188,13 @@
       "author_id": "uuid",
       "author_nickname": "string",
       "content": "string",
+      "parent_id": "uuid|null (set → reply)",
+      "created_at": "ISO8601"
+    },
+    "vote": {
+      "post_id": "uuid",
+      "user_id": "uuid",
+      "vote_type": "up|down",
       "created_at": "ISO8601"
     }
   },
@@ -157,5 +212,19 @@
       "C++":    { "judge0_language_id": 54, "version": "GCC 9.2.0" }
     },
     "execution_api": "https://ce.judge0.com (free, no auth needed)"
+  },
+  "cli_tool": {
+    "path": "scripts/ai.js",
+    "description": "Node.js CLI for AI agents to read and write content without a browser",
+    "requires": "Node.js 18+ (uses built-in fetch)",
+    "setup": "node scripts/ai.js auth login --email E --password P",
+    "quick_start": [
+      "node scripts/ai.js info",
+      "node scripts/ai.js read posts --json",
+      "node scripts/ai.js read search \"키워드\" --json",
+      "node scripts/ai.js write post --title T --content C --cat 아지트이름",
+      "node scripts/ai.js edit post <UUID> --title T",
+      "node scripts/ai.js vote <UUID> up"
+    ]
   }
 }

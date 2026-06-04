@@ -725,7 +725,7 @@ function initHeaderSearch() {
     if (posts.length) {
       html += `<div class="sd-group-label">📝 게시물</div>`;
       html += posts.map(p => {
-        const ti = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '📝';
+        const ti = postTypeIcon(p) || '📝';
         return `
         <a class="sd-item" href="post-detail.html?id=${p.id}">
           <span class="sd-icon">${ti}</span>
@@ -875,6 +875,11 @@ function nullIfEmpty(str) {
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ko-KR');
+}
+
+function postTypeIcon(p, withSpace = false) {
+  const i = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '';
+  return (withSpace && i) ? i + ' ' : i;
 }
 
 /* ── 인기 게시물 렌더링 (조회수순, 최대 12개) ── */
@@ -3645,11 +3650,10 @@ async function initProfile() {
   if (!posts?.length) { list.innerHTML = '<p class="news-empty">작성한 게시물이 없습니다.</p>'; return; }
 
   list.innerHTML = posts.map(p => {
-    const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
     return `
     <a class="post-row" href="post-detail.html?id=${p.id}">
       <span class="post-row-cat">${escapeHTML(p.category)}</span>
-      <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
+      <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
       <span class="post-row-date">${formatDate(p.created_at)}</span>
       <span class="post-row-views">👁 ${p.views || 0}</span>
     </a>`;
@@ -3685,11 +3689,10 @@ async function initBookmarksPage() {
     .filter(b => b.posts && !b.posts.hidden)
     .map(b => {
       const p = b.posts;
-      const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
       return `
       <a class="post-row" href="post-detail.html?id=${p.id}">
         <span class="post-row-cat">${escapeHTML(p.category)}</span>
-        <span class="post-row-title">${typeIcon}${escapeHTML(p.title)}</span>
+        <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
         <span class="post-row-views">👁 ${p.views || 0}</span>
@@ -3762,11 +3765,10 @@ async function initSearchPage() {
     if ((activeTab === 'all' || activeTab === 'posts') && posts.length) {
       html += `<div class="sr-group"><h3 class="sr-group-title">📝 게시물 <span class="sr-count">${posts.length}</span></h3>`;
       html += posts.map(p => {
-        const ti = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
         return `
         <a class="post-row" href="post-detail.html?id=${p.id}">
           <span class="post-row-cat">${escapeHTML(p.category)}</span>
-          <span class="post-row-title">${ti}${escapeHTML(p.title)}</span>
+          <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
           <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
           <span class="post-row-date">${formatDate(p.created_at)}</span>
           <span class="post-row-views">👁 ${p.views||0}</span>

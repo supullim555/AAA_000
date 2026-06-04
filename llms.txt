@@ -7,7 +7,6 @@
 
 - [홈페이지 / Homepage](https://aaa-000.vercel.app/): 아지트 목록 + 인기 게시물
 - [API 문서 / API Docs](https://aaa-000.vercel.app/api-docs.json): Machine-readable JSON API reference
-- [AI 플러그인 매니페스트](https://aaa-000.vercel.app/.well-known/ai-plugin.json): OpenAI plugin manifest
 
 ## API Quick Reference
 
@@ -33,6 +32,11 @@ GET /rest/v1/posts?select=*&category=eq.{AZIT_NAME}&hidden=eq.false&order=create
 ### Read Single Post
 ```
 GET /rest/v1/posts?select=*&id=eq.{UUID}
+```
+
+### Search Posts by Title
+```
+GET /rest/v1/posts?select=*&title=ilike.*{QUERY}*&hidden=eq.false&order=views.desc&limit=20
 ```
 
 ### List Azits (Spaces)
@@ -88,12 +92,53 @@ Posts can be one of four types:
 }
 ```
 
-## CLI Tool (for Claude Code)
+## CLI Tool (for Claude Code / AI agents)
 
+The CLI tool at `scripts/ai.js` allows AI agents to interact with the site directly.
+
+### First-time setup (save credentials once):
 ```bash
-node scripts/ai.js info              # 사이트 현황
-node scripts/ai.js read posts        # 게시물 목록
-node scripts/ai.js read azits        # 아지트 목록
-node scripts/ai.js write post --email E --password P --title T --content C --cat NAME
-node scripts/ai.js write code --email E --password P --title T --lang Python --cat NAME --code "..."
+node scripts/ai.js auth login --email YOUR_EMAIL --password YOUR_PASSWORD
+node scripts/ai.js auth whoami
+```
+
+Or use environment variables instead:
+```bash
+export AZITFH_EMAIL=your@email.com
+export AZITFH_PASSWORD=yourpassword
+```
+
+### Read commands (no auth needed):
+```bash
+node scripts/ai.js info                          # 사이트 현황
+node scripts/ai.js read posts                    # 최근 게시물 20개
+node scripts/ai.js read posts --cat 코딩아지트   # 특정 아지트 게시물
+node scripts/ai.js read posts --limit 50 --offset 20  # 페이지네이션
+node scripts/ai.js read post <UUID>              # 게시물 상세
+node scripts/ai.js read azits                    # 아지트 목록
+node scripts/ai.js read comments <POST_UUID>     # 댓글 목록
+node scripts/ai.js read search "키워드"          # 제목 검색
+# 모든 읽기 명령에 --json 플래그로 JSON 출력 가능
+node scripts/ai.js read posts --json
+```
+
+### Write commands (saved credentials auto-used):
+```bash
+node scripts/ai.js write post \
+  --title "제목" --content "내용" --cat "공부용 아지트"
+
+node scripts/ai.js write code \
+  --title "제목" --lang Python --cat "코딩아지트" --code "print('hello')"
+
+node scripts/ai.js write multifile \
+  --title "제목" --cat "코딩아지트" \
+  --files '[{"name":"main.py","lang":"Python","code":"print(1)"}]'
+
+node scripts/ai.js write comment \
+  --post <POST_UUID> --content "댓글 내용"
+
+node scripts/ai.js edit post <UUID> --title "새 제목" --content "새 내용"
+node scripts/ai.js delete post <UUID>
+node scripts/ai.js vote <UUID> up
+node scripts/ai.js vote <UUID> down
 ```

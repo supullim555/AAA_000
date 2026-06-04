@@ -164,10 +164,9 @@ async function loadPosts(azitfh, catName) {
 function renderPostCards(container, posts, layout = 'card', config = {}) {
   if (layout === 'list') {
     container.innerHTML = posts.map(p => {
-      const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
       const pin = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
       return `<a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
-        <span class="post-row-title">${pin}${typeIcon}${escapeHTML(p.title)}</span>
+        <span class="post-row-title">${pin}${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
         <span class="post-row-views">👁 ${p.views||0}</span>
@@ -181,10 +180,9 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
       const thumb = p.thumbnail_url || extractFirstImage(p.content) ||
         (p.video_url ? null : null);
       const bg = thumb ? `style="background-image:url('${escapeHTML(thumb)}')"` : '';
-      const typeIcon = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '📝';
       return `<a class="gallery-card" href="post-detail.html?id=${p.id}" ${bg}>
         <div class="gallery-card-overlay">
-          <span class="gallery-type">${typeIcon}</span>
+          <span class="gallery-type">${postTypeIcon(p) || '📝'}</span>
           <span class="gallery-title">${escapeHTML(truncate(p.title, 40))}</span>
           <span class="gallery-meta">by ${escapeHTML(p.author_nickname)}</span>
         </div>
