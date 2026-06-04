@@ -193,7 +193,6 @@ function renderPostCards(container, posts, layout = 'card') {
   }
   // default: card
   container.className = '';
-}
   const cards = posts.map(p => {
     const isGame  = !!p.game_url;
     const isVideo = !!p.video_url;
