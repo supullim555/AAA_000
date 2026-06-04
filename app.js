@@ -3619,7 +3619,10 @@ async function getProfile(userId) {
 async function upsertProfile(userId, patch) {
   const { error } = await supabaseClient
     .from('profiles')
-    .upsert({ user_id: userId, ...patch, updated_at: new Date().toISOString() });
+    .upsert(
+      { user_id: userId, ...patch, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
   if (error) throw error;
 }
 
@@ -3945,11 +3948,7 @@ async function initMessages() {
   // ── 메시지 렌더링 ────────────────────────────────────────
   async function renderMessages(peerId, silent = false) {
     const { data: msgs } = await supabaseClient
-      .from('messages')
-      .select('id,sender_id,content,read,created_at')
-      .or(`and(sender_id.eq.${me},receiver_id.eq.${peerId}),and(sender_id.eq.${peerId},receiver_id.eq.${me})`)
-      .order('created_at', { ascending: true })
-      .limit(100);
+      .rpc('get_thread', { p_user_a: me, p_user_b: peerId });
 
     const container = document.getElementById('msgMessages');
     if (!container) return;
@@ -4086,9 +4085,10 @@ async function initMessages() {
     });
     btn.disabled = false; btn.textContent = btn.dataset.label || '보내기';
     if (error) { showToast('전송 실패', 'red'); return; }
+    const peer = { id: _selectedNewUser.id, nick: _selectedNewUser.nick };
     closeNewMsg();
     await loadConversations();
-    await openThread(_selectedNewUser.id, _selectedNewUser.nick);
+    await openThread(peer.id, peer.nick);
   });
 
   // ── 초기 로드 ────────────────────────────────────────────
