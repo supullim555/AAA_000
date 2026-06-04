@@ -538,7 +538,6 @@ header nav a.nav-signup:hover {
   font-family: inherit;
   overflow: hidden;
   white-space: nowrap;
-  min-height: 64px;           /* 입장 버튼(하단 절반)이 보일 최소 높이 */
   transition: border-color .15s, background .15s, box-shadow .18s, transform .18s;
 }
 .cat-card-btn:hover {
