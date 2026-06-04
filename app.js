@@ -596,15 +596,16 @@ async function renderCategoryCards() {
       nameRow.appendChild(badge);
     }
 
+    btn.appendChild(nameRow);
+
+    // 입장 버튼 — 카드 하단 오버레이 (nameRow 밖)
     const visitLink = document.createElement('a');
     visitLink.className = 'cat-card-visit';
     visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
-    visitLink.textContent = '입장 →';
+    visitLink.innerHTML = '입장 &rarr;';
     visitLink.title = `${c.name} 아지트 입장`;
     visitLink.addEventListener('click', e => e.stopPropagation());
     btn.appendChild(visitLink);
-
-    btn.appendChild(nameRow);
 
     // ── 타입 배지 (타입 보기 토글 시 표시) ──
     if (c.type) {
@@ -624,6 +625,42 @@ async function renderCategoryCards() {
     });
     wrap.appendChild(btn);
   });
+
+  // 렌더 후 overflow 행 감지 (1행 초과 시 숨기고 "더 보기" 표시)
+  requestAnimationFrame(() => _applyRowLimit(wrap));
+}
+
+/* ── 아지트 카드 행 넘침 숨김/펼치기 ── */
+function _applyRowLimit(wrap) {
+  // 이전 "더 보기" 버튼 제거
+  wrap.parentElement?.querySelectorAll('.cat-more-btn').forEach(b => b.remove());
+
+  const allBtns = [...wrap.querySelectorAll('.cat-card-btn')];
+  allBtns.forEach(b => b.classList.remove('cat-card-hidden'));
+
+  if (!allBtns.length) return;
+
+  const rowTop  = allBtns[0].offsetTop;
+  const hidden  = allBtns.filter(b => b.offsetTop > rowTop);
+
+  if (!hidden.length) return;
+
+  hidden.forEach(b => b.classList.add('cat-card-hidden'));
+
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'cat-more-btn';
+  moreBtn.textContent = `+ ${hidden.length}개 더 보기`;
+  moreBtn.addEventListener('click', () => {
+    hidden.forEach(b => b.classList.remove('cat-card-hidden'));
+    moreBtn.remove();
+    // 접기 버튼 추가
+    const lessBtn = document.createElement('button');
+    lessBtn.className = 'cat-more-btn cat-less-btn';
+    lessBtn.textContent = '접기 ↑';
+    lessBtn.addEventListener('click', () => { lessBtn.remove(); _applyRowLimit(wrap); });
+    wrap.parentElement?.appendChild(lessBtn);
+  });
+  wrap.parentElement?.appendChild(moreBtn);
 }
 
 /* ── 글쓰기 버튼 URL 동기화 ── */

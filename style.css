@@ -520,12 +520,14 @@ header nav a.nav-signup:hover {
   gap: 8px;
 }
 
+/* ── 아지트 카드 (컴팩트 단일행) ── */
 .cat-card-btn {
+  position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 10px 12px 8px;
+  flex-direction: row;        /* 단일 행 */
+  align-items: center;
+  gap: 0;
+  padding: 0;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--border);
   border-left: 3px solid var(--cat-color, var(--border));
@@ -534,14 +536,14 @@ header nav a.nav-signup:hover {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.18s, transform 0.18s;
-  min-width: 80px;
-  max-width: 200px;
+  overflow: hidden;           /* 입장 버튼 슬라이드용 */
+  white-space: nowrap;
+  transition: border-color .15s, background .15s, box-shadow .18s, transform .18s;
 }
 .cat-card-btn:hover {
   border-color: var(--cat-color, var(--primary));
   border-left-color: var(--cat-color, var(--primary));
-  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
   transform: translateY(-2px);
 }
 .cat-card-btn.active {
@@ -550,22 +552,20 @@ header nav a.nav-signup:hover {
   border-left-color: var(--cat-color, var(--primary));
   color: #fff;
 }
+.cat-card-hidden { display: none !important; }
 
 .cat-card-name-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  width: 100%;
   gap: 4px;
+  padding: 7px 10px;          /* 패딩을 nameRow로 이동 */
 }
 
 .cat-card-name {
   font-size: 13px;
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  /* flex:1 제거 — 내용 너비만큼 */
 }
 
 /* 카드 아이콘 (이름 왼쪽에 인라인으로 표시) */
@@ -663,6 +663,25 @@ header nav a.nav-signup:hover {
   color: var(--text-light);
   align-self: center;
 }
+
+/* 더 보기 / 접기 버튼 */
+.cat-more-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--text-light);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .15s, color .15s;
+}
+.cat-more-btn:hover { border-color: var(--primary); color: var(--primary); }
+.cat-less-btn       { border-style: solid; }
 
 /* 다크모드 */
 [data-theme="dark"] .cat-box          { background: #111622; border-color: var(--border); }
@@ -2721,35 +2740,30 @@ header nav a.nav-signup:hover {
 .azit-type-card-desc { font-size: 11px; color: var(--text-light); line-height: 1.4; }
 
 /* ════════════════════════════════════════
-   홈 아지트 카드 — 입장 버튼
+   홈 아지트 카드 — 입장 버튼 (오버레이)
 ════════════════════════════════════════ */
 .cat-card-visit {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 3px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 12px;
-  border: 1.5px solid var(--cat-color, var(--primary));
-  color: var(--cat-color, var(--primary));
-  background: transparent;
+  position: absolute;
+  inset: 0;                   /* 카드 전체 덮음 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  background: var(--cat-color, var(--primary));
+  color: #fff;
   text-decoration: none;
   opacity: 0;
-  transform: translateY(2px);
-  transition: opacity .18s, transform .18s, background .15s, color .15s;
+  transform: translateY(100%);
+  transition: opacity .18s, transform .2s cubic-bezier(.25,.8,.25,1);
 }
 .cat-card-btn:hover .cat-card-visit {
   opacity: 1;
   transform: translateY(0);
-  background: var(--cat-color, var(--primary));
-  color: #fff;
 }
 .cat-card-btn.active .cat-card-visit {
-  opacity: .85;
-  transform: translateY(0);
-  border-color: rgba(255,255,255,.7);
-  color: #fff;
-  background: rgba(255,255,255,.18);
+  opacity: 0;                 /* 선택된 카드엔 숨김 (이미 선택 상태) */
 }
 
 /* ════════════════════════════════════════
