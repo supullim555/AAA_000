@@ -73,13 +73,14 @@ function parseArgs(argv) {
   return args;
 }
 
-async function sbFetch(method, path, body, jwt) {
+async function sbFetch(method, path, body, jwt, prefer) {
   const headers = {
     'Content-Type':  'application/json',
     'apikey':        ANON_KEY,
     'Authorization': `Bearer ${jwt || ANON_KEY}`,
   };
-  if (method === 'POST' || method === 'PATCH') headers['Prefer'] = 'return=representation';
+  if (method === 'POST' || method === 'PATCH')
+    headers['Prefer'] = prefer || 'return=representation';
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     method,
     headers,
@@ -407,10 +408,10 @@ async function votePost(id, direction, args) {
   if (!['up','down'].includes(direction)) throw new Error('방향은 up 또는 down 이어야 합니다.');
 
   const { jwt, user } = await getSession(args);
-  // upsert — 이미 투표했으면 덮어쓰기
+  // upsert — 이미 투표했으면 vote_type 교체
   await sbFetch('POST', `/rest/v1/votes?on_conflict=post_id,user_id`, {
     post_id: id, user_id: user.id, vote_type: direction,
-  }, jwt);
+  }, jwt, 'resolution=merge-duplicates,return=representation');
   console.log(`\n✅ ${direction === 'up' ? '👍' : '👎'} 투표 완료! (게시물 ${id})`);
 }
 
