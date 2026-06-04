@@ -1758,7 +1758,8 @@ header nav a.nav-signup:hover {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   padding: 11px 13px;
   border: 1.5px solid var(--border);
@@ -1769,10 +1770,12 @@ header nav a.nav-signup:hover {
   background: var(--bg);
   outline: none;
   transition: border 0.15s;
+  resize: vertical;
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   border-color: var(--primary);
   background: var(--card);
 }
@@ -2337,18 +2340,22 @@ header nav a.nav-signup:hover {
 }
 
 [data-theme="dark"] .field input,
-[data-theme="dark"] .field select {
+[data-theme="dark"] .field select,
+[data-theme="dark"] .field textarea {
   background: #1a1e2e;
   color: #9ca4c0;
   border-color: var(--border);
 }
 
-[data-theme="dark"] .field input::placeholder { color: #40486a; }
+[data-theme="dark"] .field input::placeholder,
+[data-theme="dark"] .field textarea::placeholder { color: #40486a; }
 
 [data-theme="dark"] .field input:focus,
-[data-theme="dark"] .field select:focus {
+[data-theme="dark"] .field select:focus,
+[data-theme="dark"] .field textarea:focus {
   background: #1e2338;
   border-color: var(--primary);
+  color: var(--text);
 }
 
 [data-theme="dark"] .field label { color: #6870a0; }
