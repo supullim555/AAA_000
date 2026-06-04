@@ -3827,7 +3827,17 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
 
       showToast('프로필이 업데이트됐어요!', 'green');
       closeModal();
-      setTimeout(() => location.reload(), 600);
+
+      // 페이지 내 UI 즉시 업데이트 (reload 대신)
+      const banner = document.getElementById('pfBanner');
+      if (banner) banner.style.background = `linear-gradient(135deg, ${newColor} 0%, ${darkenHex(newColor, 50)} 100%)`;
+      const pfAvEl = document.getElementById('pfAvatar');
+      if (pfAvEl) renderAvatar(pfAvEl, newNick, finalAvatarUrl, newColor);
+      const pfNameEl = document.getElementById('pfName');
+      if (pfNameEl) pfNameEl.textContent = newNick;
+      const pfBioEl  = document.getElementById('pfBio');
+      if (pfBioEl) { pfBioEl.textContent = newBio; pfBioEl.classList.toggle('hidden', !newBio); }
+      document.title = `${newNick}님의 프로필 — Open Azitfh`;
     } catch (err) {
       showToast('저장 실패: ' + (err.message || ''), 'red');
     } finally {
