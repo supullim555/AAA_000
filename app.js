@@ -599,10 +599,10 @@ async function renderCategoryCards() {
     const visitLink = document.createElement('a');
     visitLink.className = 'cat-card-visit';
     visitLink.href = `azitfh.html?cat=${encodeURIComponent(c.name)}`;
-    visitLink.textContent = '→';
-    visitLink.title = `${c.name} 방문`;
+    visitLink.textContent = '입장 →';
+    visitLink.title = `${c.name} 아지트 입장`;
     visitLink.addEventListener('click', e => e.stopPropagation());
-    nameRow.appendChild(visitLink);
+    btn.appendChild(visitLink);
 
     btn.appendChild(nameRow);
 
