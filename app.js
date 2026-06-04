@@ -215,7 +215,6 @@ function updateNav(session) {
   }
 }
 
-/* loadMsgBadge는 initProfile/initMessages에서도 호출 — 전방 선언 위치 */
 
 async function loadNotifBadge(userId) {
   try {
@@ -452,7 +451,7 @@ async function getCategories() {
 }
 
 async function getCategoryNames() {
-  const cats = await getCategories();
+  const cats = await fetchCategoriesCached();
   return cats.map(c => c.name);
 }
 
@@ -3742,10 +3741,17 @@ async function initProfile() {
   }
 }
 
+let _profileEditAbort = null;
+
 function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts) {
   const modal = document.getElementById('editProfileModal');
   if (!modal) return;
   modal.classList.remove('hidden');
+
+  // 이전 열림에서 등록된 리스너 모두 제거 (AbortController 패턴)
+  _profileEditAbort?.abort();
+  _profileEditAbort = new AbortController();
+  const { signal } = _profileEditAbort;
 
   document.getElementById('editNickname').value    = nickname;
   document.getElementById('editBio').value         = bio;
@@ -3762,10 +3768,10 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
   const colorInput = document.getElementById('editBannerColor');
   colorInput?.addEventListener('input', () => {
     document.getElementById('editBannerHex').textContent = colorInput.value;
-  });
+  }, { signal });
 
   const avatarInput = document.getElementById('avatarFileInput');
-  document.getElementById('avatarUploadBtn')?.addEventListener('click', () => avatarInput?.click());
+  document.getElementById('avatarUploadBtn')?.addEventListener('click', () => avatarInput?.click(), { signal });
   avatarInput?.addEventListener('change', () => {
     const file = avatarInput.files[0];
     if (!file) return;
@@ -3775,7 +3781,7 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
     _currentAvUrl = URL.createObjectURL(file);
     document.getElementById('avatarFileInfo').textContent = file.name;
     if (preview) renderAvatar(preview, nickname, _currentAvUrl, colorInput.value);
-  });
+  }, { signal });
   document.getElementById('avatarClearBtn')?.addEventListener('click', () => {
     _avatarFile   = null;
     _removeAvatar = true;
@@ -3783,11 +3789,15 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
     avatarInput.value = '';
     document.getElementById('avatarFileInfo').textContent = '(제거됨)';
     if (preview) renderAvatar(preview, document.getElementById('editNickname').value || nickname, '', colorInput.value);
-  });
+  }, { signal });
 
-  const closeModal = () => modal.classList.add('hidden');
-  document.getElementById('closeEditModal')?.addEventListener('click', closeModal);
-  document.getElementById('cancelEditProfile')?.addEventListener('click', closeModal);
+  const closeModal = () => {
+    modal.classList.add('hidden');
+    _profileEditAbort?.abort();
+    _profileEditAbort = null;
+  };
+  document.getElementById('closeEditModal')?.addEventListener('click', closeModal, { signal });
+  document.getElementById('cancelEditProfile')?.addEventListener('click', closeModal, { signal });
 
   const form    = document.getElementById('editProfileForm');
   const saveBtn = form?.querySelector('[type=submit]');
@@ -3843,7 +3853,7 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
     } finally {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = saveBtn.dataset.label || '저장'; }
     }
-  });
+  }, { signal });
 }
 
 /* ════════════════════════════════════════
@@ -3881,8 +3891,8 @@ async function initMessages() {
   });
 
   const me = session.user.id;
-  let _activePeer = null;
-  let _pollTimer  = null;
+  let _activePeer   = null;
+  let _msgChannel   = null;  // Supabase Realtime 채널
 
   // URL 파라미터: ?to=userId 로 바로 대화 열기
   const toParam = new URLSearchParams(location.search).get('to');
@@ -3919,10 +3929,29 @@ async function initMessages() {
     });
   }
 
+  // ── Realtime 구독 (수신 메시지 즉시 반영) ───────────────
+  function subscribeMessages() {
+    if (_msgChannel) supabaseClient.removeChannel(_msgChannel);
+    _msgChannel = supabaseClient
+      .channel(`inbox-${me}`)
+      .on('postgres_changes', {
+        event:  'INSERT',
+        schema: 'public',
+        table:  'messages',
+        filter: `receiver_id=eq.${me}`,
+      }, (payload) => {
+        loadMsgBadge(session);
+        loadConversations();
+        if (_activePeer && payload.new.sender_id === _activePeer) {
+          renderMessages(_activePeer, true);
+        }
+      })
+      .subscribe();
+  }
+
   // ── 스레드 열기 ─────────────────────────────────────────
   async function openThread(peerId, peerNick) {
     _activePeer = peerId;
-    clearInterval(_pollTimer);
 
     // 헤더
     document.getElementById('msgWelcome')?.classList.add('hidden');
@@ -3948,9 +3977,6 @@ async function initMessages() {
       .then(() => { loadMsgBadge(session); loadConversations(); });
 
     await renderMessages(peerId);
-    _pollTimer = setInterval(() => renderMessages(peerId, true), 3000);
-
-    // 목록도 갱신
     loadConversations();
     document.getElementById('msgInput')?.focus();
   }
@@ -4023,7 +4049,6 @@ async function initMessages() {
 
   // ── 뒤로가기 (모바일) ────────────────────────────────────
   document.getElementById('msgBackBtn')?.addEventListener('click', () => {
-    clearInterval(_pollTimer);
     _activePeer = null;
     document.getElementById('msgSidebar')?.classList.remove('msg-sidebar-hidden');
     document.getElementById('msgMain')?.classList.remove('msg-main-active');
@@ -4103,8 +4128,9 @@ async function initMessages() {
     await openThread(peer.id, peer.nick);
   });
 
-  // ── 초기 로드 ────────────────────────────────────────────
+  // ── 초기 로드 + Realtime 구독 ────────────────────────────
   await loadConversations();
+  subscribeMessages();
 
   if (toParam) {
     const peerProfile = await getProfile(toParam);
