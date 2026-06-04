@@ -969,8 +969,8 @@ async function renderCategories(userId) {
       <div class="cat-actions">
         <a href="azitfh.html?cat=${encodeURIComponent(c.name)}"
            class="cat-action-btn cat-action-visit" title="아지트 입장">입장 →</a>
-        <a href="azit-rename.html?id=${c.id}&name=${encodeURIComponent(c.name)}"
-           class="cat-action-btn cat-action-ren" title="아지트 수정">✏️</a>
+        <a href="azit-edit.html?id=${c.id}"
+           class="cat-action-btn cat-action-ren" title="아지트 편집">✏️</a>
         <button class="cat-action-btn cat-action-del"
                 data-id="${c.id}" data-name="${escapeHTML(c.name)}" title="삭제">×</button>
       </div>
@@ -1066,6 +1066,222 @@ async function initCategoryManager(userId) {
       renderCategories(userId);
     }),
   ]);
+}
+
+/* ════════════════════════════════════════
+   Page: Azit Edit (전체 편집)
+════════════════════════════════════════ */
+async function initAzitEdit() {
+  const session = await requireAuth();
+  if (!session) return;
+
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { location.href = 'dashboard.html'; return; }
+
+  // 아지트 데이터 로드
+  const { data: azit } = await supabaseClient.from('azits').select('*').eq('id', id).maybeSingle();
+  if (!azit || azit.creator_id !== session.user.id) {
+    showToast('편집 권한이 없어요.', 'red');
+    setTimeout(() => { location.href = 'dashboard.html'; }, 1000);
+    return;
+  }
+
+  document.title = `${azit.name} 편집 — Open Azitfh`;
+  document.getElementById('azitId').value = id;
+
+  // 폼에 기존값 채우기
+  document.getElementById('editAzitName').value   = azit.name;
+  document.getElementById('editAzitDesc').value   = azit.description || '';
+  document.getElementById('editIcon').value       = azit.icon || '🏠';
+  document.getElementById('editColor').value      = azit.cover_color || '#4aab8e';
+  document.getElementById('editColorHex').textContent = azit.cover_color || '#4aab8e';
+
+  // 기존 게시물 레이아웃
+  const layout = azit.post_layout || 'card';
+  const layoutRadio = document.querySelector(`input[name="postLayout"][value="${layout}"]`);
+  if (layoutRadio) layoutRadio.checked = true;
+
+  // ── 미리보기 초기화 ──
+  function updatePreview() {
+    const name  = document.getElementById('editAzitName').value  || '아지트 이름';
+    const desc  = document.getElementById('editAzitDesc').value  || '';
+    const icon  = document.getElementById('editIcon').value      || '🏠';
+    const color = document.getElementById('editColor').value     || '#4aab8e';
+    const bannerUrl = _currentBannerUrl;
+    const iconUrl   = _currentIconUrl;
+
+    document.getElementById('previewName').textContent = name;
+    document.getElementById('previewDesc').textContent = desc;
+
+    const bg = document.getElementById('previewBg');
+    if (bannerUrl) {
+      bg.style.background = '';
+      bg.style.backgroundImage = `url('${escapeHTML(bannerUrl)}')`;
+      bg.style.backgroundSize = 'cover';
+      bg.style.backgroundPosition = 'center';
+    } else {
+      bg.style.backgroundImage = '';
+      bg.style.background = `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+    }
+
+    const iconEl = document.getElementById('previewIcon');
+    if (iconUrl) {
+      iconEl.innerHTML = `<img src="${escapeHTML(iconUrl)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover">`;
+    } else {
+      iconEl.textContent = icon;
+    }
+  }
+
+  let _currentBannerUrl = azit.banner_url || '';
+  let _currentIconUrl   = azit.icon_url   || '';
+  let _bannerFile = null, _iconFile = null;
+
+  // 기존 배너/아이콘 표시
+  if (_currentBannerUrl) {
+    document.getElementById('bannerPreviewImg').src = _currentBannerUrl;
+    document.getElementById('bannerPreviewImg').classList.remove('hidden');
+    document.getElementById('bannerPlaceholder').classList.add('hidden');
+  }
+  if (_currentIconUrl) {
+    document.getElementById('iconImgEl').src = _currentIconUrl;
+    document.getElementById('iconImgEl').classList.remove('hidden');
+    document.getElementById('iconImgPlaceholder').classList.add('hidden');
+  }
+
+  updatePreview();
+
+  // ── 입력 이벤트 ──
+  ['editAzitName', 'editAzitDesc', 'editIcon'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePreview);
+  });
+  document.getElementById('editColor')?.addEventListener('input', function() {
+    document.getElementById('editColorHex').textContent = this.value;
+    updatePreview();
+  });
+
+  // ── 배너 파일 선택 ──
+  const bannerInput = document.getElementById('bannerFileInput');
+  document.getElementById('bannerUploadBtn')?.addEventListener('click', () => bannerInput?.click());
+  bannerInput?.addEventListener('change', () => {
+    const file = bannerInput.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('이미지는 5MB 이하여야 해요.', 'red'); return; }
+    _bannerFile = file;
+    const url = URL.createObjectURL(file);
+    _currentBannerUrl = url;
+    document.getElementById('bannerPreviewImg').src = url;
+    document.getElementById('bannerPreviewImg').classList.remove('hidden');
+    document.getElementById('bannerPlaceholder').classList.add('hidden');
+    document.getElementById('bannerFileInfo').textContent = file.name;
+    updatePreview();
+  });
+  document.getElementById('bannerClearBtn')?.addEventListener('click', () => {
+    _bannerFile = null; _currentBannerUrl = '';
+    bannerInput.value = '';
+    document.getElementById('bannerPreviewImg').classList.add('hidden');
+    document.getElementById('bannerPlaceholder').classList.remove('hidden');
+    document.getElementById('bannerFileInfo').textContent = '(제거됨)';
+    updatePreview();
+  });
+
+  // ── 아이콘 이미지 선택 ──
+  const iconInput = document.getElementById('iconFileInput');
+  document.getElementById('iconUploadBtn')?.addEventListener('click', () => iconInput?.click());
+  iconInput?.addEventListener('change', () => {
+    const file = iconInput.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast('아이콘 이미지는 2MB 이하여야 해요.', 'red'); return; }
+    _iconFile = file;
+    const url = URL.createObjectURL(file);
+    _currentIconUrl = url;
+    document.getElementById('iconImgEl').src = url;
+    document.getElementById('iconImgEl').classList.remove('hidden');
+    document.getElementById('iconImgPlaceholder').classList.add('hidden');
+    updatePreview();
+  });
+  document.getElementById('iconClearBtn')?.addEventListener('click', () => {
+    _iconFile = null; _currentIconUrl = '';
+    iconInput.value = '';
+    document.getElementById('iconImgEl').classList.add('hidden');
+    document.getElementById('iconImgPlaceholder').classList.remove('hidden');
+    updatePreview();
+  });
+
+  // 레이아웃 라디오 변경
+  document.querySelectorAll('input[name="postLayout"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.querySelectorAll('.layout-option').forEach(el => el.classList.remove('selected'));
+      r.closest('.layout-option')?.classList.add('selected');
+    });
+  });
+  document.querySelector(`input[name="postLayout"][value="${layout}"]`)?.closest('.layout-option')?.classList.add('selected');
+
+  // ── 저장 ──
+  const form    = document.getElementById('azitEditForm');
+  const saveBtn = form.querySelector('[type=submit]');
+  saveBtn.dataset.label = saveBtn.textContent;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('editAzitName').value.trim();
+    if (!name) { showToast('이름을 입력해 주세요.', 'red'); return; }
+
+    setLoading(saveBtn, true);
+    try {
+      let bannerUrl = _currentBannerUrl.startsWith('blob:') ? azit.banner_url : _currentBannerUrl;
+      let iconUrl   = _currentIconUrl.startsWith('blob:')   ? azit.icon_url   : _currentIconUrl;
+
+      // 배너 업로드
+      if (_bannerFile) {
+        const ext  = _bannerFile.name.split('.').pop().toLowerCase();
+        const path = `azit-banners/${id}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _bannerFile, { contentType: _bannerFile.type, upsert: true });
+        if (upErr) throw new Error('배너 업로드 실패: ' + upErr.message);
+        bannerUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+      if (!_currentBannerUrl) bannerUrl = null; // 제거
+
+      // 아이콘 이미지 업로드
+      if (_iconFile) {
+        const ext  = _iconFile.name.split('.').pop().toLowerCase();
+        const path = `azit-icons/${id}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _iconFile, { contentType: _iconFile.type, upsert: true });
+        if (upErr) throw new Error('아이콘 업로드 실패: ' + upErr.message);
+        iconUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+      if (!_currentIconUrl) iconUrl = null; // 제거
+
+      const postLayout = document.querySelector('input[name="postLayout"]:checked')?.value || 'card';
+      const updateData = {
+        name:        name,
+        description: nullIfEmpty(document.getElementById('editAzitDesc').value),
+        icon:        document.getElementById('editIcon').value || '🏠',
+        cover_color: document.getElementById('editColor').value,
+        banner_url:  bannerUrl || null,
+        icon_url:    iconUrl   || null,
+        post_layout: postLayout,
+      };
+
+      // 이름 변경 시 RPC (게시물 category도 변경)
+      if (name !== azit.name) {
+        const { error: rnErr } = await supabaseClient.rpc('rename_azit', { p_azit_id: id, p_new_name: name });
+        if (rnErr) throw rnErr;
+        delete updateData.name; // rename_azit이 처리
+      }
+      const { error } = await supabaseClient.from('azits').update(updateData).eq('id', id);
+      if (error) throw error;
+
+      invalidateCategoriesCache();
+      showToast('아지트가 업데이트됐어요!', 'green');
+      setTimeout(() => { location.href = `azitfh.html?cat=${encodeURIComponent(name)}`; }, 900);
+    } catch (err) {
+      showToast('저장 실패: ' + (err.message || ''), 'red');
+    } finally {
+      setLoading(saveBtn, false);
+    }
+  });
 }
 
 /* ════════════════════════════════════════

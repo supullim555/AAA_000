@@ -56,9 +56,26 @@ async function fetchAzitfhPosts(catName, sortBy = 'newest') {
 ════════════════════════════════════════ */
 function renderHero(azitfh, session) {
   const color = azitfh.cover_color || '#4aab8e';
-  document.getElementById('heroBg').style.background =
-    `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
-  document.getElementById('heroIcon').textContent = azitfh.icon || '🏠';
+  const bg    = document.getElementById('heroBg');
+
+  if (azitfh.banner_url) {
+    bg.style.backgroundImage   = `url('${azitfh.banner_url}')`;
+    bg.style.backgroundSize    = 'cover';
+    bg.style.backgroundPosition = 'center';
+    bg.style.background        = '';
+    bg.classList.add('has-banner');
+  } else {
+    bg.style.backgroundImage = '';
+    bg.style.background      = `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+  }
+
+  const iconEl = document.getElementById('heroIcon');
+  if (azitfh.icon_url) {
+    iconEl.innerHTML = `<img src="${azitfh.icon_url}" class="azitfh-icon-img" alt="">`;
+  } else {
+    iconEl.textContent = azitfh.icon || '🏠';
+  }
+
   document.getElementById('heroName').textContent = azitfh.name;
   document.getElementById('heroDesc').textContent = azitfh.description || '';
 
@@ -69,10 +86,20 @@ function renderHero(azitfh, session) {
     typeBadgeEl.classList.remove('hidden');
   }
 
+  // 편집 버튼 (본인만)
   if (session) {
     const btn = document.getElementById('heroWriteBtn');
     btn.href = `post-write.html?cat=${encodeURIComponent(azitfh.name)}`;
     btn.classList.remove('hidden');
+
+    // 본인 아지트면 편집 버튼 추가
+    if (azitfh.creator_id === session.user.id) {
+      const editBtn = document.getElementById('heroEditBtn');
+      if (editBtn) {
+        editBtn.href = `azit-edit.html?id=${azitfh.id}`;
+        editBtn.classList.remove('hidden');
+      }
+    }
   }
 }
 
@@ -130,10 +157,43 @@ async function loadPosts(azitfh, catName) {
     });
   });
 
-  renderPostCards(document.getElementById('azitfhGrid'), posts);
+  renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card');
 }
 
-function renderPostCards(container, posts) {
+function renderPostCards(container, posts, layout = 'card') {
+  if (layout === 'list') {
+    container.innerHTML = posts.map(p => {
+      const typeIcon = p.game_url ? '🎮 ' : p.video_url ? '🎬 ' : p.code_lang ? '💻 ' : '';
+      const pin = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
+      return `<a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
+        <span class="post-row-title">${pin}${typeIcon}${escapeHTML(p.title)}</span>
+        <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
+        <span class="post-row-date">${formatDate(p.created_at)}</span>
+        <span class="post-row-views">👁 ${p.views||0}</span>
+      </a>`;
+    }).join('');
+    return;
+  }
+  if (layout === 'gallery') {
+    container.className = 'azitfh-gallery-grid';
+    container.innerHTML = posts.map(p => {
+      const thumb = p.thumbnail_url || extractFirstImage(p.content) ||
+        (p.video_url ? null : null);
+      const bg = thumb ? `style="background-image:url('${escapeHTML(thumb)}')"` : '';
+      const typeIcon = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '📝';
+      return `<a class="gallery-card" href="post-detail.html?id=${p.id}" ${bg}>
+        <div class="gallery-card-overlay">
+          <span class="gallery-type">${typeIcon}</span>
+          <span class="gallery-title">${escapeHTML(truncate(p.title, 40))}</span>
+          <span class="gallery-meta">by ${escapeHTML(p.author_nickname)}</span>
+        </div>
+      </a>`;
+    }).join('');
+    return;
+  }
+  // default: card
+  container.className = '';
+}
   const cards = posts.map(p => {
     const isGame  = !!p.game_url;
     const isVideo = !!p.video_url;

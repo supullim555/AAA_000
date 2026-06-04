@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아지트 편집 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html" class="active">내 공간</a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="azit-edit-wrap">
+    <!-- 실시간 미리보기 -->
+    <div class="azit-edit-preview-box">
+      <p class="azit-edit-preview-label">미리보기</p>
+      <div class="azitfh-hero azit-preview-hero" style="min-height:140px;border-radius:var(--r);overflow:hidden">
+        <div class="azitfh-hero-bg" id="previewBg"></div>
+        <div class="azitfh-hero-content" style="padding:20px 24px">
+          <span class="azitfh-icon" id="previewIcon">🏠</span>
+          <h1 class="azitfh-name" id="previewName">아지트 이름</h1>
+          <p class="azitfh-desc" id="previewDesc"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 편집 폼 -->
+    <form id="azitEditForm" class="azit-edit-form">
+      <input type="hidden" id="azitId">
+
+      <!-- ① 기본 정보 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">기본 정보</h3>
+        <div class="field">
+          <label for="editAzitName">아지트 이름 <span class="required">*</span></label>
+          <input type="text" id="editAzitName" maxlength="20" autocomplete="off" placeholder="이름을 입력하세요">
+        </div>
+        <div class="field">
+          <label for="editAzitDesc">소개</label>
+          <textarea id="editAzitDesc" maxlength="120" placeholder="어떤 공간인지 소개해 주세요 (선택)" style="min-height:72px"></textarea>
+        </div>
+      </section>
+
+      <!-- ② 비주얼 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">비주얼</h3>
+
+        <!-- 배너 이미지 -->
+        <div class="field">
+          <label>배너 이미지</label>
+          <div class="banner-edit-area" id="bannerPreviewWrap">
+            <div class="banner-placeholder" id="bannerPlaceholder">이미지 없음 (배경 색상 사용)</div>
+            <img id="bannerPreviewImg" class="banner-preview-img hidden" alt="배너">
+          </div>
+          <div class="edit-upload-row">
+            <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+            <button type="button" id="bannerUploadBtn" class="btn-secondary" style="font-size:13px;padding:7px 14px">🖼️ 이미지 선택</button>
+            <button type="button" id="bannerClearBtn" class="btn-secondary" style="font-size:13px;padding:7px 14px">× 제거</button>
+            <span id="bannerFileInfo" class="edit-file-info"></span>
+          </div>
+          <p class="hint">JPEG·PNG·WebP·GIF (최대 5MB) — 없으면 배경 색상 그라디언트 표시</p>
+        </div>
+
+        <!-- 아이콘 -->
+        <div class="field">
+          <label>아이콘</label>
+          <div class="icon-edit-row">
+            <!-- 이모지 -->
+            <div class="icon-edit-item">
+              <span class="edit-sublabel">이모지</span>
+              <input type="text" id="editIcon" maxlength="4" placeholder="🏠"
+                     class="icon-emoji-input" style="width:64px;text-align:center;font-size:24px">
+            </div>
+            <!-- 이미지 (선택) -->
+            <div class="icon-edit-item">
+              <span class="edit-sublabel">이미지 (선택, 이모지 대체)</span>
+              <div class="icon-img-row">
+                <div class="icon-img-preview" id="iconImgPreview">
+                  <span id="iconImgPlaceholder" class="icon-img-ph">+</span>
+                  <img id="iconImgEl" class="hidden" alt="">
+                </div>
+                <div>
+                  <input type="file" id="iconFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+                  <button type="button" id="iconUploadBtn" class="btn-secondary" style="font-size:12px;padding:5px 12px">업로드</button>
+                  <button type="button" id="iconClearBtn" class="btn-secondary" style="font-size:12px;padding:5px 12px;margin-left:6px">× 제거</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 배경 색상 -->
+        <div class="field">
+          <label for="editColor">배경 색상</label>
+          <div style="display:flex;align-items:center;gap:12px">
+            <input type="color" id="editColor" value="#4aab8e">
+            <span id="editColorHex" class="color-hex">#4aab8e</span>
+          </div>
+          <p class="hint">배너 이미지가 없을 때 그라디언트 배경으로 사용됩니다.</p>
+        </div>
+      </section>
+
+      <!-- ③ 게시물 표시 방식 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">게시물 표시 방식</h3>
+        <div class="layout-selector">
+          <label class="layout-option" id="layoutCard">
+            <input type="radio" name="postLayout" value="card" checked>
+            <div class="layout-option-preview">
+              <div class="lo-card-demo">
+                <div class="lo-card"></div>
+                <div class="lo-card"></div>
+                <div class="lo-card"></div>
+              </div>
+            </div>
+            <span class="layout-option-name">카드형</span>
+            <span class="layout-option-desc">썸네일·제목·설명 카드 그리드</span>
+          </label>
+          <label class="layout-option" id="layoutList">
+            <input type="radio" name="postLayout" value="list">
+            <div class="layout-option-preview">
+              <div class="lo-list-demo">
+                <div class="lo-row"></div>
+                <div class="lo-row"></div>
+                <div class="lo-row"></div>
+              </div>
+            </div>
+            <span class="layout-option-name">목록형</span>
+            <span class="layout-option-desc">제목·날짜 한 줄 목록</span>
+          </label>
+          <label class="layout-option" id="layoutGallery">
+            <input type="radio" name="postLayout" value="gallery">
+            <div class="layout-option-preview">
+              <div class="lo-gallery-demo">
+                <div class="lo-g-big"></div>
+                <div class="lo-g-sm">
+                  <div class="lo-g-cell"></div>
+                  <div class="lo-g-cell"></div>
+                </div>
+              </div>
+            </div>
+            <span class="layout-option-name">갤러리형</span>
+            <span class="layout-option-desc">이미지 중심 큰 썸네일</span>
+          </label>
+        </div>
+      </section>
+
+      <div class="post-write-actions">
+        <a href="dashboard.html" class="btn-secondary">취소</a>
+        <button type="submit" class="btn btn-primary" data-label="저장">저장</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initAzitEdit();</script>
+</body>
+</html>
