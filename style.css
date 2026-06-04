@@ -2072,6 +2072,24 @@ header nav a.nav-signup:hover {
   font-family: inherit;
 }
 
+/* 입장 버튼 — 아지트 컬러, 텍스트 표시 */
+.cat-action-visit {
+  width: auto;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  border-color: var(--cat-color, var(--primary));
+  color: var(--cat-color, var(--primary));
+  gap: 2px;
+}
+.cat-action-visit:hover {
+  background: var(--cat-color, var(--primary));
+  border-color: var(--cat-color, var(--primary));
+  color: #fff;
+}
+[data-theme="dark"] .cat-action-visit:hover { color: #fff; }
+
 .cat-action-ren:hover {
   border-color: var(--primary);
   background: #e8f5ef;

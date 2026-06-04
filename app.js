@@ -968,7 +968,7 @@ async function renderCategories(userId) {
       </div>
       <div class="cat-actions">
         <a href="azitfh.html?cat=${encodeURIComponent(c.name)}"
-           class="cat-action-btn" title="아지트 방문" style="font-size:14px;text-decoration:none">→</a>
+           class="cat-action-btn cat-action-visit" title="아지트 입장">입장 →</a>
         <a href="azit-rename.html?id=${c.id}&name=${encodeURIComponent(c.name)}"
            class="cat-action-btn cat-action-ren" title="아지트 수정">✏️</a>
         <button class="cat-action-btn cat-action-del"
