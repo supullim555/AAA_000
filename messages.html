@@ -13,7 +13,7 @@
     <nav>
       <a href="index.html">홈</a>
       <a id="navDash"   href="dashboard.html">내 공간</a>
-      <a id="navMsg"    href="messages.html" class="hidden nav-icon-link" title="메시지">✉️<span id="msgBadge" class="notif-badge hidden"></span></a>
+      <a id="navMsg"    href="messages.html" class="hidden nav-msg-btn"><span class="nav-msg-icon">✉</span> 메시지<span id="msgBadge" class="notif-badge hidden"></span></a>
       <a id="navNotif"  href="notifications.html" class="hidden nav-icon-link">🔔<span id="notifBadge" class="notif-badge hidden"></span></a>
       <a id="navLogin"  href="login.html">로그인</a>
       <a id="navLogout" href="#">로그아웃</a>
@@ -27,7 +27,9 @@
     <aside class="msg-sidebar" id="msgSidebar">
       <div class="msg-sidebar-header">
         <h2 class="msg-sidebar-title">메시지</h2>
-        <button class="btn-primary btn-sm" id="newMsgBtn">+ 새 메시지</button>
+        <button class="btn-primary btn-sm" id="newMsgBtn" style="gap:5px;display:inline-flex;align-items:center">
+          <span style="font-size:15px;line-height:1">+</span> 새 대화
+        </button>
       </div>
       <div class="msg-conv-list" id="msgConvList">
         <p class="msg-empty">불러오는 중…</p>
@@ -36,18 +38,21 @@
 
     <!-- 오른쪽: 대화 내용 -->
     <main class="msg-main" id="msgMain">
+      <!-- 환영 화면 -->
       <div class="msg-welcome" id="msgWelcome">
-        <div class="msg-welcome-icon">✉️</div>
-        <p class="msg-welcome-text">대화를 선택하거나 새 메시지를 보내세요</p>
+        <div class="msg-welcome-icon">✉</div>
+        <p class="msg-welcome-text">메시지</p>
+        <p class="msg-welcome-sub">새 대화를 시작하거나 왼쪽에서 대화를 선택하세요</p>
+        <button class="btn-primary" id="msgWelcomeNewBtn" style="margin-top:4px">+ 새 대화 시작</button>
       </div>
 
       <!-- 대화 헤더 -->
       <div class="msg-thread-header hidden" id="msgThreadHeader">
         <button class="msg-back-btn" id="msgBackBtn">←</button>
         <div class="msg-thread-avatar" id="threadAvatar"></div>
-        <div>
-          <strong id="threadName"></strong>
-          <a id="threadProfileLink" href="#" class="msg-profile-link">프로필 보기</a>
+        <div class="msg-thread-header-info">
+          <span class="msg-thread-name" id="threadName"></span>
+          <a id="threadProfileLink" href="#" class="msg-profile-link">↗ 프로필 보기</a>
         </div>
       </div>
 
@@ -58,28 +63,36 @@
 
       <!-- 입력창 -->
       <div class="msg-input-wrap hidden" id="msgInputWrap">
-        <textarea class="msg-input" id="msgInput" placeholder="메시지를 입력하세요…" rows="1" maxlength="2000"></textarea>
-        <button class="msg-send-btn" id="msgSendBtn" title="전송 (Enter)">↑</button>
+        <textarea class="msg-input" id="msgInput"
+          placeholder="메시지를 입력하세요… (Enter 전송 / Shift+Enter 줄바꿈)"
+          rows="1" maxlength="2000"></textarea>
+        <button class="msg-send-btn" id="msgSendBtn" title="전송 (Enter)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     </main>
   </div>
 
   <!-- 새 메시지 모달 -->
   <div class="modal-overlay hidden" id="newMsgModal">
-    <div class="modal-box" style="max-width:420px">
+    <div class="modal-box" style="max-width:440px">
       <div class="modal-header">
-        <h3>새 메시지</h3>
+        <h3>새 대화 시작</h3>
         <button class="modal-close" id="closeNewMsgModal">×</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label class="form-label">받는 사람 (닉네임)</label>
-          <input type="text" id="newMsgNickname" class="form-input" placeholder="닉네임 입력 후 검색" autocomplete="off">
+          <label class="form-label">받는 사람</label>
+          <input type="text" id="newMsgNickname" class="form-input"
+            placeholder="닉네임을 입력하세요" autocomplete="off">
           <div id="newMsgUserList" class="msg-user-search-list hidden"></div>
         </div>
         <div class="form-row">
           <label class="form-label">메시지</label>
-          <textarea id="newMsgContent" class="form-input" rows="4" maxlength="2000" placeholder="첫 메시지를 입력하세요"></textarea>
+          <textarea id="newMsgContent" class="form-input" rows="4"
+            maxlength="2000" placeholder="첫 메시지를 입력하세요"></textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-outline" id="cancelNewMsg">취소</button>

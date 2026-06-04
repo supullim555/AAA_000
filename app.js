@@ -4034,10 +4034,12 @@ async function initMessages() {
   });
 
   // ── 새 메시지 모달 ──────────────────────────────────────
-  document.getElementById('newMsgBtn')?.addEventListener('click', () => {
+  const openNewMsgModal = () => {
     document.getElementById('newMsgModal')?.classList.remove('hidden');
     document.getElementById('newMsgNickname')?.focus();
-  });
+  };
+  document.getElementById('newMsgBtn')?.addEventListener('click', openNewMsgModal);
+  document.getElementById('msgWelcomeNewBtn')?.addEventListener('click', openNewMsgModal);
   const closeNewMsg = () => {
     document.getElementById('newMsgModal')?.classList.add('hidden');
     document.getElementById('newMsgNickname').value  = '';
