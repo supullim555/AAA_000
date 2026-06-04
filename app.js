@@ -1,11 +1,8 @@
-/* ── 전역 상수 ── */
-const CONFIG = {
-  POPULAR_LIMIT:  12,   // 인기 게시물 최대 표시 수
-  TRUNCATE_LEN:   70,   // 게시물 미리보기 최대 글자 수
-  TOAST_MS:     3000,   // 토스트 자동 닫힘 (ms)
-  REPORT_MIN:      3,   // 신고 자동 숨김 최소 건수
-  POSTS_CACHE_TTL: 30000, // 게시물 캐시 유효기간 (ms)
-};
+/* CONFIG, escapeHTML, truncate, formatDate, postTypeIcon, stripHtml,
+   extractFirstImage, darkenHex, nullIfEmpty, showToast, showError,
+   clearErrors, setLoading, renderAvatar, initNavLogout,
+   renderPostRowHTML, renderPostThumbHtml, renderPostDescHtml
+   → utils.js 로 이전됨 */
 
 /* ── 캐시 레이어 — 동일 세션 내 중복 DB 호출 방지 ── */
 // 동시 요청이 몰려도 Promise 하나만 실행 (thundering herd 방지)
@@ -63,30 +60,6 @@ function updateToggleIcon() {
 }
 
 /* ── Toast ── */
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.className = 'toast' + (type ? ' ' + type : '');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), CONFIG.TOAST_MS);
-}
-
-function showError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add('show');
-}
-
-function clearErrors() {
-  document.querySelectorAll('.error-msg, .global-error').forEach(el => el.classList.remove('show'));
-}
-
-function setLoading(btn, loading) {
-  btn.disabled = loading;
-  btn.textContent = loading ? '처리 중...' : btn.dataset.label;
-}
 
 /* ── AI/SEO 메타 태그 동적 업데이트 ── */
 function setMeta(id, value) {
@@ -136,29 +109,6 @@ function updateAzitMeta(azit, postCount) {
 }
 
 /* HTML 태그 제거 — 미리보기 텍스트 추출용 */
-function stripHtml(html) {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || '';
-}
-
-/* HTML 콘텐츠에서 첫 번째 이미지 URL 추출 */
-function extractFirstImage(html) {
-  if (!html) return null;
-  const m = html.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
-  return m ? m[1] : null;
-}
-
-/* 16진수 색상 어둡게 (아지트 히어로 배너 그라디언트용) */
-function darkenHex(hex, amount = 40) {
-  try {
-    const n = parseInt(hex.replace('#', ''), 16);
-    const r = Math.max(0, (n >> 16)         - amount);
-    const g = Math.max(0, ((n >> 8) & 0xff) - amount);
-    const b = Math.max(0, (n & 0xff)        - amount);
-    return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
-  } catch { return hex; }
-}
 
 /* ── Supabase Auth ── */
 async function authSignUp(email, password, nickname) {
@@ -850,16 +800,6 @@ async function incrementViews(id) {
 }
 
 /* HTML 이스케이프 (XSS 방지) */
-function escapeHTML(s) {
-  return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function truncate(s, n) {
-  return s.length > n ? s.slice(0, n) + '…' : s;
-}
-
 /* Quill HTML 정제: 앞뒤 빈 단락 제거 후 null 반환 */
 function cleanQuillHTML(html) {
   if (!html) return null;
@@ -871,20 +811,6 @@ function cleanQuillHTML(html) {
   return cleaned || null;
 }
 
-/* 빈 문자열 → null (저장 공간 절약) */
-function nullIfEmpty(str) {
-  const s = (str ?? '').trim();
-  return s || null;
-}
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('ko-KR');
-}
-
-function postTypeIcon(p, withSpace = false) {
-  const i = p.game_url ? '🎮' : p.video_url ? '🎬' : p.code_lang ? '💻' : '';
-  return (withSpace && i) ? i + ' ' : i;
-}
 
 /* ── 인기 게시물 렌더링 (조회수순, 최대 12개) ── */
 async function renderPosts() {
@@ -908,41 +834,19 @@ async function renderPosts() {
     }
 
     grid.innerHTML = posts.map(p => {
-      const isGame  = !!p.game_url;
-      const isVideo = !!p.video_url;
-      const isCode  = !!p.code_lang;
-      const isRich  = isGame || isVideo;
-      const thumb   = p.thumbnail_url || (!isCode && extractFirstImage(p.content));
-      const thumbHtml = thumb
-        ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
-        : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : '');
+      const isCode    = !!p.code_lang;
       const langBadge = isCode ? `<span class="code-lang-badge-sm">${escapeHTML(p.code_lang)}</span>` : '';
-      let descHtml;
-      if (isCode) {
-        const firstCode = (p.code_files && p.code_files.length > 0) ? (p.code_files[0]?.code || '') : (p.content || '');
-        const filesInfo = (p.code_files && p.code_files.length > 1) ? `<span class="code-files-badge">${p.code_files.length}개 파일</span>` : '';
-        descHtml = `<pre class="code-card-preview">${escapeHTML(truncate(firstCode, 120))}</pre>${filesInfo}`;
-      } else if (isRich) {
-        const desc = escapeHTML(p.content || '');
-        descHtml = `<div class="game-card-desc-wrap">
-            <p class="game-card-desc">${desc}</p>
-            ${desc ? `<button class="expand-btn" type="button" data-expanded="false">펼쳐보기</button>` : ''}
-           </div>`;
-      } else {
-        descHtml = `<p class="news-desc">${escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN))}</p>`;
-      }
       return `
         <a class="news-card" href="post-detail.html?id=${p.id}">
-          ${thumbHtml}
+          ${renderPostThumbHtml(p)}
           <div class="news-card-top">
             <span class="news-badge">${escapeHTML(p.category)}</span>${langBadge}
             <span class="news-date">${formatDate(p.created_at)}</span>
           </div>
           <h3 class="news-title">${escapeHTML(p.title)}</h3>
-          ${descHtml}
+          ${renderPostDescHtml(p)}
           <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
-        </a>
-      `;
+        </a>`;
     }).join('');
 
     // 펼쳐보기 버튼: 실제로 2줄 초과 시에만 표시
@@ -999,20 +903,9 @@ async function renderPostsList(resetPage = false) {
 
     const totalPages = Math.ceil((count || 0) / LIST_PAGE_SIZE);
 
-    const rows = (posts || []).map(p => {
-      const typeIcon = p.game_url ? '<span class="post-row-type-icon">🎮</span>'
-                    : p.video_url ? '<span class="post-row-type-icon">🎬</span>'
-                    : p.code_lang ? '<span class="post-row-type-icon">💻</span>' : '';
-      const pinIcon  = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
-      return `
-      <a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
-        <span class="post-row-cat">${escapeHTML(p.category)}</span>
-        <span class="post-row-title">${pinIcon}${typeIcon}${escapeHTML(p.title)}</span>
-        <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
-        <span class="post-row-date">${formatDate(p.created_at)}</span>
-        <span class="post-row-views">👁 ${p.views || 0}</span>
-      </a>`;
-    }).join('');
+    const rows = (posts || []).map(p =>
+      renderPostRowHTML(p, { showPin: true })
+    ).join('');
 
     const pagination = totalPages > 1 ? `
       <div class="pagination">
@@ -2781,10 +2674,8 @@ async function initPostDetail() {
   const session = await getSession();
   updateNav(session);
 
-  document.getElementById('navLogout')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await authSignOut();
-    location.reload();
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); location.reload();
   });
 
   const id   = new URLSearchParams(location.search).get('id');
@@ -3088,10 +2979,8 @@ async function initIndex() {
   const writeBtn = document.getElementById('writeBtn');
   if (session) writeBtn?.classList.remove('hidden');
 
-  document.getElementById('navLogout')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await authSignOut();
-    location.reload();
+  document.getElementById('navLogout')?.addEventListener('click', async e => {
+    e.preventDefault(); await authSignOut(); location.reload();
   });
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
@@ -3625,23 +3514,13 @@ async function upsertProfile(userId, patch) {
   if (error) throw error;
 }
 
-function renderAvatar(el, nickname, avatarUrl, color = '#4aab8e') {
-  if (avatarUrl) {
-    el.innerHTML = `<img src="${escapeHTML(avatarUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
-  } else {
-    el.textContent = (nickname || '?').slice(0, 1).toUpperCase();
-    el.style.background = color;
-  }
-}
 
 async function initProfile() {
   const session = await getSession();
   updateNav(session);
   loadMsgBadge(session);
 
-  document.getElementById('navLogout')?.addEventListener('click', async e => {
-    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   const params   = new URLSearchParams(location.search);
   const targetId = params.get('id');
@@ -3716,13 +3595,7 @@ async function initProfile() {
   if (list) {
     list.innerHTML = posts.length === 0
       ? '<p class="news-empty">작성한 게시물이 없습니다.</p>'
-      : posts.map(p => `
-        <a class="post-row" href="post-detail.html?id=${p.id}">
-          <span class="post-row-cat">${escapeHTML(p.category)}</span>
-          <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
-          <span class="post-row-date">${formatDate(p.created_at)}</span>
-          <span class="post-row-views">👁 ${p.views || 0}</span>
-        </a>`).join('');
+      : posts.map(p => renderPostRowHTML(p, { showAuthor: false })).join('');
   }
 
   // 정보 탭
@@ -3886,9 +3759,7 @@ async function initMessages() {
   updateNav(session);
   loadMsgBadge(session);
 
-  document.getElementById('navLogout')?.addEventListener('click', async e => {
-    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   const me = session.user.id;
   let _activePeer   = null;
@@ -4145,9 +4016,7 @@ async function initBookmarksPage() {
   const session = await requireAuth();
   if (!session) return;
 
-  document.getElementById('navLogout')?.addEventListener('click', async e => {
-    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   const list = document.getElementById('bookmarksList');
   list.innerHTML = '<p class="news-empty">불러오는 중…</p>';
@@ -4165,17 +4034,7 @@ async function initBookmarksPage() {
 
   const rows = data
     .filter(b => b.posts && !b.posts.hidden)
-    .map(b => {
-      const p = b.posts;
-      return `
-      <a class="post-row" href="post-detail.html?id=${p.id}">
-        <span class="post-row-cat">${escapeHTML(p.category)}</span>
-        <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
-        <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
-        <span class="post-row-date">${formatDate(p.created_at)}</span>
-        <span class="post-row-views">👁 ${p.views || 0}</span>
-      </a>`;
-    }).join('');
+    .map(b => renderPostRowHTML(b.posts)).join('');
 
   list.innerHTML = rows || '<p class="news-empty">표시할 게시물이 없습니다.</p>';
 }
@@ -4187,9 +4046,7 @@ async function initSearchPage() {
   const session = await getSession();
   updateNav(session);
 
-  document.getElementById('navLogout')?.addEventListener('click', async e => {
-    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   initHeaderSearch();
 
@@ -4242,16 +4099,7 @@ async function initSearchPage() {
 
     if ((activeTab === 'all' || activeTab === 'posts') && posts.length) {
       html += `<div class="sr-group"><h3 class="sr-group-title">📝 게시물 <span class="sr-count">${posts.length}</span></h3>`;
-      html += posts.map(p => {
-        return `
-        <a class="post-row" href="post-detail.html?id=${p.id}">
-          <span class="post-row-cat">${escapeHTML(p.category)}</span>
-          <span class="post-row-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
-          <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
-          <span class="post-row-date">${formatDate(p.created_at)}</span>
-          <span class="post-row-views">👁 ${p.views||0}</span>
-        </a>`;
-      }).join('');
+      html += posts.map(p => renderPostRowHTML(p)).join('');
       html += '</div>';
     }
 
@@ -4277,9 +4125,7 @@ async function initNotificationsPage() {
   const session = await requireAuth();
   if (!session) return;
 
-  document.getElementById('navLogout')?.addEventListener('click', async e => {
-    e.preventDefault(); await authSignOut(); window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   const list = document.getElementById('notifList');
   list.innerHTML = '<p class="news-empty">불러오는 중…</p>';
@@ -4362,11 +4208,7 @@ async function initDashboard() {
     window.location.href = 'index.html';
   });
 
-  document.getElementById('navLogout')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    await authSignOut();
-    window.location.href = 'index.html';
-  });
+  initNavLogout();
 
   supabaseClient.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') window.location.href = 'index.html';

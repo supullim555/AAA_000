@@ -203,27 +203,10 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
   container.className = `azitfh-post-grid azitfh-card-size-${cardSize}`;
   container.style.setProperty('--azit-cols', cols);
 
-  const cards = posts.map(p => {
-    const isGame  = !!p.game_url;
-    const isVideo = !!p.video_url;
-    const isCode  = !!p.code_lang;
-    const thumb   = showThumb && (p.thumbnail_url || (!isCode && extractFirstImage(p.content)));
+  container.innerHTML = posts.map(p => {
+    const isCode    = !!p.code_lang;
     const langBadge = isCode ? `<span class="code-lang-badge-sm">${escapeHTML(p.code_lang)}</span>` : '';
-
-    const thumbHtml = showThumb
-      ? (thumb
-          ? `<div class="news-card-thumb-wrap"><img class="news-card-thumb" src="${escapeHTML(thumb)}" alt="" loading="lazy" onerror="this.closest('.news-card-thumb-wrap').style.display='none'"></div>`
-          : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : ''))
-      : '';
-
-    const firstCode = (p.code_files && p.code_files.length > 0) ? (p.code_files[0]?.code || '') : (p.content || '');
-    const descText = isCode
-      ? escapeHTML(truncate(firstCode, CONFIG.TRUNCATE_LEN))
-      : (isGame || isVideo) ? escapeHTML(p.content || '')
-      : escapeHTML(truncate(stripHtml(p.content || ''), CONFIG.TRUNCATE_LEN));
-
-    const pinBadge = p.pinned ? '<span class="azitfh-pin-badge">📌 핀</span>' : '';
-
+    const pinBadge  = p.pinned ? '<span class="azitfh-pin-badge">📌 핀</span>' : '';
     const metaParts = [
       showAuthor ? `by ${escapeHTML(p.author_nickname)}` : '',
       showViews  ? `조회 ${p.views || 0}` : '',
@@ -231,17 +214,15 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
 
     return `
       <a class="news-card${p.pinned ? ' news-card-pinned' : ''}" href="post-detail.html?id=${p.id}">
-        ${thumbHtml}
+        ${renderPostThumbHtml(p, showThumb)}
         <div class="news-card-top">
           ${pinBadge}<span class="news-date">${showDate ? formatDate(p.created_at) : ''}</span>${langBadge}
         </div>
         <h3 class="news-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</h3>
-        ${showDesc ? `<p class="news-desc">${descText}</p>` : ''}
+        ${showDesc ? renderPostDescHtml(p) : ''}
         ${metaParts ? `<div class="post-meta">${metaParts}</div>` : ''}
       </a>`;
   }).join('');
-
-  container.innerHTML = cards;
 }
 
 /* ════════════════════════════════════════
