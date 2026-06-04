@@ -163,6 +163,7 @@ async function loadPosts(azitfh, catName) {
 
 function renderPostCards(container, posts, layout = 'card', config = {}) {
   if (layout === 'list') {
+    container.className = '';  // grid 제거 — post-row가 자연스럽게 세로 쌓임
     container.innerHTML = posts.map(p => {
       const pin = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
       return `<a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
@@ -177,8 +178,7 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
   if (layout === 'gallery') {
     container.className = 'azitfh-gallery-grid';
     container.innerHTML = posts.map(p => {
-      const thumb = p.thumbnail_url || extractFirstImage(p.content) ||
-        (p.video_url ? null : null);
+      const thumb = p.thumbnail_url || extractFirstImage(p.content);
       const bg = thumb ? `style="background-image:url('${escapeHTML(thumb)}')"` : '';
       return `<a class="gallery-card" href="post-detail.html?id=${p.id}" ${bg}>
         <div class="gallery-card-overlay">
@@ -199,7 +199,8 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
   const showDate   = config.showDate    !== false;
   const showViews  = config.showViews   !== false;
 
-  container.className     = `azitfh-card-size-${cardSize}`;
+  // azitfh-post-grid 유지 + 크기 변형 클래스 추가
+  container.className = `azitfh-post-grid azitfh-card-size-${cardSize}`;
   container.style.setProperty('--azit-cols', cols);
 
   const cards = posts.map(p => {
@@ -215,7 +216,6 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
           : (isVideo ? `<div class="news-card-thumb-wrap video-thumb-placeholder"><span>🎬</span></div>` : ''))
       : '';
 
-    const typeIcon = isGame ? '🎮 ' : isVideo ? '🎬 ' : isCode ? '💻 ' : '';
     const firstCode = (p.code_files && p.code_files.length > 0) ? (p.code_files[0]?.code || '') : (p.content || '');
     const descText = isCode
       ? escapeHTML(truncate(firstCode, CONFIG.TRUNCATE_LEN))
@@ -235,7 +235,7 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
         <div class="news-card-top">
           ${pinBadge}<span class="news-date">${showDate ? formatDate(p.created_at) : ''}</span>${langBadge}
         </div>
-        <h3 class="news-title">${typeIcon}${escapeHTML(p.title)}</h3>
+        <h3 class="news-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</h3>
         ${showDesc ? `<p class="news-desc">${descText}</p>` : ''}
         ${metaParts ? `<div class="post-meta">${metaParts}</div>` : ''}
       </a>`;
