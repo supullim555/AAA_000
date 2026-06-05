@@ -4198,6 +4198,7 @@ async function initDashboard() {
   const session = await requireAuth();
   if (!session) return;
   updateNav(session);
+  initHeaderSearch();
 
   const user     = session.user;
   const nickname = user.user_metadata?.nickname || user.email;

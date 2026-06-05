@@ -10,6 +10,15 @@
 <body>
   <header>
     <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+
+    <!-- 전역 검색창 -->
+    <div class="header-search-wrap" id="headerSearchWrap">
+      <span class="header-search-icon">🔍</span>
+      <input type="search" id="headerSearch" class="header-search"
+             placeholder="게시물, 아지트 검색..." autocomplete="off" maxlength="60">
+      <div id="searchDropdown" class="search-dropdown hidden"></div>
+    </div>
+
     <nav>
       <a href="index.html">홈</a>
       <a href="dashboard.html" class="active">내 공간</a>
