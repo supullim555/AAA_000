@@ -3566,10 +3566,10 @@ async function initProfile() {
   const actionsEl = document.getElementById('pfActions');
   if (actionsEl) {
     if (isMe) {
-      actionsEl.innerHTML = `<button class="btn-outline" id="editProfileBtn">✏️ 프로필 편집</button>`;
+      actionsEl.innerHTML = `<button class="btn btn-outline btn-sm" id="editProfileBtn">✏️ 프로필 편집</button>`;
       document.getElementById('editProfileBtn')?.addEventListener('click', () => openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts));
     } else if (session) {
-      actionsEl.innerHTML = `<a class="btn-primary" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>`;
+      actionsEl.innerHTML = `<a class="btn btn-primary btn-sm" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>`;
     }
   }
 

@@ -1735,6 +1735,7 @@ header nav a.nav-signup:hover {
 .btn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 
 .btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); opacity: 1; }
 .btn-outline  { background: var(--bg-2); color: var(--primary); border: 2px solid var(--primary); }
 .btn-full { width: 100%; text-align: center; }
 .btn-sm   { padding: 6px 14px; font-size: 13px; }
