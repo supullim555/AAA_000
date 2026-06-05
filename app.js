@@ -1075,6 +1075,7 @@ async function initCategoryManager(userId) {
 async function initAzitEdit() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const id = new URLSearchParams(location.search).get('id');
   if (!id) { location.href = 'dashboard.html'; return; }
@@ -1351,6 +1352,7 @@ async function initAzitEdit() {
 async function initAzitRename() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const params = new URLSearchParams(location.search);
   const id   = params.get('id');
@@ -1391,6 +1393,7 @@ async function initAzitRename() {
 async function initAzitCreate() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const form = document.getElementById('azitCreateForm');
   if (!form) return;
@@ -1470,6 +1473,7 @@ async function initAzitCreate() {
 async function initAzitTypeCreate() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const form = document.getElementById('azitTypeCreateForm');
   if (!form) return;
@@ -1533,6 +1537,7 @@ async function initAzitTypeCreate() {
 async function initPostWrite() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const form = document.getElementById('postWriteForm');
   if (!form) return;
@@ -3225,6 +3230,7 @@ async function initLogin() {
 async function initPostManage() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const wrap = document.getElementById('myPostsList');
   if (!wrap) return;
@@ -3262,6 +3268,7 @@ async function initPostManage() {
 async function initPostEdit() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const id = new URLSearchParams(location.search).get('id');
   if (!id) { location.href = 'post-manage.html'; return; }
@@ -4015,6 +4022,7 @@ async function initMessages() {
 async function initBookmarksPage() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   initNavLogout();
 
@@ -4124,6 +4132,7 @@ async function initSearchPage() {
 async function initNotificationsPage() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   initNavLogout();
 
@@ -4188,6 +4197,7 @@ async function initNotificationsPage() {
 async function initDashboard() {
   const session = await requireAuth();
   if (!session) return;
+  updateNav(session);
 
   const user     = session.user;
   const nickname = user.user_metadata?.nickname || user.email;
