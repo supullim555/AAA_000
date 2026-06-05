@@ -405,7 +405,7 @@ async function getCategoryNames() {
   return cats.map(c => c.name);
 }
 
-async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e' }) {
+async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e', banner_url = null, icon_url = null, post_layout = 'card', display_config = null }) {
   let sortOrder = 1;
   if (creator_id) {
     const { data: last } = await supabaseClient
@@ -415,11 +415,13 @@ async function insertCategory({ name, description = '', created_by = '익명', c
       .limit(1).maybeSingle();
     sortOrder = (last?.sort_order || 0) + 1;
   }
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('azits')
-    .insert({ name, description, created_by, creator_id, type, icon, cover_color, sort_order: sortOrder });
+    .insert({ name, description, created_by, creator_id, type, icon, cover_color, banner_url, icon_url, post_layout, display_config, sort_order: sortOrder })
+    .select('id').single();
   if (error) throw error;
   invalidateCategoriesCache();
+  return data.id;
 }
 
 async function deleteCategory(id) {
@@ -1402,9 +1404,10 @@ async function initAzitCreate() {
     { key: 'general', label: '기본', description: '기본 형태의 커뮤니티 공간입니다.', default_icon: '🏠', default_color: '#4aab8e' },
   ]);
 
-  // ── 비주얼 타입 카드 렌더링 ──
+  // ── 타입 카드 ──
   const grid      = document.getElementById('azitTypeCards');
   const hiddenSel = document.getElementById('azitType');
+  let selectedType = types[0] || { key: 'general', default_icon: '🏠', default_color: '#4aab8e' };
 
   if (grid && hiddenSel) {
     grid.innerHTML = types.map(t => `
@@ -1420,26 +1423,171 @@ async function initAzitCreate() {
     `).join('');
 
     function selectType(key) {
+      selectedType = types.find(t => t.key === key) || selectedType;
       grid.querySelectorAll('.azit-type-row').forEach(c => c.classList.toggle('selected', c.dataset.key === key));
-      if (hiddenSel) hiddenSel.value = key;
+      hiddenSel.value = key;
+      // 타입 기본값으로 아이콘·색상 업데이트 (사용자가 아직 바꾸지 않은 경우)
+      const iconInp  = document.getElementById('editIcon');
+      const colorInp = document.getElementById('editColor');
+      if (iconInp)  iconInp.value  = selectedType.default_icon  || '🏠';
+      if (colorInp) { colorInp.value = selectedType.default_color || '#4aab8e'; document.getElementById('editColorHex').textContent = colorInp.value; }
+      updatePreview();
     }
-
-    grid.querySelectorAll('.azit-type-row').forEach(card => {
-      card.addEventListener('click', () => selectType(card.dataset.key));
-    });
-
-    selectType(types[0]?.key || 'general');
+    grid.querySelectorAll('.azit-type-row').forEach(card => card.addEventListener('click', () => selectType(card.dataset.key)));
+    selectType(selectedType.key);
   }
 
+  // ── 미리보기 ──
+  let _currentBannerUrl = '';
+  let _currentIconUrl   = '';
+
+  function updatePreview() {
+    const name  = document.getElementById('azitName')?.value  || '아지트 이름';
+    const desc  = document.getElementById('azitDesc')?.value  || '';
+    const icon  = document.getElementById('editIcon')?.value  || '🏠';
+    const color = document.getElementById('editColor')?.value || '#4aab8e';
+
+    const previewName = document.getElementById('previewName');
+    const previewDesc = document.getElementById('previewDesc');
+    const bg          = document.getElementById('previewBg');
+    const iconEl      = document.getElementById('previewIcon');
+
+    if (previewName) previewName.textContent = name;
+    if (previewDesc) previewDesc.textContent = desc;
+    if (bg) {
+      if (_currentBannerUrl) {
+        bg.style.backgroundImage = `url('${_currentBannerUrl}')`;
+        bg.style.backgroundSize = 'cover'; bg.style.backgroundPosition = 'center';
+        bg.style.background = '';
+        bg.style.backgroundImage = `url('${_currentBannerUrl}')`;
+      } else {
+        bg.style.backgroundImage = '';
+        bg.style.background = `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+      }
+    }
+    if (iconEl) {
+      iconEl.innerHTML = _currentIconUrl
+        ? `<img src="${escapeHTML(_currentIconUrl)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover">`
+        : escapeHTML(icon);
+    }
+  }
+
+  // 입력 이벤트
+  ['azitName', 'azitDesc', 'editIcon'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePreview);
+  });
+  document.getElementById('editColor')?.addEventListener('input', function () {
+    document.getElementById('editColorHex').textContent = this.value;
+    updatePreview();
+  });
+
+  // ── 배너 이미지 ──
+  let _bannerFile = null;
+  const bannerInput = document.getElementById('bannerFileInput');
+  document.getElementById('bannerUploadBtn')?.addEventListener('click', () => bannerInput?.click());
+  bannerInput?.addEventListener('change', () => {
+    const file = bannerInput.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('이미지는 5MB 이하여야 해요.', 'red'); return; }
+    _bannerFile = file;
+    _currentBannerUrl = URL.createObjectURL(file);
+    const img = document.getElementById('bannerPreviewImg');
+    if (img) { img.src = _currentBannerUrl; img.classList.remove('hidden'); }
+    document.getElementById('bannerPlaceholder')?.classList.add('hidden');
+    document.getElementById('bannerFileInfo').textContent = file.name;
+    updatePreview();
+  });
+  document.getElementById('bannerClearBtn')?.addEventListener('click', () => {
+    _bannerFile = null; _currentBannerUrl = '';
+    bannerInput.value = '';
+    document.getElementById('bannerPreviewImg')?.classList.add('hidden');
+    document.getElementById('bannerPlaceholder')?.classList.remove('hidden');
+    document.getElementById('bannerFileInfo').textContent = '(제거됨)';
+    updatePreview();
+  });
+
+  // ── 아이콘 이미지 ──
+  let _iconFile = null;
+  const iconInput = document.getElementById('iconFileInput');
+  document.getElementById('iconUploadBtn')?.addEventListener('click', () => iconInput?.click());
+  iconInput?.addEventListener('change', () => {
+    const file = iconInput.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast('아이콘 이미지는 2MB 이하여야 해요.', 'red'); return; }
+    _iconFile = file;
+    _currentIconUrl = URL.createObjectURL(file);
+    const img = document.getElementById('iconImgEl');
+    if (img) { img.src = _currentIconUrl; img.classList.remove('hidden'); }
+    document.getElementById('iconImgPlaceholder')?.classList.add('hidden');
+    updatePreview();
+  });
+  document.getElementById('iconClearBtn')?.addEventListener('click', () => {
+    _iconFile = null; _currentIconUrl = '';
+    iconInput.value = '';
+    document.getElementById('iconImgEl')?.classList.add('hidden');
+    document.getElementById('iconImgPlaceholder')?.classList.remove('hidden');
+    updatePreview();
+  });
+
+  // ── 레이아웃 라디오 ──
+  document.querySelectorAll('input[name="postLayout"]').forEach(r => {
+    r.addEventListener('change', () => {
+      document.querySelectorAll('.layout-option').forEach(el => el.classList.remove('selected'));
+      r.closest('.layout-option')?.classList.add('selected');
+    });
+  });
+  document.querySelector('input[name="postLayout"]:checked')?.closest('.layout-option')?.classList.add('selected');
+
+  // ── 고급 설정 토글 ──
+  const advToggle = document.getElementById('advancedToggle');
+  const advPanel  = document.getElementById('advancedPanel');
+  const advArrow  = document.getElementById('advancedArrow');
+  advToggle?.addEventListener('click', () => {
+    const open = !advPanel.classList.contains('hidden');
+    advPanel.classList.toggle('hidden', open);
+    if (advArrow) advArrow.textContent = open ? '▼' : '▲';
+    advToggle.classList.toggle('active', !open);
+  });
+
+  // 열 수 피커
+  document.querySelectorAll('.col-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.col-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // 카드 크기 피커
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  function collectDisplayConfig() {
+    const cfg = {};
+    const activeCol = document.querySelector('.col-btn.active');
+    cfg.columns  = activeCol ? parseInt(activeCol.dataset.cols) : 3;
+    const activeSz = document.querySelector('.size-btn.active');
+    cfg.cardSize = activeSz ? activeSz.dataset.size : 'normal';
+    document.querySelectorAll('[data-cfg]').forEach(cb => { cfg[cb.dataset.cfg] = cb.checked; });
+    cfg.defaultSort = document.getElementById('defaultSortSel')?.value || 'newest';
+    return cfg;
+  }
+
+  // ── 제출 ──
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = form.azitName.value.trim();
-    const desc = form.azitDesc.value.trim();
+    const name = document.getElementById('azitName').value.trim();
+    const desc = document.getElementById('azitDesc').value.trim();
     const type        = hiddenSel?.value || 'general';
-    const selectedType = types.find(t => t.key === type);
+    const icon        = document.getElementById('editIcon')?.value || selectedType?.default_icon || '🏠';
+    const cover_color = document.getElementById('editColor')?.value || selectedType?.default_color || '#4aab8e';
+    const postLayout  = document.querySelector('input[name="postLayout"]:checked')?.value || 'card';
 
     if (!name) { showToast('아지트 이름을 입력해 주세요.', 'red'); return; }
 
@@ -1448,21 +1596,39 @@ async function initAzitCreate() {
     setLoading(submitBtn, true);
 
     try {
-      await insertCategory({
-        name,
-        description: nullIfEmpty(desc),
-        created_by:  nickname,
-        creator_id:  user.id,
-        type,
-        icon:        selectedType?.default_icon  || '🏠',
-        cover_color: selectedType?.default_color || '#4aab8e',
+      // 아지트 생성 (파일 업로드 전)
+      const newId = await insertCategory({
+        name, description: nullIfEmpty(desc), created_by: nickname, creator_id: user.id,
+        type, icon, cover_color, post_layout: postLayout, display_config: collectDisplayConfig(),
       });
+
+      // 파일 업로드 (배너/아이콘)
+      let bannerUrl = null, iconUrl = null;
+      if (_bannerFile) {
+        const ext  = _bannerFile.name.split('.').pop().toLowerCase();
+        const path = `azit-banners/${newId}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _bannerFile, { contentType: _bannerFile.type, upsert: true });
+        if (!upErr) bannerUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+      if (_iconFile) {
+        const ext  = _iconFile.name.split('.').pop().toLowerCase();
+        const path = `azit-icons/${newId}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _iconFile, { contentType: _iconFile.type, upsert: true });
+        if (!upErr) iconUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+      if (bannerUrl || iconUrl) {
+        await supabaseClient.from('azits').update({ banner_url: bannerUrl, icon_url: iconUrl }).eq('id', newId);
+        invalidateCategoriesCache();
+      }
+
       showToast(`"${name}" 아지트가 만들어졌어요!`, 'green');
       setTimeout(() => { location.href = 'dashboard.html'; }, 900);
     } catch (err) {
       setLoading(submitBtn, false);
       if (err.code === '23505') showToast('이미 있는 아지트 이름이에요.', 'red');
-      else showToast('아지트 생성 실패', 'red');
+      else showToast('아지트 생성 실패: ' + (err.message || ''), 'red');
     }
   });
 }

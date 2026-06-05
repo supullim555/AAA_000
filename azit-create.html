@@ -19,28 +19,174 @@
     </nav>
   </header>
 
-  <div class="post-write-wrap">
-    <form id="azitCreateForm" class="post-write-form">
-      <h2>아지트 만들기</h2>
-
-      <div class="field">
-        <label>아지트 타입</label>
-        <div id="azitTypeCards" class="azit-type-cards-grid"></div>
-        <input type="hidden" id="azitType" name="azitType" value="general">
+  <div class="azit-edit-wrap">
+    <!-- 실시간 미리보기 -->
+    <div class="azit-edit-preview-box">
+      <p class="azit-edit-preview-label">미리보기</p>
+      <div class="azitfh-hero azit-preview-hero" style="min-height:140px;border-radius:var(--r);overflow:hidden">
+        <div class="azitfh-hero-bg" id="previewBg"></div>
+        <div class="azitfh-hero-content" style="padding:20px 24px">
+          <span class="azitfh-icon" id="previewIcon">🏠</span>
+          <h1 class="azitfh-name" id="previewName">아지트 이름</h1>
+          <p class="azitfh-desc" id="previewDesc"></p>
+        </div>
       </div>
+    </div>
 
-      <div class="field">
-        <label for="azitName">아지트 이름</label>
-        <input type="text" id="azitName" name="azitName"
-               placeholder="이 공간의 이름을 입력하세요" maxlength="20" autocomplete="off">
-      </div>
+    <!-- 폼 -->
+    <form id="azitCreateForm" class="azit-edit-form">
 
-      <div class="field">
-        <label for="azitDesc">아지트 소개</label>
-        <textarea id="azitDesc" name="azitDesc"
-                  placeholder="어떤 사람들이 모이는 아지트인지 소개해 주세요 (선택)" maxlength="120"
-                  style="min-height:80px"></textarea>
-      </div>
+      <!-- 타입 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">아지트 타입</h3>
+        <div class="field">
+          <div id="azitTypeCards" class="azit-type-cards-grid"></div>
+          <input type="hidden" id="azitType" name="azitType" value="general">
+        </div>
+      </section>
+
+      <!-- 기본 정보 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">기본 정보</h3>
+        <div class="field">
+          <label for="azitName">아지트 이름 <span class="required">*</span></label>
+          <input type="text" id="azitName" name="azitName" maxlength="20" autocomplete="off"
+                 placeholder="이 공간의 이름을 입력하세요">
+        </div>
+        <div class="field">
+          <label for="azitDesc">소개</label>
+          <textarea id="azitDesc" name="azitDesc" maxlength="120" style="min-height:72px"
+                    placeholder="어떤 사람들이 모이는 아지트인지 소개해 주세요 (선택)"></textarea>
+        </div>
+      </section>
+
+      <!-- 비주얼 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">비주얼</h3>
+
+        <div class="field">
+          <label>배너 이미지</label>
+          <div class="banner-edit-area" id="bannerPreviewWrap">
+            <div class="banner-placeholder" id="bannerPlaceholder">이미지 없음 (배경 색상 사용)</div>
+            <img id="bannerPreviewImg" class="banner-preview-img hidden" alt="배너">
+          </div>
+          <div class="edit-upload-row">
+            <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+            <button type="button" id="bannerUploadBtn" class="btn-secondary" style="font-size:13px;padding:7px 14px">🖼️ 이미지 선택</button>
+            <button type="button" id="bannerClearBtn" class="btn-secondary" style="font-size:13px;padding:7px 14px">× 제거</button>
+            <span id="bannerFileInfo" class="edit-file-info"></span>
+          </div>
+          <p class="hint">JPEG·PNG·WebP·GIF (최대 5MB)</p>
+        </div>
+
+        <div class="field">
+          <label>아이콘</label>
+          <div class="icon-edit-row">
+            <div class="icon-edit-item">
+              <span class="edit-sublabel">이모지</span>
+              <input type="text" id="editIcon" maxlength="4" placeholder="🏠"
+                     class="icon-emoji-input" style="width:64px;text-align:center;font-size:24px">
+            </div>
+            <div class="icon-edit-item">
+              <span class="edit-sublabel">이미지 (선택, 이모지 대체)</span>
+              <div class="icon-img-row">
+                <div class="icon-img-preview" id="iconImgPreview">
+                  <span id="iconImgPlaceholder" class="icon-img-ph">+</span>
+                  <img id="iconImgEl" class="hidden" alt="">
+                </div>
+                <div>
+                  <input type="file" id="iconFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none">
+                  <button type="button" id="iconUploadBtn" class="btn-secondary" style="font-size:12px;padding:5px 12px">업로드</button>
+                  <button type="button" id="iconClearBtn" class="btn-secondary" style="font-size:12px;padding:5px 12px;margin-left:6px">× 제거</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="editColor">배경 색상</label>
+          <div style="display:flex;align-items:center;gap:12px">
+            <input type="color" id="editColor" value="#4aab8e">
+            <span id="editColorHex" class="color-hex">#4aab8e</span>
+          </div>
+          <p class="hint">배너 이미지가 없을 때 그라디언트 배경으로 사용됩니다.</p>
+        </div>
+      </section>
+
+      <!-- 게시물 표시 방식 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">게시물 표시 방식</h3>
+        <div class="layout-selector">
+          <label class="layout-option" id="layoutCard">
+            <input type="radio" name="postLayout" value="card" checked>
+            <div class="layout-option-preview">
+              <div class="lo-card-demo"><div class="lo-card"></div><div class="lo-card"></div><div class="lo-card"></div></div>
+            </div>
+            <span class="layout-option-name">카드형</span>
+            <span class="layout-option-desc">썸네일·제목·설명 카드 그리드</span>
+          </label>
+          <label class="layout-option" id="layoutList">
+            <input type="radio" name="postLayout" value="list">
+            <div class="layout-option-preview">
+              <div class="lo-list-demo"><div class="lo-row"></div><div class="lo-row"></div><div class="lo-row"></div></div>
+            </div>
+            <span class="layout-option-name">목록형</span>
+            <span class="layout-option-desc">제목·날짜 한 줄 목록</span>
+          </label>
+          <label class="layout-option" id="layoutGallery">
+            <input type="radio" name="postLayout" value="gallery">
+            <div class="layout-option-preview">
+              <div class="lo-gallery-demo">
+                <div class="lo-g-big"></div>
+                <div class="lo-g-sm"><div class="lo-g-cell"></div><div class="lo-g-cell"></div></div>
+              </div>
+            </div>
+            <span class="layout-option-name">갤러리형</span>
+            <span class="layout-option-desc">이미지 중심 큰 썸네일</span>
+          </label>
+        </div>
+
+        <button type="button" id="advancedToggle" class="advanced-toggle">
+          ⚙️ 고급 설정 <span id="advancedArrow" class="adv-arrow">▼</span>
+        </button>
+        <div id="advancedPanel" class="advanced-panel hidden">
+          <div class="adv-section">
+            <span class="adv-label">열 수</span>
+            <div class="col-picker" id="colPicker">
+              <button type="button" class="col-btn" data-cols="1"><div class="col-preview"><div></div></div><span>1열</span></button>
+              <button type="button" class="col-btn" data-cols="2"><div class="col-preview c2"><div></div><div></div></div><span>2열</span></button>
+              <button type="button" class="col-btn active" data-cols="3"><div class="col-preview c3"><div></div><div></div><div></div></div><span>3열</span></button>
+              <button type="button" class="col-btn" data-cols="4"><div class="col-preview c4"><div></div><div></div><div></div><div></div></div><span>4열</span></button>
+            </div>
+          </div>
+          <div class="adv-section">
+            <span class="adv-label">카드 크기</span>
+            <div class="size-picker" id="sizePicker">
+              <button type="button" class="size-btn" data-size="compact">컴팩트</button>
+              <button type="button" class="size-btn active" data-size="normal">보통</button>
+              <button type="button" class="size-btn" data-size="large">크게</button>
+            </div>
+          </div>
+          <div class="adv-section">
+            <span class="adv-label">표시 정보</span>
+            <div class="toggle-grid">
+              <label class="toggle-item"><span class="toggle-label">썸네일</span><span class="toggle-switch"><input type="checkbox" data-cfg="showThumbnail" checked><span class="toggle-track"></span></span></label>
+              <label class="toggle-item"><span class="toggle-label">설명</span><span class="toggle-switch"><input type="checkbox" data-cfg="showDesc" checked><span class="toggle-track"></span></span></label>
+              <label class="toggle-item"><span class="toggle-label">작성자</span><span class="toggle-switch"><input type="checkbox" data-cfg="showAuthor" checked><span class="toggle-track"></span></span></label>
+              <label class="toggle-item"><span class="toggle-label">날짜</span><span class="toggle-switch"><input type="checkbox" data-cfg="showDate" checked><span class="toggle-track"></span></span></label>
+              <label class="toggle-item"><span class="toggle-label">조회수</span><span class="toggle-switch"><input type="checkbox" data-cfg="showViews" checked><span class="toggle-track"></span></span></label>
+            </div>
+          </div>
+          <div class="adv-section">
+            <label class="adv-label" for="defaultSortSel">기본 정렬</label>
+            <select id="defaultSortSel" class="adv-select">
+              <option value="newest">최신순</option>
+              <option value="popular">인기순</option>
+            </select>
+          </div>
+        </div>
+      </section>
 
       <div class="post-write-actions">
         <a href="dashboard.html" class="btn-secondary">취소</a>
