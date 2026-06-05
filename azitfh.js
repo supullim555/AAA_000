@@ -122,14 +122,17 @@ function initAzitfhTabs(azitfh, catName) {
 /* ════════════════════════════════════════
    게시물 탭
 ════════════════════════════════════════ */
-let _azitSort = 'newest';
+let _azitSort = null; // null = display_config.defaultSort 사용
 
 async function loadPosts(azitfh, catName) {
   const container = document.getElementById('postsPane');
   container.innerHTML = '<p class="azitfh-empty">불러오는 중…</p>';
 
+  const dcfg = (typeof azitfh.display_config === 'object' && azitfh.display_config) ? azitfh.display_config : {};
+  const effectiveSort = _azitSort || dcfg.defaultSort || 'newest';
+
   let posts;
-  try { posts = await fetchAzitfhPosts(catName, _azitSort); }
+  try { posts = await fetchAzitfhPosts(catName, effectiveSort); }
   catch { container.innerHTML = '<p class="azitfh-empty">게시물을 불러오지 못했어요.</p>'; return; }
 
   document.getElementById('heroPostCount').textContent   = posts.length;
@@ -141,14 +144,13 @@ async function loadPosts(azitfh, catName) {
     return;
   }
 
-  // 정렬 헤더 + 카드
   const sortBar = `
     <div class="azitfh-sort-bar">
-      <button class="azitfh-sort-btn${_azitSort === 'newest' ? ' active' : ''}" data-sort="newest">최신순</button>
-      <button class="azitfh-sort-btn${_azitSort === 'popular' ? ' active' : ''}" data-sort="popular">인기순</button>
+      <button class="azitfh-sort-btn${effectiveSort === 'newest'  ? ' active' : ''}" data-sort="newest">최신순</button>
+      <button class="azitfh-sort-btn${effectiveSort === 'popular' ? ' active' : ''}" data-sort="popular">인기순</button>
     </div>`;
 
-  container.innerHTML = sortBar + `<div class="azitfh-post-grid" id="azitfhGrid"></div>`;
+  container.innerHTML = sortBar + `<div id="azitfhGrid"></div>`;
 
   container.querySelectorAll('.azitfh-sort-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -157,7 +159,6 @@ async function loadPosts(azitfh, catName) {
     });
   });
 
-  const dcfg = (typeof azitfh.display_config === 'object' && azitfh.display_config) ? azitfh.display_config : {};
   renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card', dcfg);
 }
 
