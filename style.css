@@ -3269,10 +3269,13 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 /* ── 입력창 ── */
 .msg-input-wrap {
   display: flex; align-items: flex-end; gap: 10px;
-  padding: 12px 20px 14px;
-  border-top: 1.5px solid var(--border);
+  padding: 10px 12px;
+  margin: 0 16px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
   background: var(--bg-2);
   flex-shrink: 0;
+  box-shadow: var(--shadow);
 }
 .msg-input {
   flex: 1;
@@ -3340,17 +3343,18 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
   gap: 6px;
   padding: 5px 13px;
   border-radius: var(--r-sm);
-  border: 1.5px solid var(--primary);
+  border: 1.5px solid rgba(255,255,255,0.65);
   background: transparent;
-  color: var(--primary);
+  color: rgba(255,255,255,0.88);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
-  transition: background .12s, color .12s;
+  transition: background .12s, border-color .12s;
   white-space: nowrap;
 }
 .nav-msg-btn:hover {
-  background: var(--primary);
+  background: rgba(255,255,255,0.20);
+  border-color: rgba(255,255,255,0.9);
   color: #fff;
 }
 .nav-msg-btn .nav-msg-icon {
