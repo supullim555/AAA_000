@@ -3548,15 +3548,16 @@ async function initProfile() {
   const posts    = postsRes.data || [];
   const nickname = profile?.nickname || posts[0]?.author_nickname
     || (isMe ? (session.user.user_metadata?.nickname || session.user.email.split('@')[0]) : '알 수 없음');
-  const bio      = profile?.bio || '';
-  const avatarUrl = profile?.avatar_url || '';
+  const bio        = profile?.bio || '';
+  const avatarUrl  = profile?.avatar_url || '';
   const bannerColor = profile?.banner_color || '#4aab8e';
+  const bannerUrl  = profile?.banner_url || '';
 
   document.title = `${nickname}님의 프로필 — Open Azitfh`;
 
   // 배너
   const banner = document.getElementById('pfBanner');
-  if (banner) banner.style.background = `linear-gradient(135deg, ${bannerColor} 0%, ${darkenHex(bannerColor, 50)} 100%)`;
+  if (banner) applyProfileBanner(banner, bannerUrl, bannerColor);
 
   // 아바타
   const avatarEl = document.getElementById('pfAvatar');
@@ -3574,7 +3575,7 @@ async function initProfile() {
   if (actionsEl) {
     if (isMe) {
       actionsEl.innerHTML = `<button class="btn btn-outline btn-sm" id="editProfileBtn">✏️ 프로필 편집</button>`;
-      document.getElementById('editProfileBtn')?.addEventListener('click', () => openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts));
+      document.getElementById('editProfileBtn')?.addEventListener('click', () => openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, bannerUrl, session, posts));
     } else if (session) {
       actionsEl.innerHTML = `<a class="btn btn-primary btn-sm" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>`;
     }
@@ -3623,7 +3624,18 @@ async function initProfile() {
 
 let _profileEditAbort = null;
 
-function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session, posts) {
+function applyProfileBanner(el, bannerUrl, bannerColor) {
+  if (bannerUrl) {
+    el.style.backgroundImage = `url(${bannerUrl})`;
+    el.style.backgroundSize  = 'cover';
+    el.style.backgroundPosition = 'center';
+  } else {
+    el.style.backgroundImage = '';
+    el.style.background = `linear-gradient(135deg, ${bannerColor} 0%, ${darkenHex(bannerColor, 50)} 100%)`;
+  }
+}
+
+function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, bannerUrl, session, posts) {
   const modal = document.getElementById('editProfileModal');
   if (!modal) return;
   modal.classList.remove('hidden');
@@ -3638,18 +3650,40 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
   document.getElementById('editBannerColor').value = bannerColor;
   document.getElementById('editBannerHex').textContent = bannerColor;
 
-  const preview = document.getElementById('editAvatarPreview');
-  if (preview) renderAvatar(preview, nickname, avatarUrl, bannerColor);
+  const avatarPreview = document.getElementById('editAvatarPreview');
+  if (avatarPreview) renderAvatar(avatarPreview, nickname, avatarUrl, bannerColor);
 
-  let _avatarFile   = null;
-  let _currentAvUrl = avatarUrl;
-  let _removeAvatar = false;
+  // 배너 미리보기 초기화
+  const bannerPreview = document.getElementById('editBannerPreview');
+  const updateBannerPreview = (imgUrl, color) => {
+    if (!bannerPreview) return;
+    if (imgUrl) {
+      bannerPreview.style.backgroundImage = `url(${imgUrl})`;
+      bannerPreview.style.background = '';
+      bannerPreview.style.backgroundImage = `url(${imgUrl})`;
+      bannerPreview.style.backgroundSize = 'cover';
+      bannerPreview.style.backgroundPosition = 'center';
+    } else {
+      bannerPreview.style.backgroundImage = '';
+      bannerPreview.style.background = `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
+    }
+  };
+  updateBannerPreview(bannerUrl, bannerColor);
+
+  let _avatarFile    = null;
+  let _currentAvUrl  = avatarUrl;
+  let _removeAvatar  = false;
+  let _bannerFile    = null;
+  let _currentBannerUrl = bannerUrl;
+  let _removeBanner  = false;
 
   const colorInput = document.getElementById('editBannerColor');
   colorInput?.addEventListener('input', () => {
     document.getElementById('editBannerHex').textContent = colorInput.value;
+    if (!_currentBannerUrl) updateBannerPreview('', colorInput.value);
   }, { signal });
 
+  // 아바타
   const avatarInput = document.getElementById('avatarFileInput');
   document.getElementById('avatarUploadBtn')?.addEventListener('click', () => avatarInput?.click(), { signal });
   avatarInput?.addEventListener('change', () => {
@@ -3660,7 +3694,7 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
     _removeAvatar = false;
     _currentAvUrl = URL.createObjectURL(file);
     document.getElementById('avatarFileInfo').textContent = file.name;
-    if (preview) renderAvatar(preview, nickname, _currentAvUrl, colorInput.value);
+    if (avatarPreview) renderAvatar(avatarPreview, nickname, _currentAvUrl, colorInput.value);
   }, { signal });
   document.getElementById('avatarClearBtn')?.addEventListener('click', () => {
     _avatarFile   = null;
@@ -3668,7 +3702,29 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
     _currentAvUrl = '';
     avatarInput.value = '';
     document.getElementById('avatarFileInfo').textContent = '(제거됨)';
-    if (preview) renderAvatar(preview, document.getElementById('editNickname').value || nickname, '', colorInput.value);
+    if (avatarPreview) renderAvatar(avatarPreview, document.getElementById('editNickname').value || nickname, '', colorInput.value);
+  }, { signal });
+
+  // 배너 이미지
+  const bannerInput = document.getElementById('bannerFileInput');
+  document.getElementById('bannerUploadBtn')?.addEventListener('click', () => bannerInput?.click(), { signal });
+  bannerInput?.addEventListener('change', () => {
+    const file = bannerInput.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('배너 이미지는 5MB 이하여야 해요.', 'red'); return; }
+    _bannerFile   = file;
+    _removeBanner = false;
+    _currentBannerUrl = URL.createObjectURL(file);
+    document.getElementById('bannerFileInfo').textContent = file.name;
+    updateBannerPreview(_currentBannerUrl, colorInput.value);
+  }, { signal });
+  document.getElementById('bannerClearBtn')?.addEventListener('click', () => {
+    _bannerFile   = null;
+    _removeBanner = true;
+    _currentBannerUrl = '';
+    bannerInput.value = '';
+    document.getElementById('bannerFileInfo').textContent = '(제거됨)';
+    updateBannerPreview('', colorInput.value);
   }, { signal });
 
   const closeModal = () => {
@@ -3703,11 +3759,25 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
         finalAvatarUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
       }
 
+      let finalBannerUrl = _currentBannerUrl.startsWith('blob:') ? bannerUrl : _currentBannerUrl;
+      if (_removeBanner) finalBannerUrl = '';
+
+      // 배너 이미지 업로드
+      if (_bannerFile) {
+        const ext  = _bannerFile.name.split('.').pop().toLowerCase();
+        const path = `banners/${session.user.id}.${ext}`;
+        const { error: upErr } = await supabaseClient.storage
+          .from('post-media').upload(path, _bannerFile, { contentType: _bannerFile.type, upsert: true });
+        if (upErr) throw new Error('배너 업로드 실패: ' + upErr.message);
+        finalBannerUrl = supabaseClient.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+
       await upsertProfile(session.user.id, {
         nickname:     newNick,
         bio:          newBio || null,
         avatar_url:   finalAvatarUrl || null,
         banner_color: newColor,
+        banner_url:   finalBannerUrl || null,
       });
 
       // 닉네임이 바뀌면 Supabase auth metadata도 업데이트
@@ -3719,8 +3789,8 @@ function openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, session
       closeModal();
 
       // 페이지 내 UI 즉시 업데이트 (reload 대신)
-      const banner = document.getElementById('pfBanner');
-      if (banner) banner.style.background = `linear-gradient(135deg, ${newColor} 0%, ${darkenHex(newColor, 50)} 100%)`;
+      const bannerEl = document.getElementById('pfBanner');
+      if (bannerEl) applyProfileBanner(bannerEl, finalBannerUrl, newColor);
       const pfAvEl = document.getElementById('pfAvatar');
       if (pfAvEl) renderAvatar(pfAvEl, newNick, finalAvatarUrl, newColor);
       const pfNameEl = document.getElementById('pfName');

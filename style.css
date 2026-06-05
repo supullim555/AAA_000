@@ -2944,6 +2944,17 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 .pf-banner {
   height: 160px;
   background: linear-gradient(135deg, var(--primary) 0%, #2a7a5e 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+.edit-banner-preview {
+  width: 120px; height: 48px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
 }
 
 .pf-wrap { max-width: 760px; margin: 0 auto; padding: 0 20px 60px; }
