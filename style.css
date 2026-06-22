@@ -283,26 +283,54 @@ header nav a.nav-signup:hover {
   transition: color .15s;
 }
 .notice-del:hover { color: #e74c3c; }
-.notice-content {
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-2);
-  font-size: 14px;
-  line-height: 1.8;
+/* ── 공지 상세 페이지 ── */
+.notice-detail-wrap {
+  max-width: 760px;
+  margin: 24px auto 40px;
+  padding: 0 20px;
 }
-.notice-content h2 { font-size: 17px; margin: 0 0 10px; }
-.notice-content h3 { font-size: 15px; margin: 18px 0 8px; }
-.notice-content p { margin: 6px 0; }
-.notice-content ul, .notice-content ol { margin: 8px 0; padding-left: 24px; }
-.notice-content li { margin: 3px 0; }
-.notice-content blockquote {
-  margin: 12px 0;
-  padding: 10px 14px;
-  border-left: 3px solid var(--primary);
-  background: var(--bg);
+.notice-detail-header {
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+}
+.notice-detail-header .notice-badge { margin-bottom: 10px; display: inline-block; }
+.notice-detail-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 8px 0 6px;
+  line-height: 1.4;
+}
+.notice-detail-date {
   font-size: 13px;
   color: var(--text-light);
+  margin: 0;
+}
+.notice-detail-body {
+  font-size: 15px;
+  line-height: 1.9;
+  word-break: keep-all;
+}
+.notice-detail-body h2 { font-size: 19px; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.notice-detail-body h3 { font-size: 16px; margin: 24px 0 10px; }
+.notice-detail-body p { margin: 8px 0; }
+.notice-detail-body ul, .notice-detail-body ol { margin: 10px 0; padding-left: 24px; }
+.notice-detail-body li { margin: 5px 0; }
+.notice-detail-body strong { color: var(--primary); }
+.notice-detail-body blockquote {
+  margin: 16px 0;
+  padding: 14px 18px;
+  border-left: 3px solid var(--primary);
+  background: var(--bg-2);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 14px;
+  color: var(--text-light);
+  line-height: 1.7;
+}
+.notice-detail-footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .notice-item {

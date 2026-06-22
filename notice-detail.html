@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공지사항 - Open Azitfh</title>
+  <script>if(localStorage.getItem("jnaver_theme")!=="light")document.documentElement.setAttribute("data-theme","dark");</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a class="logo" href="index.html">Open <span>Azitfh</span></a>
+    <nav>
+      <a href="index.html">홈</a>
+      <a href="dashboard.html">내 공간</a>
+      <a id="navMsg" href="messages.html" class="hidden nav-msg-btn"><span class="nav-msg-icon">✉</span> 메시지<span id="msgBadge" class="notif-badge hidden"></span></a>
+      <a id="navNotif" href="notifications.html" class="nav-notif hidden" title="알림">🔔<span id="notifBadge" class="notif-badge hidden">0</span></a>
+      <button id="themeToggle" class="theme-toggle">🌙</button>
+    </nav>
+  </header>
+
+  <div class="notice-detail-wrap">
+    <div class="notice-detail-header">
+      <span class="notice-badge">공지</span>
+      <h1 id="noticeTitle">불러오는 중…</h1>
+      <p class="notice-detail-date" id="noticeDate"></p>
+    </div>
+    <div class="notice-detail-body" id="noticeBody"></div>
+    <div class="notice-detail-footer">
+      <a href="index.html" class="btn btn-secondary">← 목록으로</a>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="utils.js"></script>
+  <script src="app.js"></script>
+  <script>initDarkMode(); initNoticeDetail();</script>
+</body>
+</html>

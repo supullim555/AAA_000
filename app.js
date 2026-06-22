@@ -362,22 +362,16 @@ async function renderNotices(isAdmin) {
         <span class="notice-badge">공지</span>
         <span class="notice-title">${escapeHTML(n.title)}</span>
         <span class="notice-date">${escapeHTML(n.date)}</span>
-        <span class="notice-arrow">▼</span>
+        <span class="notice-arrow">›</span>
         ${isAdmin ? `<button class="notice-del" data-id="${n.id}">×</button>` : ''}
       </div>
-      ${n.content ? `<div class="notice-content hidden">${n.content}</div>` : ''}
     </div>
   `).join('');
 
   wrap.querySelectorAll('.notice-row').forEach(row => {
     row.querySelector('.notice-row-header')?.addEventListener('click', (e) => {
       if (e.target.classList.contains('notice-del')) return;
-      const content = row.querySelector('.notice-content');
-      const arrow = row.querySelector('.notice-arrow');
-      if (content) {
-        const open = content.classList.toggle('hidden');
-        if (arrow) arrow.textContent = open ? '▼' : '▲';
-      }
+      window.location.href = `notice-detail.html?id=${row.dataset.id}`;
     });
   });
 
@@ -3719,6 +3713,22 @@ async function sendPasswordReset(email) {
 async function updatePassword(newPassword) {
   const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
   if (error) throw error;
+}
+
+async function initNoticeDetail() {
+  const session = await getSession();
+  if (session) updateNav(session);
+
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) { document.getElementById('noticeTitle').textContent = '공지를 찾을 수 없습니다.'; return; }
+
+  const { data, error } = await supabaseClient.from('notices').select('*').eq('id', id).maybeSingle();
+  if (error || !data) { document.getElementById('noticeTitle').textContent = '공지를 찾을 수 없습니다.'; return; }
+
+  document.title = `${data.title} — Open Azitfh`;
+  document.getElementById('noticeTitle').textContent = data.title;
+  document.getElementById('noticeDate').textContent = data.date;
+  document.getElementById('noticeBody').innerHTML = data.content || '<p>내용이 없습니다.</p>';
 }
 
 function initForgot() {
