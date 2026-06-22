@@ -24,6 +24,7 @@
       <a id="navDash"   href="dashboard.html">내 공간</a>
       <a id="navLogin"  href="login.html">로그인</a>
       <a id="navMsg"    href="messages.html" class="hidden nav-msg-btn"><span class="nav-msg-icon">✉</span> 메시지<span id="msgBadge" class="notif-badge hidden"></span></a>
+      <a id="navNotif"  href="notifications.html" class="nav-notif hidden" title="알림">🔔<span id="notifBadge" class="notif-badge hidden">0</span></a>
       <a id="navLogout" href="#">로그아웃</a>
       <a id="navSignup" href="signup.html" class="nav-signup">회원가입</a>
       <button id="themeToggle" class="theme-toggle">🌙</button>
@@ -40,9 +41,11 @@
       <div class="azitfh-stats">
         <span>📝 <strong id="heroPostCount">0</strong>개의 게시물</span>
         <span>👤 <strong id="heroMemberCount">0</strong>명의 멤버</span>
+        <span>⭐ <strong id="heroSubCount">0</strong>명의 구독자</span>
       </div>
       <div class="azitfh-actions">
         <span id="heroTypeBadge" class="azitfh-type-badge hidden"></span>
+        <button id="heroSubBtn" class="btn-sub hidden">구독</button>
         <a id="heroEditBtn"  href="#" class="btn-secondary hidden" style="font-size:13px;padding:7px 14px">✏️ 편집</a>
         <a id="heroWriteBtn" href="#" class="btn btn-primary hidden">+ 글쓰기</a>
       </div>

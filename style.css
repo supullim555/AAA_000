@@ -3913,6 +3913,63 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 .sr-azit-desc { font-size: 12px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr-azit-type { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
 
+/* ── 아지트 구독 버튼 (히어로 위) ── */
+.btn-sub {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 18px;
+  border: 1.5px solid rgba(255,255,255,0.65);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.btn-sub:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.9); }
+.btn-sub-active {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 18px;
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.92);
+  color: var(--primary);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.btn-sub-active:hover { background: #fff; }
+.btn-sub[disabled], .btn-sub-active[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* ── 팔로우 버튼 ── */
+.btn-follow {
+  background: var(--primary); color: #fff;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--r-sm);
+  padding: 7px 16px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.btn-follow:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-follow[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* ── 익명 토글 ── */
+.anon-toggle-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0 4px;
+  flex-wrap: wrap;
+}
+.anon-toggle-label {
+  display: inline-flex; align-items: center; gap: 7px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.anon-toggle-label input[type=checkbox] {
+  width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;
+}
+.anon-toggle-hint { font-size: 12px; color: var(--text-light); }
+
 /* ── 페이지네이션 ── */
 .pagination {
   display: flex; align-items: center; justify-content: center;

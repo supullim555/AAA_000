@@ -793,6 +793,86 @@ async function deletePost(id) {
   invalidatePostsCache();
 }
 
+/* ════════════════════════════════════════
+   익명 유동닉
+════════════════════════════════════════ */
+function computeAnonNick(userId, azitId) {
+  // DJB2 hash — 같은 (user, azit) 쌍에 항상 동일한 닉네임 반환
+  let h = 5381;
+  const s = (userId || '') + '|' + (azitId || '');
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) & 0x7fffffff;
+  }
+  return '익명(' + h.toString(36).padStart(5, '0').slice(-5) + ')';
+}
+
+/* ════════════════════════════════════════
+   아지트 구독
+════════════════════════════════════════ */
+async function getAzitSubInfo(azitId) {
+  const session = await getSession();
+  const [countRes, subRow] = await Promise.all([
+    supabaseClient.from('azit_subscriptions')
+      .select('*', { count: 'exact', head: true }).eq('azit_id', azitId),
+    session
+      ? supabaseClient.from('azit_subscriptions')
+          .select('user_id').eq('azit_id', azitId).eq('user_id', session.user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  return { count: countRes.count || 0, isSubbed: !!subRow.data };
+}
+
+async function toggleAzitSubscription(azitId) {
+  const session = await getSession();
+  if (!session) { window.location.href = 'login.html'; return null; }
+  const { isSubbed } = await getAzitSubInfo(azitId);
+  if (isSubbed) {
+    const { error } = await supabaseClient.from('azit_subscriptions')
+      .delete().eq('azit_id', azitId).eq('user_id', session.user.id);
+    if (error) throw error;
+    return false;
+  }
+  const { error } = await supabaseClient.from('azit_subscriptions')
+    .insert({ user_id: session.user.id, azit_id: azitId });
+  if (error) throw error;
+  return true;
+}
+
+/* ════════════════════════════════════════
+   팔로우
+════════════════════════════════════════ */
+async function getFollowCounts(userId) {
+  const [{ count: followers }, { count: following }] = await Promise.all([
+    supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+    supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+  ]);
+  return { followers: followers || 0, following: following || 0 };
+}
+
+async function getFollowStatus(targetId) {
+  const session = await getSession();
+  if (!session) return false;
+  const { data } = await supabaseClient.from('follows')
+    .select('follower_id').eq('follower_id', session.user.id).eq('following_id', targetId).maybeSingle();
+  return !!data;
+}
+
+async function toggleFollow(targetId) {
+  const session = await getSession();
+  if (!session) { window.location.href = 'login.html'; return null; }
+  const isFollowing = await getFollowStatus(targetId);
+  if (isFollowing) {
+    const { error } = await supabaseClient.from('follows')
+      .delete().eq('follower_id', session.user.id).eq('following_id', targetId);
+    if (error) throw error;
+    return false;
+  }
+  const { error } = await supabaseClient.from('follows')
+    .insert({ follower_id: session.user.id, following_id: targetId });
+  if (error) throw error;
+  return true;
+}
+
 async function incrementViews(id) {
   try {
     await supabaseClient.rpc('increment_views', { post_id: id });
@@ -2042,10 +2122,16 @@ async function initPostWrite() {
         content = cleanQuillHTML(quill.root.innerHTML);
       }
 
+      const isAnon = document.getElementById('anonToggle')?.checked || false;
+      const authorNick = isAnon
+        ? computeAnonNick(u.id, azitMap[category]?.id)
+        : (u.user_metadata?.nickname || u.email);
+
       await insertPost({
         title, content: content ?? null, category,
         author_id:       u.id,
-        author_nickname: u.user_metadata?.nickname || u.email,
+        author_nickname: authorNick,
+        is_anonymous:    isAnon,
         views: 0,
         ...extra,
       });
@@ -3734,12 +3820,14 @@ async function initProfile() {
   const isMe = session?.user?.id === userId;
 
   // 병렬 로드
-  const [profile, postsRes] = await Promise.all([
+  const [profile, postsRes, followCounts, isFollowing] = await Promise.all([
     getProfile(userId),
     supabaseClient.from('posts')
       .select('id,title,category,views,created_at,author_nickname,game_url,video_url,code_lang,pinned')
       .eq('author_id', userId).eq('hidden', false)
       .order('created_at', { ascending: false }),
+    getFollowCounts(userId),
+    !isMe && session ? getFollowStatus(userId) : Promise.resolve(false),
   ]);
 
   const posts    = postsRes.data || [];
@@ -3774,7 +3862,23 @@ async function initProfile() {
       actionsEl.innerHTML = `<button class="btn btn-outline btn-sm" id="editProfileBtn">✏️ 프로필 편집</button>`;
       document.getElementById('editProfileBtn')?.addEventListener('click', () => openProfileEdit(profile, nickname, bio, avatarUrl, bannerColor, bannerUrl, session, posts));
     } else if (session) {
-      actionsEl.innerHTML = `<a class="btn btn-primary btn-sm" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>`;
+      actionsEl.innerHTML = `
+        <a class="btn btn-primary btn-sm" href="messages.html?to=${userId}">✉️ 메시지 보내기</a>
+        <button class="btn ${isFollowing ? 'btn-outline' : 'btn-follow'} btn-sm" id="followBtn">
+          ${isFollowing ? '✓ 팔로잉' : '+ 팔로우'}
+        </button>`;
+      document.getElementById('followBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('followBtn');
+        btn.disabled = true;
+        try {
+          const newState = await toggleFollow(userId);
+          if (newState === null) return;
+          const cnt = document.getElementById('pfFollowerCount');
+          if (cnt) cnt.textContent = Math.max(0, parseInt(cnt.textContent || '0') + (newState ? 1 : -1));
+          btn.className = `btn ${newState ? 'btn-outline' : 'btn-follow'} btn-sm`;
+          btn.textContent = newState ? '✓ 팔로잉' : '+ 팔로우';
+        } finally { btn.disabled = false; }
+      });
     }
   }
 
@@ -3783,6 +3887,8 @@ async function initProfile() {
   document.getElementById('pfStats').innerHTML = `
     <div class="pf-stat"><span class="pf-stat-num">${posts.length}</span><span>게시물</span></div>
     <div class="pf-stat"><span class="pf-stat-num">${totalViews}</span><span>총 조회</span></div>
+    <div class="pf-stat"><span class="pf-stat-num" id="pfFollowerCount">${followCounts.followers}</span><span>팔로워</span></div>
+    <div class="pf-stat"><span class="pf-stat-num">${followCounts.following}</span><span>팔로잉</span></div>
   `;
 
   // 탭 전환

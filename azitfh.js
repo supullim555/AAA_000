@@ -28,6 +28,7 @@ async function initAzitfh() {
 
   document.title = `${azitfh.name} — Open Azitfh`;
   renderHero(azitfh, session);
+  initAzitSub(azitfh, session);
   initAzitfhTabs(azitfh, catName);
   await loadPosts(azitfh, catName);
 }
@@ -55,6 +56,44 @@ async function fetchAzitfhPosts(catName, sortBy = 'newest') {
   const { data, error, count } = await q.range(from, to);
   if (error) throw error;
   return { posts: data || [], total: count || 0 };
+}
+
+/* ════════════════════════════════════════
+   구독
+════════════════════════════════════════ */
+async function initAzitSub(azitfh, session) {
+  const btn     = document.getElementById('heroSubBtn');
+  const countEl = document.getElementById('heroSubCount');
+  if (!btn) return;
+
+  btn.classList.remove('hidden');
+
+  if (!session) {
+    btn.addEventListener('click', () => { window.location.href = 'login.html'; });
+    return;
+  }
+
+  let { count, isSubbed } = await getAzitSubInfo(azitfh.id);
+  if (countEl) countEl.textContent = count;
+  _applySubBtn(btn, isSubbed);
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const newState = await toggleAzitSubscription(azitfh.id);
+      if (newState === null) return;
+      count += newState ? 1 : -1;
+      if (countEl) countEl.textContent = count;
+      _applySubBtn(btn, newState);
+      showToast(newState ? '구독했어요!' : '구독을 취소했어요.');
+    } catch { showToast('오류가 발생했어요.', 'red'); }
+    finally  { btn.disabled = false; }
+  });
+}
+
+function _applySubBtn(btn, isSubbed) {
+  btn.className  = `btn-${isSubbed ? 'sub-active' : 'sub'}`;
+  btn.textContent = isSubbed ? '✓ 구독 중' : '구독';
 }
 
 /* ════════════════════════════════════════
