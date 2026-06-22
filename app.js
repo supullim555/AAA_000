@@ -2378,30 +2378,39 @@ async function initPostWrite() {
     _aiStatus.classList.remove('hidden');
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text:
-            `다음 주제로 한국어 블로그/커뮤니티 게시물을 HTML 형식으로 작성해줘.\n` +
-            `주제: ${topic}\n` +
-            `스타일: ${styleGuide[style]}\n` +
-            `규칙:\n` +
-            `- 순수 HTML 태그만 사용 (h2, h3, p, ul, ol, li, strong, em, code, pre, blockquote)\n` +
-            `- <html>, <head>, <body> 태그는 절대 포함하지 마\n` +
-            `- 마크다운이 아니라 HTML로 작성\n` +
-            `- 자연스러운 한국어, 존댓말 사용\n` +
-            `- 코드 예제가 있으면 <pre><code> 태그 사용\n` +
-            `- 본문만 반환, 앞뒤 설명 없이`
-          }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
-        }),
+      const prompt = `다음 주제로 한국어 블로그/커뮤니티 게시물을 HTML 형식으로 작성해줘.\n` +
+        `주제: ${topic}\n` +
+        `스타일: ${styleGuide[style]}\n` +
+        `규칙:\n` +
+        `- 순수 HTML 태그만 사용 (h2, h3, p, ul, ol, li, strong, em, code, pre, blockquote)\n` +
+        `- <html>, <head>, <body> 태그는 절대 포함하지 마\n` +
+        `- 마크다운이 아니라 HTML로 작성\n` +
+        `- 자연스러운 한국어, 존댓말 사용\n` +
+        `- 코드 예제가 있으면 <pre><code> 태그 사용\n` +
+        `- 본문만 반환, 앞뒤 설명 없이`;
+      const body = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
       });
-
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('요청 한도 초과 — 1분 후 다시 시도해 주세요.');
+      const hdrs = { 'Content-Type': 'application/json' };
+      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
+      let res, lastErr;
+      for (const model of models) {
+        _aiStatus.textContent = `생성 중… (${model})`;
+        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+          method: 'POST', headers: hdrs, body,
+        });
+        if (res.ok) break;
+        if (res.status === 429 || res.status === 403) {
+          lastErr = res; res = null; continue;
+        }
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error?.message || `API 오류 (${res.status})`);
+      }
+      if (!res) {
+        throw new Error('모든 모델에서 한도 초과입니다.\n' +
+          '① API 키를 Google AI Studio(aistudio.google.com/apikey)에서 다시 발급해 보세요.\n' +
+          '② 발급 후 1~2분 기다린 뒤 재시도해 주세요.');
       }
 
       const data = await res.json();
@@ -2423,8 +2432,8 @@ async function initPostWrite() {
       _aiModal.classList.add('hidden');
       showToast('AI가 글을 작성했어요!');
     } catch (err) {
-      _aiStatus.textContent = `❌ ${err.message}`;
-      showToast('AI 생성 실패: ' + err.message, 'red');
+      _aiStatus.innerHTML = `❌ ${err.message.replace(/\n/g, '<br>')}`;
+      showToast('AI 생성 실패', 'red');
     } finally {
       setTimeout(() => { _aiSubmitBtn.disabled = false; }, 3000);
       setTimeout(() => _aiStatus.classList.add('hidden'), 5000);
