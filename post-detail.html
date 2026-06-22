@@ -32,7 +32,7 @@
   </header>
 
   <div class="post-wrap">
-    <a href="index.html" class="post-back">← 목록으로</a>
+    <a href="index.html" class="post-back" id="postBackLink">← 목록으로</a>
 
     <div id="postContent">
       <div class="post-detail-header">
@@ -116,6 +116,9 @@
         <button id="postDelBtn"    class="post-del-btn  hidden">삭제</button>
       </div>
     </div>
+
+    <!-- 이전글/다음글 -->
+    <div id="postNav" class="post-nav"></div>
 
     <!-- 댓글 -->
     <div class="comment-section">

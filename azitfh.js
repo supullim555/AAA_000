@@ -40,15 +40,21 @@ async function fetchAzitfh(catName) {
   return data;
 }
 
+const PAGE_SIZE = 20;
+
 async function fetchAzitfhPosts(catName, sortBy = 'newest') {
-  let q = supabaseClient.from('posts').select('*').eq('category', catName).eq('hidden', false);
-  // 핀 게시물 항상 최상단
-  q = q.order('pinned', { ascending: false });
+  const from = (_azitPage - 1) * PAGE_SIZE;
+  const to   = from + PAGE_SIZE - 1;
+  let q = supabaseClient.from('posts')
+    .select('*', { count: 'exact' })
+    .eq('category', catName)
+    .eq('hidden', false)
+    .order('pinned', { ascending: false });
   if (sortBy === 'popular') q = q.order('views', { ascending: false });
   else                       q = q.order('created_at', { ascending: false });
-  const { data, error } = await q;
+  const { data, error, count } = await q.range(from, to);
   if (error) throw error;
-  return data || [];
+  return { posts: data || [], total: count || 0 };
 }
 
 /* ════════════════════════════════════════
@@ -123,6 +129,7 @@ function initAzitfhTabs(azitfh, catName) {
    게시물 탭
 ════════════════════════════════════════ */
 let _azitSort = null; // null = display_config.defaultSort 사용
+let _azitPage = 1;
 
 async function loadPosts(azitfh, catName) {
   const container = document.getElementById('postsPane');
@@ -131,15 +138,18 @@ async function loadPosts(azitfh, catName) {
   const dcfg = (typeof azitfh.display_config === 'object' && azitfh.display_config) ? azitfh.display_config : {};
   const effectiveSort = _azitSort || dcfg.defaultSort || 'newest';
 
-  let posts;
-  try { posts = await fetchAzitfhPosts(catName, effectiveSort); }
+  let result;
+  try { result = await fetchAzitfhPosts(catName, effectiveSort); }
   catch { container.innerHTML = '<p class="azitfh-empty">게시물을 불러오지 못했어요.</p>'; return; }
 
-  document.getElementById('heroPostCount').textContent   = posts.length;
-  document.getElementById('heroMemberCount').textContent = new Set(posts.map(p => p.author_id)).size;
-  updateAzitMeta(azitfh, posts.length);
+  const { posts, total } = result;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  if (posts.length === 0) {
+  document.getElementById('heroPostCount').textContent   = total;
+  document.getElementById('heroMemberCount').textContent = new Set(posts.map(p => p.author_id)).size;
+  updateAzitMeta(azitfh, total);
+
+  if (total === 0) {
     container.innerHTML = '<p class="azitfh-empty">아직 게시물이 없어요.<br>첫 번째 글을 올려보세요!</p>';
     return;
   }
@@ -150,16 +160,54 @@ async function loadPosts(azitfh, catName) {
       <button class="azitfh-sort-btn${effectiveSort === 'popular' ? ' active' : ''}" data-sort="popular">인기순</button>
     </div>`;
 
-  container.innerHTML = sortBar + `<div id="azitfhGrid"></div>`;
+  container.innerHTML = sortBar + `<div id="azitfhGrid"></div><div id="azitPagination" class="pagination"></div>`;
 
   container.querySelectorAll('.azitfh-sort-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       _azitSort = btn.dataset.sort;
+      _azitPage = 1;
       await loadPosts(azitfh, catName);
     });
   });
 
   renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card', dcfg);
+
+  if (totalPages > 1) {
+    renderPagination(document.getElementById('azitPagination'), _azitPage, totalPages, async p => {
+      _azitPage = p;
+      await loadPosts(azitfh, catName);
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
+function renderPagination(container, currentPage, totalPages, onPageChange) {
+  const pages = [];
+  const delta = 2;
+
+  pages.push(1);
+  if (currentPage - delta > 2) pages.push('...');
+  for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+    pages.push(i);
+  }
+  if (currentPage + delta < totalPages - 1) pages.push('...');
+  if (totalPages > 1) pages.push(totalPages);
+
+  container.innerHTML = `
+    <button class="pg-btn pg-nav" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>‹</button>
+    ${pages.map(p => p === '...'
+      ? '<span class="pg-ellipsis">…</span>'
+      : `<button class="pg-btn${p === currentPage ? ' active' : ''}" data-page="${p}">${p}</button>`
+    ).join('')}
+    <button class="pg-btn pg-nav" data-page="${currentPage + 1}" ${currentPage >= totalPages ? 'disabled' : ''}>›</button>
+  `;
+
+  container.querySelectorAll('.pg-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.page);
+      if (p >= 1 && p <= totalPages) onPageChange(p);
+    });
+  });
 }
 
 function renderPostCards(container, posts, layout = 'card', config = {}) {

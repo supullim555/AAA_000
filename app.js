@@ -3115,6 +3115,37 @@ async function initPostDetail() {
     initReportModal(id);
   }
 
+  // 이전글/다음글
+  const [prevPost, nextPost] = await Promise.all([
+    supabaseClient.from('posts').select('id, title').eq('category', post.category).eq('hidden', false)
+      .lt('created_at', post.created_at).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(r => r.data),
+    supabaseClient.from('posts').select('id, title').eq('category', post.category).eq('hidden', false)
+      .gt('created_at', post.created_at).order('created_at', { ascending: true }).limit(1).maybeSingle()
+      .then(r => r.data),
+  ]);
+
+  const backEl = document.getElementById('postBackLink');
+  if (backEl) backEl.href = `azitfh.html?cat=${encodeURIComponent(post.category)}`;
+
+  const postNavEl = document.getElementById('postNav');
+  if (postNavEl) {
+    postNavEl.innerHTML = `
+      <div class="post-nav-item post-nav-prev">
+        <span class="post-nav-label">이전글</span>
+        ${prevPost
+          ? `<a class="post-nav-link" href="post-detail.html?id=${prevPost.id}">${escapeHTML(prevPost.title)}</a>`
+          : `<span class="post-nav-none">없음</span>`}
+      </div>
+      <div class="post-nav-item post-nav-next">
+        <span class="post-nav-label">다음글</span>
+        ${nextPost
+          ? `<a class="post-nav-link" href="post-detail.html?id=${nextPost.id}">${escapeHTML(nextPost.title)}</a>`
+          : `<span class="post-nav-none">없음</span>`}
+      </div>
+    `;
+  }
+
   // 댓글
   await initComments(id, session);
 }

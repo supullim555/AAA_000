@@ -3912,3 +3912,48 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 .sr-azit-name { font-size: 14px; font-weight: 700; display: block; }
 .sr-azit-desc { font-size: 12px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr-azit-type { font-size: 11px; color: var(--text-light); flex-shrink: 0; }
+
+/* ── 페이지네이션 ── */
+.pagination {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; margin: 28px 0 8px; flex-wrap: wrap;
+}
+.pg-btn {
+  min-width: 34px; height: 34px; padding: 0 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg); color: var(--text);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.pg-btn:hover:not([disabled]):not(.active) { border-color: var(--primary); color: var(--primary); background: var(--bg-2); }
+.pg-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; cursor: default; }
+.pg-btn[disabled] { opacity: .35; cursor: not-allowed; }
+.pg-nav { font-size: 16px; }
+.pg-ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 34px; font-size: 13px; color: var(--text-light); }
+
+/* ── 이전글/다음글 ── */
+.post-nav {
+  border-top: 1.5px solid var(--border);
+  border-bottom: 1.5px solid var(--border);
+  margin: 28px 0 0;
+}
+.post-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 4px;
+  font-size: 14px;
+}
+.post-nav-item + .post-nav-item { border-top: 1px solid var(--border); }
+.post-nav-label {
+  flex-shrink: 0; width: 42px;
+  font-size: 12px; font-weight: 700; color: var(--text-light);
+}
+.post-nav-link {
+  color: var(--text); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+  transition: color .12s;
+}
+.post-nav-link:hover { color: var(--primary); }
+.post-nav-none { color: var(--text-light); font-size: 13px; }
