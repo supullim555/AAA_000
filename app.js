@@ -405,7 +405,7 @@ async function getCategoryNames() {
   return cats.map(c => c.name);
 }
 
-async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e', banner_url = null, icon_url = null, post_layout = 'card', display_config = null }) {
+async function insertCategory({ name, description = '', created_by = '익명', creator_id = null, type = 'general', icon = '🏠', cover_color = '#4aab8e', banner_url = null, icon_url = null, post_layout = 'card', display_config = null, post_tags = [] }) {
   let sortOrder = 1;
   if (creator_id) {
     const { data: last } = await supabaseClient
@@ -417,7 +417,7 @@ async function insertCategory({ name, description = '', created_by = '익명', c
   }
   const { data, error } = await supabaseClient
     .from('azits')
-    .insert({ name, description, created_by, creator_id, type, icon, cover_color, banner_url, icon_url, post_layout, display_config, sort_order: sortOrder })
+    .insert({ name, description, created_by, creator_id, type, icon, cover_color, banner_url, icon_url, post_layout, display_config, post_tags, sort_order: sortOrder })
     .select('id').single();
   if (error) throw error;
   invalidateCategoriesCache();
@@ -873,6 +873,82 @@ async function toggleFollow(targetId) {
   return true;
 }
 
+/* ════════════════════════════════════════
+   임시저장 (Server Drafts)
+════════════════════════════════════════ */
+async function getDrafts() {
+  const session = await getSession();
+  if (!session) return [];
+  const { data } = await supabaseClient.from('drafts')
+    .select('*').eq('user_id', session.user.id)
+    .order('updated_at', { ascending: false }).limit(10);
+  return data || [];
+}
+
+async function saveDraft(payload) {
+  const session = await getSession();
+  if (!session) return null;
+  const { data, error } = await supabaseClient.from('drafts')
+    .insert({ ...payload, user_id: session.user.id, updated_at: new Date().toISOString() })
+    .select('id').single();
+  if (error) throw error;
+  return data.id;
+}
+
+async function updateDraft(id, payload) {
+  const { error } = await supabaseClient.from('drafts')
+    .update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+async function deleteDraft(id) {
+  await supabaseClient.from('drafts').delete().eq('id', id);
+}
+
+/* ════════════════════════════════════════
+   말머리 태그 에디터 (Azit Settings)
+════════════════════════════════════════ */
+function initTagEditor(initialTags = []) {
+  let tags = [...initialTags];
+  const listEl  = document.getElementById('tagList');
+  const inputEl = document.getElementById('tagInput');
+  const addBtn  = document.getElementById('tagAddBtn');
+
+  function render() {
+    if (!listEl) return;
+    if (tags.length === 0) {
+      listEl.innerHTML = '<span class="tag-empty-hint">아직 말머리가 없어요.</span>';
+      return;
+    }
+    listEl.innerHTML = tags.map((t, i) =>
+      `<span class="tag-chip">${escapeHTML(t)}<button type="button" class="tag-chip-del" data-i="${i}" title="삭제">×</button></span>`
+    ).join('');
+    listEl.querySelectorAll('.tag-chip-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tags.splice(parseInt(btn.dataset.i), 1);
+        render();
+      });
+    });
+  }
+
+  addBtn?.addEventListener('click', () => {
+    const val = inputEl?.value.trim();
+    if (!val) return;
+    if (tags.includes(val)) { showToast('이미 있는 말머리에요.'); return; }
+    if (tags.length >= 10) { showToast('말머리는 최대 10개까지 가능해요.', 'red'); return; }
+    tags.push(val);
+    if (inputEl) inputEl.value = '';
+    render();
+  });
+
+  inputEl?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addBtn?.click(); }
+  });
+
+  render();
+  return { getTags: () => [...tags] };
+}
+
 async function incrementViews(id) {
   try {
     await supabaseClient.rpc('increment_views', { post_id: id });
@@ -1300,6 +1376,9 @@ async function initAzitEdit() {
   });
   document.querySelector(`input[name="postLayout"][value="${layout}"]`)?.closest('.layout-option')?.classList.add('selected');
 
+  // ── 말머리 태그 에디터 ──
+  const tagEditor = initTagEditor(Array.isArray(azit.post_tags) ? azit.post_tags : []);
+
   // ── 고급 설정 ──
   const dcfg = typeof azit.display_config === 'object' && azit.display_config
     ? azit.display_config
@@ -1406,6 +1485,7 @@ async function initAzitEdit() {
         icon_url:    iconUrl   || null,
         post_layout:     postLayout,
         display_config:  collectDisplayConfig(),
+        post_tags:       tagEditor.getTags(),
       };
 
       // 이름 변경 시 RPC (게시물 category도 변경)
@@ -1656,6 +1736,9 @@ async function initAzitCreate() {
     return cfg;
   }
 
+  // ── 말머리 태그 에디터 ──
+  const tagEditor = initTagEditor([]);
+
   // ── 제출 ──
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -1680,6 +1763,7 @@ async function initAzitCreate() {
       const newId = await insertCategory({
         name, description: nullIfEmpty(desc), created_by: nickname, creator_id: user.id,
         type, icon, cover_color, post_layout: postLayout, display_config: collectDisplayConfig(),
+        post_tags: tagEditor.getTags(),
       });
 
       // 파일 업로드 (배너/아이콘)
@@ -1855,6 +1939,25 @@ async function initPostWrite() {
   catSelect.addEventListener('change', applyFormType);
   applyFormType();
 
+  /* ── 말머리 태그 선택 ── */
+  function updateTagSelector() {
+    const azit   = azitMap[catSelect.value];
+    const tags   = Array.isArray(azit?.post_tags) ? azit.post_tags : [];
+    const wrap   = document.getElementById('tagSelectField');
+    const select = document.getElementById('tagSelect');
+    if (!wrap || !select) return;
+    if (tags.length > 0) {
+      select.innerHTML = '<option value="">말머리 없음</option>' +
+        tags.map(t => `<option value="${escapeHTML(t)}">${escapeHTML(t)}</option>`).join('');
+      wrap.classList.remove('hidden');
+    } else {
+      select.innerHTML = '';
+      wrap.classList.add('hidden');
+    }
+  }
+  catSelect.addEventListener('change', updateTagSelector);
+  updateTagSelector();
+
   /* ── 게임 폴더 선택 ── */
   const gameFolderInput = document.getElementById('gameFolderInput');
   const gameFolderBtn   = document.getElementById('gameFolderBtn');
@@ -2021,6 +2124,117 @@ async function initPostWrite() {
   _loadDraft();
   const _draftTimer = setInterval(_saveDraft, 8000);
 
+  /* ── 서버 임시저장 ── */
+  let _serverDraftId = null;
+
+  async function _saveToServer() {
+    const title    = form.title?.value || '';
+    const category = catSelect.value;
+    const type     = azitMap[category]?.type;
+    const postTag  = nullIfEmpty(document.getElementById('tagSelect')?.value || '');
+    const isAnon   = document.getElementById('anonToggle')?.checked || false;
+    let content = null, code_lang = null, code_files = null;
+    if (type === '코드') {
+      _saveActiveCode();
+      code_lang  = _codeLangSel?.value || 'Python';
+      code_files = _codeFiles.map(f => ({ name: f.name, lang: f.lang, code: f.code }));
+    } else if (type !== '웹게임' && type !== '영상') {
+      content = cleanQuillHTML(quill?.root.innerHTML || '') || null;
+    }
+    const payload = { title, content, category, post_tag: postTag,
+      code_lang: code_lang || null, code_files: code_files || null, is_anonymous: isAnon };
+    if (_serverDraftId) {
+      await updateDraft(_serverDraftId, payload);
+    } else {
+      _serverDraftId = await saveDraft(payload);
+    }
+  }
+
+  function _applyServerDraft(draft) {
+    _serverDraftId = draft.id;
+    const titleEl = document.getElementById('title');
+    if (titleEl) titleEl.value = draft.title || '';
+    if (draft.category) { catSelect.value = draft.category; applyFormType(); updateTagSelector(); }
+    const tagSel = document.getElementById('tagSelect');
+    if (tagSel && draft.post_tag) tagSel.value = draft.post_tag;
+    const anonCb = document.getElementById('anonToggle');
+    if (anonCb) anonCb.checked = draft.is_anonymous || false;
+    const type = azitMap[draft.category]?.type;
+    if (type === '코드' && Array.isArray(draft.code_files) && draft.code_files.length > 0) {
+      _codeFiles    = draft.code_files.map(f => ({ ...f, id: Date.now() + Math.random() }));
+      _activeFileId = _codeFiles[0]?.id;
+      _renderCodeFileTabs(); _loadActiveCode();
+    } else if (!type || type === 'general') {
+      if (quill && draft.content) quill.clipboard.dangerouslyPasteHTML(draft.content);
+    }
+    showToast('임시저장 글을 불러왔어요.');
+  }
+
+  async function _showDraftDropdown() {
+    const dropdown = document.getElementById('draftDropdown');
+    if (!dropdown) return;
+    if (!dropdown.classList.contains('hidden')) { dropdown.classList.add('hidden'); return; }
+    let drafts;
+    try { drafts = await getDrafts(); } catch { showToast('목록을 불러오지 못했어요.', 'red'); return; }
+    if (drafts.length === 0) {
+      dropdown.innerHTML = '<p class="draft-empty">저장된 임시글이 없어요.</p>';
+    } else {
+      dropdown.innerHTML = drafts.map(d => `
+        <div class="draft-item" data-id="${escapeHTML(d.id)}">
+          <div class="draft-item-main">
+            <div class="draft-item-title">${escapeHTML(d.title || '제목 없음')}</div>
+            <div class="draft-item-meta">
+              <span>${escapeHTML(d.category || '')}</span>
+              <span>${formatDate(d.updated_at)}</span>
+            </div>
+          </div>
+          <button type="button" class="draft-item-del" data-id="${escapeHTML(d.id)}">×</button>
+        </div>`).join('');
+      dropdown.querySelectorAll('.draft-item').forEach(item => {
+        item.addEventListener('click', e => {
+          if (e.target.classList.contains('draft-item-del')) return;
+          const draft = drafts.find(d => d.id === item.dataset.id);
+          if (draft) { _applyServerDraft(draft); dropdown.classList.add('hidden'); }
+        });
+      });
+      dropdown.querySelectorAll('.draft-item-del').forEach(btn => {
+        btn.addEventListener('click', async e => {
+          e.stopPropagation();
+          await deleteDraft(btn.dataset.id).catch(() => {});
+          if (_serverDraftId === btn.dataset.id) _serverDraftId = null;
+          btn.closest('.draft-item').remove();
+          if (!dropdown.querySelector('.draft-item'))
+            dropdown.innerHTML = '<p class="draft-empty">저장된 임시글이 없어요.</p>';
+        });
+      });
+    }
+    dropdown.classList.remove('hidden');
+    const close = e => {
+      if (!dropdown.closest('.draft-load-wrap')?.contains(e.target)) {
+        dropdown.classList.add('hidden');
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+
+  document.getElementById('draftSaveBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('draftSaveBtn');
+    btn.disabled = true;
+    try {
+      await _saveToServer();
+      document.getElementById('draftLoadWrap')?.classList.remove('hidden');
+      showToast('임시저장됐어요!');
+    } catch { showToast('임시저장 실패', 'red'); }
+    finally { btn.disabled = false; }
+  });
+
+  document.getElementById('draftLoadBtn')?.addEventListener('click', () => _showDraftDropdown());
+
+  getDrafts().then(drafts => {
+    if (drafts.length > 0) document.getElementById('draftLoadWrap')?.classList.remove('hidden');
+  }).catch(() => {});
+
   /* ── 제출 ── */
   const submitBtn = form.querySelector('[type=submit]');
   submitBtn.dataset.label = submitBtn.textContent;
@@ -2122,7 +2336,8 @@ async function initPostWrite() {
         content = cleanQuillHTML(quill.root.innerHTML);
       }
 
-      const isAnon = document.getElementById('anonToggle')?.checked || false;
+      const isAnon  = document.getElementById('anonToggle')?.checked || false;
+      const postTag = nullIfEmpty(document.getElementById('tagSelect')?.value || '');
       const authorNick = isAnon
         ? computeAnonNick(u.id, category)
         : (u.user_metadata?.nickname || u.email);
@@ -2132,11 +2347,13 @@ async function initPostWrite() {
         author_id:       u.id,
         author_nickname: authorNick,
         is_anonymous:    isAnon,
+        post_tag:        postTag,
         views: 0,
         ...extra,
       });
       clearInterval(_draftTimer);
       localStorage.removeItem(_DRAFT_KEY);
+      if (_serverDraftId) { await deleteDraft(_serverDraftId).catch(() => {}); _serverDraftId = null; }
       const successMsg = isVideo ? '영상이 등록됐어요! 🎬' : isGame ? '게임이 등록됐어요! 🎮' : isCode ? '코드가 등록됐어요! 💻' : '게시물이 등록됐어요! 🎉';
       showToast(successMsg, 'green');
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
@@ -2953,6 +3170,11 @@ async function initPostDetail() {
 
   updatePostMeta(post);
   document.getElementById('postCategory').textContent = post.category;
+  const tagBadgeEl = document.getElementById('postTagBadge');
+  if (tagBadgeEl) {
+    if (post.post_tag) { tagBadgeEl.textContent = post.post_tag; tagBadgeEl.classList.remove('hidden'); }
+    else tagBadgeEl.classList.add('hidden');
+  }
   document.getElementById('postTitle').textContent    = post.title;
   const authorEl = document.getElementById('postAuthor');
   if (authorEl) {

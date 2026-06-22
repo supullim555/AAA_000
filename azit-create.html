@@ -188,6 +188,17 @@
         </div>
       </section>
 
+      <!-- 말머리 설정 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">말머리 설정 <span style="font-size:12px;font-weight:400;color:var(--text-light)">(선택)</span></h3>
+        <p class="hint" style="margin:0 0 10px">게시물 작성 시 선택할 수 있는 말머리(태그)를 설정합니다. (최대 10개)</p>
+        <div id="tagList" class="tag-list"></div>
+        <div class="tag-add-row">
+          <input type="text" id="tagInput" placeholder="말머리 이름 (예: 공지, 질문, 정보)" maxlength="10" style="flex:1">
+          <button type="button" id="tagAddBtn" class="btn-secondary">+ 추가</button>
+        </div>
+      </section>
+
       <div class="post-write-actions">
         <a href="dashboard.html" class="btn-secondary">취소</a>
         <button type="submit" class="btn btn-primary">아지트 열기</button>

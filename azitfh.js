@@ -51,6 +51,7 @@ async function fetchAzitfhPosts(catName, sortBy = 'newest') {
     .eq('category', catName)
     .eq('hidden', false)
     .order('pinned', { ascending: false });
+  if (_azitTagFilter) q = q.eq('post_tag', _azitTagFilter);
   if (sortBy === 'popular') q = q.order('views', { ascending: false });
   else                       q = q.order('created_at', { ascending: false });
   const { data, error, count } = await q.range(from, to);
@@ -167,8 +168,9 @@ function initAzitfhTabs(azitfh, catName) {
 /* ════════════════════════════════════════
    게시물 탭
 ════════════════════════════════════════ */
-let _azitSort = null; // null = display_config.defaultSort 사용
-let _azitPage = 1;
+let _azitSort      = null; // null = display_config.defaultSort 사용
+let _azitPage      = 1;
+let _azitTagFilter = null; // null = 전체
 
 async function loadPosts(azitfh, catName) {
   const container = document.getElementById('postsPane');
@@ -176,6 +178,7 @@ async function loadPosts(azitfh, catName) {
 
   const dcfg = (typeof azitfh.display_config === 'object' && azitfh.display_config) ? azitfh.display_config : {};
   const effectiveSort = _azitSort || dcfg.defaultSort || 'newest';
+  const azitTags = Array.isArray(azitfh.post_tags) ? azitfh.post_tags : [];
 
   let result;
   try { result = await fetchAzitfhPosts(catName, effectiveSort); }
@@ -188,10 +191,16 @@ async function loadPosts(azitfh, catName) {
   document.getElementById('heroMemberCount').textContent = new Set(posts.map(p => p.author_id)).size;
   updateAzitMeta(azitfh, total);
 
-  if (total === 0) {
+  if (total === 0 && !_azitTagFilter) {
     container.innerHTML = '<p class="azitfh-empty">아직 게시물이 없어요.<br>첫 번째 글을 올려보세요!</p>';
     return;
   }
+
+  const tagFilterBar = azitTags.length > 0 ? `
+    <div class="azitfh-tag-filter-bar">
+      <button class="azitfh-tag-btn${!_azitTagFilter ? ' active' : ''}" data-tag="">전체</button>
+      ${azitTags.map(t => `<button class="azitfh-tag-btn${_azitTagFilter === t ? ' active' : ''}" data-tag="${escapeHTML(t)}">${escapeHTML(t)}</button>`).join('')}
+    </div>` : '';
 
   const sortBar = `
     <div class="azitfh-sort-bar">
@@ -199,7 +208,15 @@ async function loadPosts(azitfh, catName) {
       <button class="azitfh-sort-btn${effectiveSort === 'popular' ? ' active' : ''}" data-sort="popular">인기순</button>
     </div>`;
 
-  container.innerHTML = sortBar + `<div id="azitfhGrid"></div><div id="azitPagination" class="pagination"></div>`;
+  container.innerHTML = tagFilterBar + sortBar + `<div id="azitfhGrid"></div><div id="azitPagination" class="pagination"></div>`;
+
+  container.querySelectorAll('.azitfh-tag-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      _azitTagFilter = btn.dataset.tag || null;
+      _azitPage = 1;
+      await loadPosts(azitfh, catName);
+    });
+  });
 
   container.querySelectorAll('.azitfh-sort-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -208,6 +225,11 @@ async function loadPosts(azitfh, catName) {
       await loadPosts(azitfh, catName);
     });
   });
+
+  if (total === 0) {
+    document.getElementById('azitfhGrid').innerHTML = '<p class="azitfh-empty">해당 말머리의 게시물이 없어요.</p>';
+    return;
+  }
 
   renderPostCards(document.getElementById('azitfhGrid'), posts, azitfh.post_layout || 'card', dcfg);
 
@@ -253,9 +275,10 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
   if (layout === 'list') {
     container.className = '';  // grid 제거 — post-row가 자연스럽게 세로 쌓임
     container.innerHTML = posts.map(p => {
-      const pin = p.pinned ? '<span class="post-row-pin">📌</span>' : '';
+      const pin    = p.pinned   ? '<span class="post-row-pin">📌</span>' : '';
+      const tagBdg = p.post_tag ? `<span class="post-tag-badge">${escapeHTML(p.post_tag)}</span>` : '';
       return `<a class="post-row${p.pinned ? ' post-row-pinned' : ''}" href="post-detail.html?id=${p.id}">
-        <span class="post-row-title">${pin}${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
+        <span class="post-row-title">${pin}${tagBdg}${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
         <span class="post-row-views">👁 ${p.views||0}</span>
@@ -306,7 +329,7 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
         <div class="news-card-top">
           ${pinBadge}<span class="news-date">${showDate ? formatDate(p.created_at) : ''}</span>${langBadge}
         </div>
-        <h3 class="news-title">${postTypeIcon(p, true)}${escapeHTML(p.title)}</h3>
+        <h3 class="news-title">${p.post_tag ? `<span class="post-tag-badge">${escapeHTML(p.post_tag)}</span>` : ''}${postTypeIcon(p, true)}${escapeHTML(p.title)}</h3>
         ${showDesc ? renderPostDescHtml(p) : ''}
         ${metaParts ? `<div class="post-meta">${metaParts}</div>` : ''}
       </a>`;

@@ -4021,3 +4021,167 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 }
 .post-nav-link:hover { color: var(--primary); }
 .post-nav-none { color: var(--text-light); font-size: 13px; }
+
+/* ═══════════════════════════════════════
+   말머리 태그 배지
+═══════════════════════════════════════ */
+.post-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  margin-right: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+.post-detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.post-detail-badges .post-tag-badge { margin-right: 0; }
+
+/* ═══════════════════════════════════════
+   말머리 태그 필터 바 (아지트 상세)
+═══════════════════════════════════════ */
+.azitfh-tag-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 0;
+  margin-bottom: 4px;
+}
+.azitfh-tag-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.azitfh-tag-btn:hover { border-color: var(--primary); color: var(--primary); }
+.azitfh-tag-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════
+   말머리 태그 에디터 (Azit 설정)
+═══════════════════════════════════════ */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 30px;
+  align-items: center;
+}
+.tag-empty-hint { font-size: 13px; color: var(--text-light); }
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tag-chip-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  transition: color .1s;
+}
+.tag-chip-del:hover { color: #e74c3c; }
+.tag-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ═══════════════════════════════════════
+   임시저장 UI
+═══════════════════════════════════════ */
+.draft-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.draft-bar .btn-secondary { font-size: 13px; padding: 7px 14px; }
+.draft-load-wrap { position: relative; }
+.draft-dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  min-width: 280px;
+  max-width: 360px;
+  z-index: 200;
+  overflow: hidden;
+}
+.draft-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.draft-item:last-child { border-bottom: none; }
+.draft-item:hover { background: var(--bg-2); }
+.draft-item-main { flex: 1; min-width: 0; }
+.draft-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.draft-item-meta {
+  font-size: 11px;
+  color: var(--text-light);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.draft-item-del {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color .1s, background .1s;
+}
+.draft-item-del:hover { color: #e74c3c; background: var(--bg-2); }
+.draft-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-light);
+  margin: 0;
+}

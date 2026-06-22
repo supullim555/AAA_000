@@ -32,6 +32,11 @@
         </p>
       </div>
 
+      <div class="field hidden" id="tagSelectField">
+        <label for="tagSelect">말머리</label>
+        <select id="tagSelect" name="tagSelect"></select>
+      </div>
+
       <div class="field">
         <label for="title">제목</label>
         <input type="text" id="title" name="title" placeholder="제목을 입력하세요" maxlength="80" autocomplete="off">
@@ -192,6 +197,14 @@
           <span>익명으로 작성</span>
         </label>
         <span class="anon-toggle-hint">같은 아지트에서 동일한 익명 ID(유동닉)로 표시됩니다</span>
+      </div>
+
+      <div class="draft-bar">
+        <button type="button" id="draftSaveBtn" class="btn-secondary">💾 임시저장</button>
+        <div id="draftLoadWrap" class="draft-load-wrap hidden">
+          <button type="button" id="draftLoadBtn" class="btn-secondary">📂 불러오기</button>
+          <div id="draftDropdown" class="draft-dropdown hidden"></div>
+        </div>
       </div>
 
       <div class="post-write-actions">
