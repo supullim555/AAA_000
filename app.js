@@ -2399,6 +2399,7 @@ async function initPostWrite() {
       });
 
       if (!res.ok) {
+        if (res.status === 429) throw new Error('요청 한도 초과 — 1분 후 다시 시도해 주세요.');
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error?.message || `API 오류 (${res.status})`);
       }
@@ -2425,7 +2426,7 @@ async function initPostWrite() {
       _aiStatus.textContent = `❌ ${err.message}`;
       showToast('AI 생성 실패: ' + err.message, 'red');
     } finally {
-      _aiSubmitBtn.disabled = false;
+      setTimeout(() => { _aiSubmitBtn.disabled = false; }, 3000);
       setTimeout(() => _aiStatus.classList.add('hidden'), 5000);
     }
   });
