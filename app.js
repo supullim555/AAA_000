@@ -951,7 +951,12 @@ function initTagEditor(initialTags = []) {
 
 async function incrementViews(id) {
   try {
-    await supabaseClient.rpc('increment_views', { post_id: id });
+    const viewedKey = `viewed_${id}`;
+    if (sessionStorage.getItem(viewedKey)) return;
+    const hash = (await supabaseClient.auth.getSession())?.data?.session?.user?.id
+      || 'anon_' + Math.random().toString(36).slice(2, 10);
+    await supabaseClient.rpc('increment_views_safe', { p_post_id: id, p_viewer_hash: hash });
+    sessionStorage.setItem(viewedKey, '1');
   } catch (err) {
     console.error('incrementViews:', err);
   }
@@ -981,7 +986,11 @@ async function renderPosts() {
   try {
     let posts = await fetchPostsCached();
     if (_selectedCat) posts = posts.filter(p => p.category === _selectedCat);
-    posts = posts.slice().sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, CONFIG.POPULAR_LIMIT);
+    posts = posts.slice().sort((a, b) => {
+      const scoreA = (a.vote_score || 0) * 3 + (a.comment_count || 0) * 2 + (a.views || 0) * 0.1;
+      const scoreB = (b.vote_score || 0) * 3 + (b.comment_count || 0) * 2 + (b.views || 0) * 0.1;
+      return scoreB - scoreA;
+    }).slice(0, CONFIG.POPULAR_LIMIT);
 
     if (posts.length === 0) {
       const msg = _selectedCat
@@ -1003,7 +1012,7 @@ async function renderPosts() {
           </div>
           <h3 class="news-title">${escapeHTML(p.title)}</h3>
           ${renderPostDescHtml(p)}
-          <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 조회 ${p.views || 0}</div>
+          <div class="post-meta">by ${escapeHTML(p.author_nickname)} · 👍 ${p.vote_score||0} · 💬 ${p.comment_count||0} · 👁 ${p.views||0}</div>
         </a>`;
     }).join('');
 

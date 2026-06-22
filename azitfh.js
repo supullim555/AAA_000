@@ -52,7 +52,7 @@ async function fetchAzitfhPosts(catName, sortBy = 'newest') {
     .eq('hidden', false)
     .order('pinned', { ascending: false });
   if (_azitTagFilter) q = q.eq('post_tag', _azitTagFilter);
-  if (sortBy === 'popular') q = q.order('views', { ascending: false });
+  if (sortBy === 'popular') q = q.order('vote_score', { ascending: false }).order('comment_count', { ascending: false }).order('views', { ascending: false });
   else                       q = q.order('created_at', { ascending: false });
   const { data, error, count } = await q.range(from, to);
   if (error) throw error;
@@ -300,7 +300,7 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
         <span class="post-row-title">${pin}${tagBdg}${postTypeIcon(p, true)}${escapeHTML(p.title)}</span>
         <span class="post-row-author">${escapeHTML(p.author_nickname)}</span>
         <span class="post-row-date">${formatDate(p.created_at)}</span>
-        <span class="post-row-views">👁 ${p.views||0}</span>
+        <span class="post-row-views">💬 ${p.comment_count||0} · 👁 ${p.views||0}</span>
       </a>`;
     }).join('');
     return;
@@ -339,7 +339,9 @@ function renderPostCards(container, posts, layout = 'card', config = {}) {
     const pinBadge  = p.pinned ? '<span class="azitfh-pin-badge">📌 핀</span>' : '';
     const metaParts = [
       showAuthor ? `by ${escapeHTML(p.author_nickname)}` : '',
-      showViews  ? `조회 ${p.views || 0}` : '',
+      `👍 ${p.vote_score||0}`,
+      `💬 ${p.comment_count||0}`,
+      showViews  ? `👁 ${p.views||0}` : '',
     ].filter(Boolean).join(' · ');
 
     return `
