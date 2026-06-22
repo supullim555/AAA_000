@@ -2316,35 +2316,13 @@ async function initPostWrite() {
     setTimeout(() => document.addEventListener('click', close), 0);
   }
 
-  /* ── AI 자동 생성 ── */
+  /* ── AI 자동 생성 (Supabase Edge Function 프록시) ── */
   const _aiModal     = document.getElementById('aiModal');
   const _aiPrompt    = document.getElementById('aiPromptInput');
-  const _aiKeyInput  = document.getElementById('aiApiKey');
-  const _aiKeySection = document.getElementById('aiKeySection');
   const _aiStatus    = document.getElementById('aiStatus');
   const _aiSubmitBtn = document.getElementById('aiSubmitBtn');
 
-  function _getAiKey() { return localStorage.getItem('gemini_api_key') || ''; }
-  function _setAiKey(k) { localStorage.setItem('gemini_api_key', k); }
-
-  function _refreshKeyUI() {
-    const k = _getAiKey();
-    if (k) {
-      _aiKeyInput.value = k;
-      _aiKeySection.querySelector('.ai-modal-hint').textContent = '✅ API 키가 저장되어 있어요.';
-    }
-  }
-
-  document.getElementById('aiKeySaveBtn')?.addEventListener('click', () => {
-    const key = _aiKeyInput.value.trim();
-    if (!key) { showToast('API 키를 입력해 주세요.', 'red'); return; }
-    _setAiKey(key);
-    showToast('API 키가 저장됐어요!');
-    _refreshKeyUI();
-  });
-
   document.getElementById('aiGenerateBtn')?.addEventListener('click', () => {
-    _refreshKeyUI();
     const titleVal = form.title?.value?.trim();
     if (titleVal && !_aiPrompt.value.trim()) _aiPrompt.value = titleVal;
     _aiModal.classList.remove('hidden');
@@ -2361,66 +2339,32 @@ async function initPostWrite() {
   });
 
   _aiSubmitBtn?.addEventListener('click', async () => {
-    const key    = _getAiKey();
-    if (!key) { showToast('먼저 Gemini API 키를 저장해 주세요.', 'red'); return; }
-    const topic  = _aiPrompt.value.trim();
+    const topic = _aiPrompt.value.trim();
     if (!topic) { showToast('주제를 입력해 주세요.', 'red'); return; }
-    const style  = document.querySelector('.ai-style-btn.active')?.dataset.style || 'detailed';
-
-    const styleGuide = {
-      detailed:  '상세하고 풍부한 설명 형식으로 작성해줘. 소제목(h3)과 목록(ul/ol)을 적극 활용해.',
-      tutorial:  '단계별 튜토리얼 형식으로 작성해줘. 코드 예제가 있으면 pre>code 태그로 감싸줘.',
-      summary:   '핵심만 간결하게 요약 정리해줘. 글머리 기호를 사용하고 짧고 명확하게.',
-    };
+    const style = document.querySelector('.ai-style-btn.active')?.dataset.style || 'detailed';
 
     _aiSubmitBtn.disabled = true;
     _aiStatus.textContent = '생성 중…';
     _aiStatus.classList.remove('hidden');
 
     try {
-      const prompt = `다음 주제로 한국어 블로그/커뮤니티 게시물을 HTML 형식으로 작성해줘.\n` +
-        `주제: ${topic}\n` +
-        `스타일: ${styleGuide[style]}\n` +
-        `규칙:\n` +
-        `- 순수 HTML 태그만 사용 (h2, h3, p, ul, ol, li, strong, em, code, pre, blockquote)\n` +
-        `- <html>, <head>, <body> 태그는 절대 포함하지 마\n` +
-        `- 마크다운이 아니라 HTML로 작성\n` +
-        `- 자연스러운 한국어, 존댓말 사용\n` +
-        `- 코드 예제가 있으면 <pre><code> 태그 사용\n` +
-        `- 본문만 반환, 앞뒤 설명 없이`;
-      const body = JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+      const sess = await supabaseClient.auth.getSession();
+      const jwt  = sess?.data?.session?.access_token;
+      if (!jwt) throw new Error('로그인이 필요합니다.');
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/ai-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ topic, style }),
       });
-      const hdrs = { 'Content-Type': 'application/json' };
-      const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
-      let res, lastErr;
-      for (const model of models) {
-        _aiStatus.textContent = `생성 중… (${model})`;
-        res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-          method: 'POST', headers: hdrs, body,
-        });
-        if (res.ok) break;
-        const errBody = await res.json().catch(() => ({}));
-        const errMsg  = errBody?.error?.message || '';
-        if (res.status === 400 && /expired|invalid/i.test(errMsg)) {
-          throw new Error('API 키가 만료되었거나 유효하지 않습니다.\nGoogle AI Studio에서 새 키를 발급받아 주세요.');
-        }
-        if (res.status === 429 || res.status === 403) {
-          lastErr = res; res = null; continue;
-        }
-        throw new Error(errMsg || `API 오류 (${res.status})`);
-      }
-      if (!res) {
-        throw new Error('모든 모델에서 한도 초과입니다.\n' +
-          '① API 키를 Google AI Studio(aistudio.google.com/apikey)에서 다시 발급해 보세요.\n' +
-          '② 발급 후 1~2분 기다린 뒤 재시도해 주세요.');
-      }
 
       const data = await res.json();
-      let html = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      html = html.replace(/^```html?\s*/i, '').replace(/```\s*$/, '').trim();
+      if (!res.ok) throw new Error(data?.error || `서버 오류 (${res.status})`);
 
+      let html = data.html || '';
       const type = azitMap[catSelect.value]?.type;
       if (type === '코드') {
         const plain = html.replace(/<[^>]+>/g, '');
@@ -2437,7 +2381,7 @@ async function initPostWrite() {
       showToast('AI가 글을 작성했어요!');
     } catch (err) {
       _aiStatus.innerHTML = `❌ ${err.message.replace(/\n/g, '<br>')}`;
-      showToast('AI 생성 실패', 'red');
+      showToast('AI 생성 실패: ' + err.message, 'red');
     } finally {
       setTimeout(() => { _aiSubmitBtn.disabled = false; }, 3000);
       setTimeout(() => _aiStatus.classList.add('hidden'), 5000);
