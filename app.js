@@ -612,8 +612,9 @@ async function renderCategoryCards() {
 }
 
 /* ── 아지트 카드 행 넘침 숨김/펼치기 ── */
+let _catExpanded = false;
+
 function _applyRowLimit(wrap) {
-  // 이전 "더 보기" 버튼 제거
   wrap.parentElement?.querySelectorAll('.cat-more-btn').forEach(b => b.remove());
 
   const allBtns = [...wrap.querySelectorAll('.cat-card-btn')];
@@ -626,19 +627,28 @@ function _applyRowLimit(wrap) {
 
   if (!hidden.length) return;
 
+  if (_catExpanded) {
+    const lessBtn = document.createElement('button');
+    lessBtn.className = 'cat-more-btn cat-less-btn';
+    lessBtn.textContent = '접기 ↑';
+    lessBtn.addEventListener('click', () => { _catExpanded = false; lessBtn.remove(); _applyRowLimit(wrap); });
+    wrap.parentElement?.appendChild(lessBtn);
+    return;
+  }
+
   hidden.forEach(b => b.classList.add('cat-card-hidden'));
 
   const moreBtn = document.createElement('button');
   moreBtn.className = 'cat-more-btn';
   moreBtn.textContent = `+ ${hidden.length}개 더 보기`;
   moreBtn.addEventListener('click', () => {
+    _catExpanded = true;
     hidden.forEach(b => b.classList.remove('cat-card-hidden'));
     moreBtn.remove();
-    // 접기 버튼 추가
     const lessBtn = document.createElement('button');
     lessBtn.className = 'cat-more-btn cat-less-btn';
     lessBtn.textContent = '접기 ↑';
-    lessBtn.addEventListener('click', () => { lessBtn.remove(); _applyRowLimit(wrap); });
+    lessBtn.addEventListener('click', () => { _catExpanded = false; lessBtn.remove(); _applyRowLimit(wrap); });
     wrap.parentElement?.appendChild(lessBtn);
   });
   wrap.parentElement?.appendChild(moreBtn);
