@@ -3574,11 +3574,116 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 .lo-g-sm       { display: flex; flex-direction: column; gap: 4px; }
 .lo-g-cell     { background: var(--border); border-radius: 3px; flex: 1; }
 
-/* 배너 있을 때 hero 오버레이 */
+/* ═══════════════════════════════════════
+   히어로 스타일 — 높이
+═══════════════════════════════════════ */
+.azitfh-hero-compact .azitfh-hero-content {
+  padding-top: 22px;
+  padding-bottom: 18px;
+}
+.azitfh-hero-compact .azitfh-icon  { font-size: 36px; margin-bottom: 8px; }
+.azitfh-hero-compact .azitfh-name  { font-size: 22px; margin-bottom: 5px; }
+.azitfh-hero-compact .azitfh-stats { gap: 14px; margin-bottom: 14px; }
+
+.azitfh-hero-tall .azitfh-hero-content {
+  padding-top: 72px;
+  padding-bottom: 60px;
+}
+.azitfh-hero-tall .azitfh-icon { font-size: 68px; margin-bottom: 16px; }
+.azitfh-hero-tall .azitfh-name { font-size: 40px; }
+
+/* ═══════════════════════════════════════
+   히어로 스타일 — 텍스트 정렬
+═══════════════════════════════════════ */
+.azitfh-hero-align-left .azitfh-hero-content { text-align: left; }
+.azitfh-hero-align-left .azitfh-desc         { max-width: 600px; }
+.azitfh-hero-align-left .azitfh-stats        { flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════
+   히어로 스타일 — 배너 오버레이
+═══════════════════════════════════════ */
 .azitfh-hero-bg.has-banner::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,.25) 0%, rgba(0,0,0,.55) 100%);
+  pointer-events: none;
 }
+
+/* 기본(medium) — 클래스 없는 경우 fallback */
+.azitfh-hero-bg.has-banner::after {
+  background: linear-gradient(to bottom, rgba(0,0,0,.2) 0%, rgba(0,0,0,.5) 100%);
+}
+.azitfh-hero-overlay-none   .azitfh-hero-bg.has-banner::after { background: none; }
+.azitfh-hero-overlay-medium .azitfh-hero-bg.has-banner::after {
+  background: linear-gradient(to bottom, rgba(0,0,0,.2) 0%, rgba(0,0,0,.5) 100%);
+}
+.azitfh-hero-overlay-strong .azitfh-hero-bg.has-banner::after {
+  background: linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,.75) 100%);
+}
+
+/* ═══════════════════════════════════════
+   히어로 스타일 피커 UI
+═══════════════════════════════════════ */
+.hero-h-picker {
+  display: flex;
+  gap: 10px;
+}
+.hero-h-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+  font-family: inherit;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.hero-h-btn:hover { border-color: var(--primary); color: var(--primary); }
+.hero-h-btn.active {
+  border-color: var(--primary);
+  background: var(--bg);
+  color: var(--primary);
+}
+.hero-h-demo {
+  width: 52px;
+  background: var(--border);
+  border-radius: 3px;
+}
+.hero-h-demo-compact { height: 18px; }
+.hero-h-demo-normal  { height: 32px; }
+.hero-h-demo-tall    { height: 50px; }
+
+.hero-align-picker,
+.hero-ov-picker {
+  display: flex;
+  gap: 8px;
+}
+.hero-align-btn,
+.hero-ov-btn {
+  padding: 7px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  font-family: inherit;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.hero-align-btn:hover,
+.hero-ov-btn:hover { border-color: var(--primary); color: var(--primary); }
+.hero-align-btn.active,
+.hero-ov-btn.active {
+  border-color: var(--primary);
+  background: var(--bg);
+  color: var(--primary);
+}
+.hero-align-icon { margin-right: 4px; }
 
 /* 아이콘 이미지 */
 .azitfh-icon-img {

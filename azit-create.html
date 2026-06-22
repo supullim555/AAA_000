@@ -114,6 +114,62 @@
         </div>
       </section>
 
+      <!-- 히어로 스타일 -->
+      <section class="edit-section">
+        <h3 class="edit-section-title">히어로 스타일</h3>
+
+        <div class="adv-section" style="margin-bottom:18px">
+          <span class="adv-label">히어로 높이</span>
+          <div class="hero-h-picker">
+            <button type="button" class="hero-h-btn" data-height="compact">
+              <div class="hero-h-demo hero-h-demo-compact"></div>
+              <span>좁게</span>
+            </button>
+            <button type="button" class="hero-h-btn" data-height="normal">
+              <div class="hero-h-demo hero-h-demo-normal"></div>
+              <span>기본</span>
+            </button>
+            <button type="button" class="hero-h-btn" data-height="tall">
+              <div class="hero-h-demo hero-h-demo-tall"></div>
+              <span>넓게</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="adv-section" style="margin-bottom:18px">
+          <span class="adv-label">텍스트 정렬</span>
+          <div class="hero-align-picker">
+            <button type="button" class="hero-align-btn" data-align="center">
+              <span class="hero-align-icon">≡</span> 중앙
+            </button>
+            <button type="button" class="hero-align-btn" data-align="left">
+              <span class="hero-align-icon">☰</span> 좌측
+            </button>
+          </div>
+        </div>
+
+        <div class="adv-section" style="margin-bottom:18px">
+          <span class="adv-label">배너 오버레이</span>
+          <p class="hint" style="margin:2px 0 8px">배너 이미지 위 어두운 레이어 — 텍스트 가독성에 영향</p>
+          <div class="hero-ov-picker">
+            <button type="button" class="hero-ov-btn" data-overlay="none">없음</button>
+            <button type="button" class="hero-ov-btn" data-overlay="medium">보통</button>
+            <button type="button" class="hero-ov-btn" data-overlay="strong">강하게</button>
+          </div>
+        </div>
+
+        <div class="adv-section">
+          <span class="adv-label">히어로 통계 표시</span>
+          <label class="toggle-item" style="margin-top:8px">
+            <span class="toggle-label">게시물 수 · 멤버 수 · 구독자 수 표시</span>
+            <span class="toggle-switch">
+              <input type="checkbox" id="showHeroStats" checked>
+              <span class="toggle-track"></span>
+            </span>
+          </label>
+        </div>
+      </section>
+
       <!-- 게시물 표시 방식 -->
       <section class="edit-section">
         <h3 class="edit-section-title">게시물 표시 방식</h3>

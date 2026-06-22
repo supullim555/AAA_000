@@ -103,6 +103,25 @@ function _applySubBtn(btn, isSubbed) {
 function renderHero(azitfh, session) {
   const color = azitfh.cover_color || '#4aab8e';
   const bg    = document.getElementById('heroBg');
+  const dcfg  = (typeof azitfh.display_config === 'object' && azitfh.display_config)
+    ? azitfh.display_config : {};
+
+  // ── 히어로 스타일 클래스 ──
+  const heroEl = document.querySelector('.azitfh-hero');
+  if (heroEl) {
+    const height  = dcfg.heroHeight    || 'normal';
+    const align   = dcfg.heroAlign     || 'center';
+    const overlay = dcfg.bannerOverlay || 'medium';
+    heroEl.classList.toggle('azitfh-hero-compact',        height === 'compact');
+    heroEl.classList.toggle('azitfh-hero-tall',           height === 'tall');
+    heroEl.classList.toggle('azitfh-hero-align-left',     align  === 'left');
+    heroEl.classList.remove('azitfh-hero-overlay-none', 'azitfh-hero-overlay-medium', 'azitfh-hero-overlay-strong');
+    heroEl.classList.add(`azitfh-hero-overlay-${overlay}`);
+  }
+
+  // ── 통계 표시 여부 ──
+  const statsEl = document.getElementById('heroStats');
+  if (statsEl) statsEl.classList.toggle('hidden', dcfg.showHeroStats === false);
 
   if (azitfh.banner_url) {
     bg.style.backgroundImage   = `url('${azitfh.banner_url}')`;

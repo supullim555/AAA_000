@@ -1290,6 +1290,21 @@ async function initAzitEdit() {
     } else {
       iconEl.textContent = icon;
     }
+
+    _applyHeroPreviewClasses();
+  }
+
+  function _applyHeroPreviewClasses() {
+    const ph = document.querySelector('.azit-preview-hero');
+    if (!ph) return;
+    const h = document.querySelector('.hero-h-btn.active')?.dataset.height   || 'normal';
+    const a = document.querySelector('.hero-align-btn.active')?.dataset.align || 'center';
+    const o = document.querySelector('.hero-ov-btn.active')?.dataset.overlay  || 'medium';
+    ph.classList.remove('azitfh-hero-compact', 'azitfh-hero-tall', 'azitfh-hero-align-left',
+      'azitfh-hero-overlay-none', 'azitfh-hero-overlay-medium', 'azitfh-hero-overlay-strong');
+    if (h !== 'normal') ph.classList.add(`azitfh-hero-${h}`);
+    if (a === 'left')   ph.classList.add('azitfh-hero-align-left');
+    ph.classList.add(`azitfh-hero-overlay-${o}`);
   }
 
   let _currentBannerUrl = azit.banner_url || '';
@@ -1384,6 +1399,41 @@ async function initAzitEdit() {
     ? azit.display_config
     : {};
 
+  // ── 히어로 스타일 피커 ──
+  function _initHeroPickers(cfg) {
+    const h = cfg.heroHeight    || 'normal';
+    const a = cfg.heroAlign     || 'center';
+    const o = cfg.bannerOverlay || 'medium';
+
+    document.querySelectorAll('.hero-h-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.height === h);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.hero-h-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updatePreview();
+      });
+    });
+    document.querySelectorAll('.hero-align-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.align === a);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.hero-align-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updatePreview();
+      });
+    });
+    document.querySelectorAll('.hero-ov-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.overlay === o);
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.hero-ov-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updatePreview();
+      });
+    });
+    const statsCb = document.getElementById('showHeroStats');
+    if (statsCb) statsCb.checked = cfg.showHeroStats !== false;
+  }
+  _initHeroPickers(dcfg);
+
   // 토글 패널
   const advToggle = document.getElementById('advancedToggle');
   const advPanel  = document.getElementById('advancedPanel');
@@ -1434,7 +1484,11 @@ async function initAzitEdit() {
     const activeSz = document.querySelector('.size-btn.active');
     cfg.cardSize = activeSz ? activeSz.dataset.size : 'normal';
     document.querySelectorAll('[data-cfg]').forEach(cb => { cfg[cb.dataset.cfg] = cb.checked; });
-    cfg.defaultSort = document.getElementById('defaultSortSel')?.value || 'newest';
+    cfg.defaultSort    = document.getElementById('defaultSortSel')?.value || 'newest';
+    cfg.heroHeight     = document.querySelector('.hero-h-btn.active')?.dataset.height   || 'normal';
+    cfg.heroAlign      = document.querySelector('.hero-align-btn.active')?.dataset.align || 'center';
+    cfg.bannerOverlay  = document.querySelector('.hero-ov-btn.active')?.dataset.overlay  || 'medium';
+    cfg.showHeroStats  = document.getElementById('showHeroStats')?.checked !== false;
     return cfg;
   }
 
@@ -1630,6 +1684,7 @@ async function initAzitCreate() {
         ? `<img src="${escapeHTML(_currentIconUrl)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover">`
         : escapeHTML(icon);
     }
+    _applyHeroPreviewClasses();
   }
 
   // 입력 이벤트
@@ -1732,9 +1787,52 @@ async function initAzitCreate() {
     const activeSz = document.querySelector('.size-btn.active');
     cfg.cardSize = activeSz ? activeSz.dataset.size : 'normal';
     document.querySelectorAll('[data-cfg]').forEach(cb => { cfg[cb.dataset.cfg] = cb.checked; });
-    cfg.defaultSort = document.getElementById('defaultSortSel')?.value || 'newest';
+    cfg.defaultSort    = document.getElementById('defaultSortSel')?.value || 'newest';
+    cfg.heroHeight     = document.querySelector('.hero-h-btn.active')?.dataset.height   || 'normal';
+    cfg.heroAlign      = document.querySelector('.hero-align-btn.active')?.dataset.align || 'center';
+    cfg.bannerOverlay  = document.querySelector('.hero-ov-btn.active')?.dataset.overlay  || 'medium';
+    cfg.showHeroStats  = document.getElementById('showHeroStats')?.checked !== false;
     return cfg;
   }
+
+  // ── 히어로 스타일 피커 ──
+  function _applyHeroPreviewClasses() {
+    const ph = document.querySelector('.azit-preview-hero');
+    if (!ph) return;
+    const h = document.querySelector('.hero-h-btn.active')?.dataset.height   || 'normal';
+    const a = document.querySelector('.hero-align-btn.active')?.dataset.align || 'center';
+    const o = document.querySelector('.hero-ov-btn.active')?.dataset.overlay  || 'medium';
+    ph.classList.remove('azitfh-hero-compact', 'azitfh-hero-tall', 'azitfh-hero-align-left',
+      'azitfh-hero-overlay-none', 'azitfh-hero-overlay-medium', 'azitfh-hero-overlay-strong');
+    if (h !== 'normal') ph.classList.add(`azitfh-hero-${h}`);
+    if (a === 'left')   ph.classList.add('azitfh-hero-align-left');
+    ph.classList.add(`azitfh-hero-overlay-${o}`);
+  }
+
+  document.querySelectorAll('.hero-h-btn').forEach(btn => {
+    if (btn.dataset.height === 'normal') btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.hero-h-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updatePreview();
+    });
+  });
+  document.querySelectorAll('.hero-align-btn').forEach(btn => {
+    if (btn.dataset.align === 'center') btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.hero-align-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updatePreview();
+    });
+  });
+  document.querySelectorAll('.hero-ov-btn').forEach(btn => {
+    if (btn.dataset.overlay === 'medium') btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.hero-ov-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updatePreview();
+    });
+  });
 
   // ── 말머리 태그 에디터 ──
   const tagEditor = initTagEditor([]);
