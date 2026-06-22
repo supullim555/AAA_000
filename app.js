@@ -357,19 +357,29 @@ async function renderNotices(isAdmin) {
   }
 
   wrap.innerHTML = list.map(n => `
-    <div class="news-card notice-card">
+    <div class="news-card notice-card" data-id="${n.id}" style="cursor:pointer">
       <div class="news-card-top">
         <span class="news-badge">📢 공지</span>
         <span class="news-date">${escapeHTML(n.date)}</span>
         ${isAdmin ? `<button class="notice-del" data-id="${n.id}">×</button>` : ''}
       </div>
       <p class="news-title">${escapeHTML(n.title)}</p>
+      ${n.content ? `<div class="notice-content hidden">${n.content}</div>` : ''}
     </div>
   `).join('');
 
+  wrap.querySelectorAll('.notice-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.classList.contains('notice-del')) return;
+      const content = card.querySelector('.notice-content');
+      if (content) content.classList.toggle('hidden');
+    });
+  });
+
   if (isAdmin) {
     wrap.querySelectorAll('.notice-del').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         try {
           await deleteNotice(btn.dataset.id);
           await renderNotices(true);
