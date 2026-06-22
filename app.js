@@ -49,6 +49,35 @@ function initDarkMode() {
     }
     updateToggleIcon();
   });
+
+  // 글로벌 footer 삽입
+  if (!document.querySelector('.site-footer')) {
+    const footer = document.createElement('footer');
+    footer.className = 'site-footer';
+    footer.innerHTML = `
+      <div class="footer-inner">
+        <div class="footer-top">
+          <a class="footer-logo" href="index.html">Open <span>Azitfh</span></a>
+          <p class="footer-desc">자유롭게 모이고, 나누고, 만드는 커뮤니티</p>
+        </div>
+        <div class="footer-links">
+          <a href="terms.html">이용약관</a>
+          <span class="footer-sep">|</span>
+          <a href="privacy.html"><strong>개인정보처리방침</strong></a>
+          <span class="footer-sep">|</span>
+          <a href="mailto:imjeseong@gmail.com">문의</a>
+        </div>
+        <div class="footer-bottom">
+          <span>운영 supullim</span>
+          <span class="footer-sep">|</span>
+          <span>문의 imjeseong@gmail.com</span>
+        </div>
+        <p class="footer-copy">&copy; ${new Date().getFullYear()} Open Azitfh. All rights reserved.</p>
+      </div>`;
+    const toast = document.getElementById('toast');
+    if (toast) toast.parentNode.insertBefore(footer, toast);
+    else document.body.appendChild(footer);
+  }
 }
 
 function updateToggleIcon() {
