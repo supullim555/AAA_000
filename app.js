@@ -2401,11 +2401,15 @@ async function initPostWrite() {
           method: 'POST', headers: hdrs, body,
         });
         if (res.ok) break;
+        const errBody = await res.json().catch(() => ({}));
+        const errMsg  = errBody?.error?.message || '';
+        if (res.status === 400 && /expired|invalid/i.test(errMsg)) {
+          throw new Error('API 키가 만료되었거나 유효하지 않습니다.\nGoogle AI Studio에서 새 키를 발급받아 주세요.');
+        }
         if (res.status === 429 || res.status === 403) {
           lastErr = res; res = null; continue;
         }
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `API 오류 (${res.status})`);
+        throw new Error(errMsg || `API 오류 (${res.status})`);
       }
       if (!res) {
         throw new Error('모든 모델에서 한도 초과입니다.\n' +
