@@ -382,6 +382,58 @@ async function writeComment(args) {
   return created;
 }
 
+async function writeAzit(args) {
+  const { name, desc, type, icon, color } = args;
+  if (!name) throw new Error('--name (아지트 이름) 이 필요합니다.');
+
+  const { jwt, user, nick } = await getSession(args);
+
+  const body = {
+    name,
+    description:  desc  || null,
+    type:         type  || 'general',
+    icon:         icon  || '🏠',
+    cover_color:  color || '#4aab8e',
+    created_by:   nick,
+    creator_id:   user.id,
+  };
+
+  const [created] = await sbFetch('POST', '/rest/v1/azits', body, jwt);
+  console.log(`\n✅ 아지트 생성 완료!`);
+  console.log(`   ID:   ${created.id}`);
+  console.log(`   이름: ${created.name}`);
+  console.log(`   타입: ${created.type}  아이콘: ${created.icon}`);
+  console.log(`   URL:  https://aaa-000.vercel.app/azitfh.html?name=${encodeURIComponent(created.name)}`);
+  return created;
+}
+
+async function editAzit(id, args) {
+  if (!id) throw new Error('아지트 UUID 또는 이름이 필요합니다.');
+  const { name, desc, icon, color } = args;
+  if (!name && !desc && !icon && !color) throw new Error('--name, --desc, --icon, --color 중 하나 이상 필요합니다.');
+
+  const { jwt } = await getSession(args);
+  const patch = {};
+  if (name)  patch.name        = name;
+  if (desc)  patch.description = desc;
+  if (icon)  patch.icon        = icon;
+  if (color) patch.cover_color = color;
+
+  const isUUID = /^[0-9a-f-]{36}$/i.test(id);
+  const filter = isUUID ? `id=eq.${id}` : `name=eq.${encodeURIComponent(id)}`;
+  await sbFetch('PATCH', `/rest/v1/azits?${filter}`, patch, jwt);
+  console.log(`\n✅ 아지트가 수정됐어요! (${id})`);
+}
+
+async function deleteAzit(id, args) {
+  if (!id) throw new Error('아지트 UUID 또는 이름이 필요합니다.');
+  const { jwt } = await getSession(args);
+  const isUUID = /^[0-9a-f-]{36}$/i.test(id);
+  const filter = isUUID ? `id=eq.${id}` : `name=eq.${encodeURIComponent(id)}`;
+  await sbFetch('DELETE', `/rest/v1/azits?${filter}`, undefined, jwt);
+  console.log(`\n✅ 아지트가 삭제됐어요! (${id})`);
+}
+
 async function editPost(id, args) {
   if (!id) throw new Error('게시물 UUID가 필요합니다.');
   const { title, content } = args;
@@ -451,17 +503,20 @@ async function main() {
       else if (sub === 'code')  await writeCodePost(args);
       else if (sub === 'multifile') await writeMultifileCodePost(args);
       else if (sub === 'comment')   await writeComment(args);
-      else console.log('사용법: node scripts/ai.js write <post|code|multifile|comment> [options]');
+      else if (sub === 'azit')      await writeAzit(args);
+      else console.log('사용법: node scripts/ai.js write <post|code|multifile|comment|azit> [options]');
 
     // ── 수정 ──
     } else if (cmd === 'edit') {
-      if (sub === 'post' && rest[0]) await editPost(rest[0], args);
-      else console.log('사용법: node scripts/ai.js edit post <UUID> [--title T] [--content C]');
+      if (sub === 'post' && rest[0])  await editPost(rest[0], args);
+      else if (sub === 'azit' && rest[0]) await editAzit(rest[0], args);
+      else console.log('사용법: node scripts/ai.js edit <post|azit> <UUID/이름> [options]');
 
     // ── 삭제 ──
     } else if (cmd === 'delete') {
-      if (sub === 'post' && rest[0]) await deletePost(rest[0], args);
-      else console.log('사용법: node scripts/ai.js delete post <UUID>');
+      if (sub === 'post' && rest[0])  await deletePost(rest[0], args);
+      else if (sub === 'azit' && rest[0]) await deleteAzit(rest[0], args);
+      else console.log('사용법: node scripts/ai.js delete <post|azit> <UUID/이름>');
 
     // ── 투표 ──
     } else if (cmd === 'vote') {
