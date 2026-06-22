@@ -5032,6 +5032,10 @@ async function initDashboard() {
 
   await initCategoryManager(user.id);
 
+  if (await isAdmin()) {
+    document.getElementById('adminBtn')?.classList.remove('hidden');
+  }
+
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await authSignOut();
     window.location.href = 'index.html';
