@@ -39,6 +39,13 @@
         <div class="error-msg" id="err-login"
              style="margin-bottom:14px; font-size:13px; text-align:center;"></div>
 
+        <!-- 미인증 안내 (로그인 시도 시 표시) -->
+        <div id="unconfirmedBox" class="hidden" style="background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:14px;text-align:center;font-size:13px;line-height:1.6">
+          <p style="margin:0 0 10px">📬 이메일 인증이 완료되지 않았습니다.<br>메일함에서 인증 링크를 클릭해 주세요.</p>
+          <button type="button" id="loginResendBtn" class="btn-secondary" style="font-size:13px;padding:7px 16px">인증 이메일 다시 보내기</button>
+          <div id="loginResendStatus" style="font-size:12px;color:var(--text-light);margin-top:6px"></div>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-full">로그인</button>
       </form>
 

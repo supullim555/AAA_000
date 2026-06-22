@@ -3917,8 +3917,26 @@ async function initSignup() {
     setLoading(submitBtn, true);
     try {
       await authSignUp(email, pw, nickname);
-      showToast('가입 완료! 이메일을 확인해 주세요 📬', 'green');
-      setTimeout(() => { window.location.href = 'login.html'; }, 2200);
+      // 가입 성공 → 인증 안내 화면 표시
+      document.getElementById('signupForm')?.closest('.auth-box')?.classList.add('hidden');
+      const sentBox = document.getElementById('emailSentBox');
+      if (sentBox) {
+        sentBox.classList.remove('hidden');
+        document.getElementById('emailSentAddr').textContent = email;
+      }
+      // 재발송 버튼
+      document.getElementById('resendBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('resendBtn');
+        btn.disabled = true;
+        btn.textContent = '발송 중…';
+        try {
+          await supabaseClient.auth.resend({ type: 'signup', email });
+          btn.textContent = '✅ 인증 이메일을 다시 보냈어요!';
+        } catch {
+          btn.textContent = '❌ 발송 실패 — 잠시 후 다시 시도해 주세요';
+        }
+        setTimeout(() => { btn.disabled = false; btn.textContent = '인증 이메일 다시 보내기'; }, 5000);
+      });
     } catch (err) {
       showError('err-global', toKoreanError(err));
     } finally {
@@ -3959,7 +3977,27 @@ async function initLogin() {
       showToast(`반가워요, ${nickname}님! 🌟`, 'green');
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
     } catch (err) {
-      showError('err-login', toKoreanError(err));
+      const msg = err?.message || '';
+      if (/email.*not.*confirm|confirm.*email/i.test(msg)) {
+        showError('err-login', '이메일 인증이 완료되지 않았습니다.');
+        const box = document.getElementById('unconfirmedBox');
+        if (box) box.classList.remove('hidden');
+        // 재발송 버튼
+        document.getElementById('loginResendBtn')?.addEventListener('click', async function handler() {
+          this.disabled = true;
+          const status = document.getElementById('loginResendStatus');
+          if (status) status.textContent = '발송 중…';
+          try {
+            await supabaseClient.auth.resend({ type: 'signup', email });
+            if (status) status.textContent = '✅ 인증 이메일을 다시 보냈어요!';
+          } catch {
+            if (status) status.textContent = '❌ 발송 실패';
+          }
+          setTimeout(() => { this.disabled = false; if (status) status.textContent = ''; }, 10000);
+        }, { once: true });
+      } else {
+        showError('err-login', toKoreanError(err));
+      }
     } finally {
       setLoading(submitBtn, false);
     }

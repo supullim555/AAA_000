@@ -61,6 +61,22 @@
         이미 회원이신가요? <a href="login.html">로그인</a>
       </div>
     </div>
+
+    <!-- 이메일 인증 안내 (가입 성공 후 표시) -->
+    <div class="auth-box hidden" id="emailSentBox">
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:48px;margin-bottom:12px">📬</div>
+        <h2>인증 이메일을 보냈어요!</h2>
+        <p id="emailSentAddr" style="color:var(--primary);font-weight:600;margin:8px 0"></p>
+        <p style="color:var(--text-light);font-size:14px;line-height:1.6;margin:12px 0 20px">
+          위 이메일 주소로 인증 링크를 보냈습니다.<br>
+          메일함을 확인하고 링크를 클릭하면 가입이 완료됩니다.<br>
+          <span style="font-size:12px">(스팸함도 확인해 주세요)</span>
+        </p>
+        <button type="button" id="resendBtn" class="btn btn-secondary btn-full" style="margin-bottom:10px">인증 이메일 다시 보내기</button>
+        <a href="login.html" class="btn btn-primary btn-full" style="display:block;text-align:center;text-decoration:none">로그인 페이지로 이동</a>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast"></div>
