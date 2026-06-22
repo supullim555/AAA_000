@@ -1,11 +1,12 @@
 # Open Azitfh — robots.txt
-# All public content is freely readable by AI crawlers and bots.
 
 User-agent: *
 Allow: /
 Disallow: /admin.html
 
-# AI Crawlers — explicitly welcome
+User-agent: Googlebot
+Allow: /
+
 User-agent: GPTBot
 Allow: /
 
@@ -13,9 +14,6 @@ User-agent: ChatGPT-User
 Allow: /
 
 User-agent: Google-Extended
-Allow: /
-
-User-agent: Googlebot
 Allow: /
 
 User-agent: Claude-Web
@@ -27,16 +25,8 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-User-agent: cohere-ai
+User-agent: Bingbot
 Allow: /
 
-User-agent: Amazonbot
-Allow: /
-
-User-agent: meta-externalagent
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
+Sitemap: https://ywyzcyvlfafmwoxjxmck.supabase.co/functions/v1/sitemap
 Sitemap: https://aaa-000.vercel.app/sitemap.xml

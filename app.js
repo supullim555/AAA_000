@@ -98,10 +98,15 @@ function setMeta(id, value) {
 
 function updatePostMeta(post) {
   const desc = truncate(stripHtml(post.content || ''), 160);
+  const url  = `https://aaa-000.vercel.app/post-detail.html?id=${post.id}`;
   document.title = `${post.title} — Open Azitfh`;
   setMeta('ogTitle',        post.title + ' — Open Azitfh');
   setMeta('ogDescription',  desc);
   setMeta('metaDescription', desc);
+  setMeta('ogUrl', url);
+  if (post.thumbnail_url) setMeta('ogImage', post.thumbnail_url);
+  const canon = document.getElementById('canonicalLink');
+  if (canon) canon.setAttribute('href', url);
   const schema = {
     '@context': 'https://schema.org',
     '@type':    'Article',
@@ -109,7 +114,9 @@ function updatePostMeta(post) {
     'description': desc,
     'author': { '@type': 'Person', 'name': post.author_nickname },
     'datePublished': post.created_at,
-    'url': window.location.href,
+    'url': url,
+    'mainEntityOfPage': { '@type': 'WebPage', '@id': url },
+    'publisher': { '@type': 'Organization', 'name': 'Open Azitfh', 'url': 'https://aaa-000.vercel.app' },
     'isPartOf': { '@type': 'WebSite', 'name': 'Open Azitfh', 'url': 'https://aaa-000.vercel.app' },
   };
   if (post.thumbnail_url) schema.image = post.thumbnail_url;
