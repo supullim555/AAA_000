@@ -8,3 +8,4 @@ hero-gen/
 .mcp.json
 
 # supabase-config.js 는 anon(공개)키이므로 git 추적 허용
+node_modules/
