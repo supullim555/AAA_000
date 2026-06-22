@@ -2322,6 +2322,11 @@ async function initPostWrite() {
   const _aiStatus    = document.getElementById('aiStatus');
   const _aiSubmitBtn = document.getElementById('aiSubmitBtn');
 
+  // 이메일 회원가입 사용자에게만 AI 버튼 표시
+  if (session?.user?.email) {
+    document.getElementById('aiGenerateBtn')?.classList.remove('hidden');
+  }
+
   document.getElementById('aiGenerateBtn')?.addEventListener('click', () => {
     const titleVal = form.title?.value?.trim();
     if (titleVal && !_aiPrompt.value.trim()) _aiPrompt.value = titleVal;
