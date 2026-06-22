@@ -1946,66 +1946,7 @@ async function initAzitCreate() {
 /* ════════════════════════════════════════
    Page: Azit Type Create
 ════════════════════════════════════════ */
-async function initAzitTypeCreate() {
-  const session = await requireAuth();
-  if (!session) return;
-  updateNav(session);
-
-  const form = document.getElementById('azitTypeCreateForm');
-  if (!form) return;
-
-  const submitBtn  = form.querySelector('[type=submit]');
-  const iconInput  = document.getElementById('azitTypeIcon');
-  const colorInput = document.getElementById('azitTypeColor');
-  const hexSpan    = document.getElementById('azitTypeColorHex');
-  const prevBanner = document.getElementById('typePreviewBanner');
-  const prevIcon   = document.getElementById('typePreviewIcon');
-  const prevName   = document.getElementById('typePreviewName');
-  const prevDesc   = document.getElementById('typePreviewDesc');
-
-  submitBtn.dataset.label = submitBtn.textContent;
-
-  function updatePreview() {
-    const label = form.azitTypeLabel.value.trim() || '타입 이름';
-    const desc  = form.azitTypeDesc.value.trim()  || '엔진 설명';
-    const icon  = iconInput.value  || '🏠';
-    const color = colorInput.value || '#4aab8e';
-    hexSpan.textContent  = color;
-    prevIcon.textContent = icon;
-    prevName.textContent = label;
-    prevDesc.textContent = desc;
-    prevBanner.style.background =
-      `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 50)} 100%)`;
-  }
-
-  form.azitTypeLabel.addEventListener('input', updatePreview);
-  form.azitTypeDesc.addEventListener('input', updatePreview);
-  iconInput.addEventListener('input', updatePreview);
-  colorInput.addEventListener('input', updatePreview);
-  updatePreview();
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const label = form.azitTypeLabel.value.trim();
-    if (label.length < 2) { showToast('타입 이름은 2자 이상이어야 해요.', 'red'); return; }
-
-    setLoading(submitBtn, true);
-    try {
-      await insertAzitType({
-        label,
-        description:   form.azitTypeDesc.value.trim(),
-        default_icon:  iconInput.value.trim() || '🏠',
-        default_color: colorInput.value,
-      });
-      showToast(`"${label}" 엔진이 등록됐어요!`, 'green');
-      setTimeout(() => { location.href = 'dashboard.html'; }, 900);
-    } catch (err) {
-      setLoading(submitBtn, false);
-      if (err.code === '23505') showToast('이미 있는 타입 이름이에요.', 'red');
-      else showToast('타입 생성 실패', 'red');
-    }
-  });
-}
+function initAzitTypeCreate() { /* 비활성화 */ }
 
 /* ════════════════════════════════════════
    Page: Post Write  (Quill 리치 에디터)
