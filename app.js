@@ -796,10 +796,10 @@ async function deletePost(id) {
 /* ════════════════════════════════════════
    익명 유동닉
 ════════════════════════════════════════ */
-function computeAnonNick(userId, azitId) {
-  // DJB2 hash — 같은 (user, azit) 쌍에 항상 동일한 닉네임 반환
+function computeAnonNick(userId, azitKey) {
+  // DJB2 hash — 같은 (user, azit) 쌍에 항상 동일한 닉네임 반환 (아지트 이름 기준)
   let h = 5381;
-  const s = (userId || '') + '|' + (azitId || '');
+  const s = (userId || '') + '|' + (azitKey || '');
   for (let i = 0; i < s.length; i++) {
     h = ((h << 5) + h + s.charCodeAt(i)) & 0x7fffffff;
   }
@@ -2124,7 +2124,7 @@ async function initPostWrite() {
 
       const isAnon = document.getElementById('anonToggle')?.checked || false;
       const authorNick = isAnon
-        ? computeAnonNick(u.id, azitMap[category]?.id)
+        ? computeAnonNick(u.id, category)
         : (u.user_metadata?.nickname || u.email);
 
       await insertPost({
@@ -2795,8 +2795,8 @@ async function getComments(postId) {
   return data || [];
 }
 
-async function insertComment({ post_id, author_id, author_nickname, content, parent_id = null }) {
-  const row = { post_id, author_id, author_nickname, content };
+async function insertComment({ post_id, author_id, author_nickname, content, parent_id = null, is_anonymous = false }) {
+  const row = { post_id, author_id, author_nickname, content, is_anonymous };
   if (parent_id) row.parent_id = parent_id;
   const { error } = await supabaseClient.from('comments').insert(row);
   if (error) throw error;
@@ -2828,11 +2828,14 @@ async function renderComments(postId, session) {
   });
 
   function renderCmt(c, isReply = false) {
-    const replies = (children[c.id] || []).map(r => renderCmt(r, true)).join('');
+    const replies    = (children[c.id] || []).map(r => renderCmt(r, true)).join('');
+    const authorHtml = c.is_anonymous
+      ? `<span class="comment-author anon-nick">${escapeHTML(c.author_nickname)}</span>`
+      : `<a class="comment-author" href="profile.html?id=${c.author_id}">${escapeHTML(c.author_nickname)}</a>`;
     return `
     <div class="comment-item${isReply ? ' comment-reply' : ''}" id="cmt-${c.id}">
       <div class="comment-meta">
-        <a class="comment-author" href="profile.html?id=${c.author_id}">${escapeHTML(c.author_nickname)}</a>
+        ${authorHtml}
         <span class="comment-date">${formatDate(c.created_at)}</span>
         ${session ? `<button class="comment-reply-btn" data-id="${c.id}" data-nick="${escapeHTML(c.author_nickname)}">답글</button>` : ''}
         ${session?.user?.id === c.author_id
@@ -2883,7 +2886,7 @@ async function renderComments(postId, session) {
   });
 }
 
-async function initComments(postId, session) {
+async function initComments(postId, session, category = '') {
   await renderComments(postId, session);
 
   const form      = document.getElementById('commentForm');
@@ -2906,10 +2909,16 @@ async function initComments(postId, session) {
     submitBtn.disabled = true;
     try {
       const parentId = form.dataset.parentId || null;
+      const isAnon   = document.getElementById('anonCommentToggle')?.checked || false;
+      const u        = session.user;
+      const authorNick = isAnon
+        ? computeAnonNick(u.id, category)
+        : (u.user_metadata?.nickname || u.email);
       await insertComment({
-        post_id: postId,
-        author_id: session.user.id,
-        author_nickname: session.user.user_metadata?.nickname || session.user.email,
+        post_id:         postId,
+        author_id:       u.id,
+        author_nickname: authorNick,
+        is_anonymous:    isAnon,
         content,
         parent_id: parentId,
       });
@@ -2948,7 +2957,12 @@ async function initPostDetail() {
   const authorEl = document.getElementById('postAuthor');
   if (authorEl) {
     authorEl.textContent = post.author_nickname;
-    authorEl.href = `profile.html?id=${post.author_id}`;
+    if (post.is_anonymous) {
+      authorEl.removeAttribute('href');
+      authorEl.className = 'author-link anon-nick';
+    } else {
+      authorEl.href = `profile.html?id=${post.author_id}`;
+    }
   }
   document.getElementById('postDate').textContent     = formatDate(post.created_at);
   document.getElementById('postViews').textContent    = post.views || 0;
@@ -3233,7 +3247,7 @@ async function initPostDetail() {
   }
 
   // 댓글
-  await initComments(id, session);
+  await initComments(id, session, post.category);
 }
 
 /* ════════════════════════════════════════

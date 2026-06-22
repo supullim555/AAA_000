@@ -126,6 +126,12 @@
       <div id="commentList"></div>
       <form id="commentForm" class="comment-form hidden">
         <textarea id="commentInput" placeholder="댓글을 입력하세요" maxlength="500" rows="3"></textarea>
+        <div class="anon-toggle-row" style="padding:4px 0 2px">
+          <label class="anon-toggle-label">
+            <input type="checkbox" id="anonCommentToggle">
+            <span>익명으로 작성</span>
+          </label>
+        </div>
         <div class="comment-form-actions">
           <span id="commentCharCount">0/500</span>
           <button type="submit" class="btn btn-primary">등록</button>
