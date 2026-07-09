@@ -4556,3 +4556,92 @@ textarea.form-input     { resize: vertical; line-height: 1.55; }
 .legal-wrap ul { margin: 8px 0; padding-left: 24px; }
 .legal-wrap li { margin: 4px 0; }
 .legal-wrap a { color: var(--primary); }
+
+/* ════════════════════════════════════════
+   모바일 가시성 개선 — 추가 패치
+════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* 헤더 검색창: 모바일에선 본문 검색창 사용 */
+  .header-search-wrap { display: none; }
+
+  /* 추천/비추천 버튼 */
+  .vote-btn { padding: 8px 12px; font-size: 13px; gap: 5px; }
+
+  /* 게시물 액션 버튼 — 줄바꿈 허용 */
+  .post-actions { flex-wrap: wrap; gap: 8px; }
+  .post-report-btn,
+  .post-del-btn,
+  .post-pin-btn { flex: 1; text-align: center; min-width: 80px; }
+
+  /* 아지트 섹션 — 검색 + 타입 버튼 줄바꿈 */
+  .cat-top { flex-wrap: wrap; gap: 8px; }
+  .cat-search { max-width: none; flex: 1; min-width: 100px; }
+
+  /* 선택된 아지트 패널 */
+  .sel-azit-wrap { padding: 10px 14px; gap: 10px; }
+  .sel-azit-actions { flex-wrap: wrap; gap: 6px; }
+
+  /* 관리자 패널 */
+  .admin-wrap { padding: 20px 14px 48px; }
+  .admin-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .admin-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  .admin-tab { white-space: nowrap; font-size: 13px; padding: 10px 14px; }
+
+  /* 대시보드 — 게시물 섹션 헤더 */
+  .dash-posts-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  .dash-btn-row { width: 100%; flex-wrap: wrap !important; }
+
+  /* 게시물 관리 */
+  .post-manage-actions { flex-wrap: wrap; gap: 6px; }
+  .post-manage-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* 프로필 통계 */
+  .pf-stats { flex-wrap: wrap; }
+  .pf-stat { flex: 1; min-width: 80px; }
+
+  /* 알림 페이지 */
+  .notif-page-wrap { padding: 20px 14px 48px; }
+
+  /* 게시물 목록 제목: 넘침 방지 */
+  .section-header .section-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 추천/비추천 버튼 */
+  .vote-btn { padding: 8px 10px; font-size: 12px; }
+  .vote-section { gap: 6px; padding: 14px 0; }
+
+  /* 게시물 상세 제목 */
+  .post-detail-title { font-size: 18px; }
+
+  /* 게시물 액션 버튼 크기 */
+  .post-report-btn,
+  .post-del-btn,
+  .post-pin-btn { padding: 7px 12px; font-size: 12px; }
+
+  /* 댓글 폼 액션 */
+  .comment-form-actions { flex-wrap: wrap; gap: 6px; }
+
+  /* 관리자 탭 */
+  .admin-tab { padding: 8px 10px; font-size: 12px; }
+
+  /* 아지트 히어로 통계 */
+  .azitfh-stats { font-size: 12px; gap: 12px; flex-wrap: wrap; }
+
+  /* 대시보드 버튼 */
+  .dash-btn-row .btn { font-size: 12px; padding: 8px 12px; }
+}
